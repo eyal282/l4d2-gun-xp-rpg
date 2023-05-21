@@ -6,7 +6,7 @@
 #define REQUIRE_PLUGIN
 #define REQUIRE_EXTENSIONS
 
-#define UPDATE_URL "https://raw.githubusercontent.com/eyal282/csgo-gun-xp-mod/master/addons/sourcemod/updatefile.txt"
+#define UPDATE_URL "https://raw.githubusercontent.com/eyal282/l4d2-gun-xp-rpg/master/addons/sourcemod/updatefile.txt"
 
 #define semicolon 1
 #define newdecls  required

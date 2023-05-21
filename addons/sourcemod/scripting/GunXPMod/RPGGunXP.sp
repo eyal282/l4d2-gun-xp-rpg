@@ -21,9 +21,9 @@
 #define PLUGIN_VERSION "1.0"
 
 public Plugin myinfo = {
-	name = "Gun XP Mod",
+	name = "Gun XP - RPG",
 	author = "Eyal282",
-	description = "The sourcemod equivalent of the well-known Gun-XP of Counter Strike 1.6",
+	description = "L4D2 RPG and Gun XP",
 	version = PLUGIN_VERSION,
 	url = "NULL"
 };
