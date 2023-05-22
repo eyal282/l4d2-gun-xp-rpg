@@ -274,13 +274,15 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	int cost = GetNativeCell(4);
 
-	ArrayList reqIdentifiers = GetNativeCell(5);
+	int levelReq = GetNativeCell(5);
+
+	ArrayList reqIdentifiers = GetNativeCell(6);
 
 	skill.identifier = identifier;
 	skill.name = name;
 	skill.description = description;
 	skill.cost = cost;
-	skill.levelReq = cost;
+	skill.levelReq = levelReq;
 
 	if(reqIdentifiers == null)
 	{
@@ -894,7 +896,7 @@ public void ShowPerkTreeInfo(int client, int item)
 	char sInfo[11];
 	IntToString(item, sInfo, sizeof(sInfo));
 
-	AddMenuItem(hMenu, sInfo, "Upgrade Perk Tree", g_iUnlockedPerkTrees[client][item] == perkTree.costs.Length ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	AddMenuItem(hMenu, sInfo, "Upgrade Perk Tree", g_iUnlockedPerkTrees[client][item] == perkTree.costs.Length || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][item] + 1) > GetClientLevel(client) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 	if(g_iUnlockedPerkTrees[client][item] == perkTree.costs.Length)
 	{
@@ -987,7 +989,7 @@ public Action Command_Skills(int client, int args)
 		g_aSkills.GetArray(i, skill);
 
 		Format(TempFormat, sizeof(TempFormat), "%s (%i XP) - (%s)", skill.name, skill.cost, g_bUnlockedSkills[client][i] ? "Bought" : "Not Bought");
-		AddMenuItem(hMenu, "", TempFormat, g_bUnlockedSkills[client][i] || GetClientXPCurrency(client) < skill.cost ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+		AddMenuItem(hMenu, "", TempFormat);
 	}
 
 
@@ -1571,6 +1573,7 @@ stock void ResetPerkTreesAndSkills(int client)
 	for(int i=0;i < MAX_ITEMS;i++)
 	{
 		g_bUnlockedSkills[client][i] = false;
+		g_iUnlockedPerkTrees[client][i] = -1;
 	}
 
 	XPCurrency[client] = XP[client];

@@ -1,7 +1,7 @@
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
-#include <fpvm_interface>
+#include <left4dhooks>
 
 #define PLUGIN_VERSION "1.0"
 #pragma newdecls required
@@ -11,14 +11,14 @@
 #define MIN_FLOAT -2147483647.0
 
 // Make identifier as descriptive as possible.
-native int GunXP_SkillShop_RegisterSkill(char identifier[32], char name[64], char description[512], int cost, int gamemode);
-native bool GunXP_SkillShop_IsSkillUnlocked(int client, int skillIndex);
+native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null);
+native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
-int vampireIndex = -1;
+int parryTacticsIndex = -1;
 
 public void OnLibraryAdded(const char[] name)
 {
-	if (StrEqual(name, "GunXP_UnlockShop"))
+	if (StrEqual(name, "GunXP_SkillShop"))
 	{
 		RegisterSkill();
 	}
@@ -44,46 +44,56 @@ public void OnPluginStart()
 
 public void RegisterSkill()
 {
-    vampireIndex = GunXP_SkillShop_RegisterSkill("VampireAndHP", "Vampire", "30% HP regen when you deal damage.\n+30 HP on spawn", 1, 1);
+    parryTacticsIndex = GunXP_RPGShop_RegisterSkill("Parry Tactics", "Parry Tactics", "While you are incapped, your revive cannot be interrupted by damage", 1, 1);
 }
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_OnTakeDamageAlivePost, Event_TakeDamageAlivePost);
+	SDKHook(client, SDKHook_OnTakeDamage, Event_OnTakeDamage);
 }
 
-public void Event_TakeDamageAlivePost(int victim, int attacker, int inflictor, float damage, int damagetype)
+public Action Event_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
-    if(!IsPlayer(attacker))
-        return;
+	if(!L4D_IsPlayerIncapacitated(victim))
+		return Plugin_Continue;
 
-    else if(!IsPlayerAlive(attacker))
-        return;
+	else if(damage >= float(GetEntityHealth(victim)))
+		return Plugin_Continue;
 
-    else if(!GunXP_SkillShop_IsSkillUnlocked(attacker, vampireIndex))
-        return;
-    
-    else if(damage < 1.0)
-        return;
+	char sClassname[64];
+	GetEdictClassname(attacker, sClassname, sizeof(sClassname));
 
-    int HPToGive = RoundToCeil(damage * 0.3);
+	if(!StrEqual(sClassname, "infected") && !StrEqual(sClassname, "witch") && (attacker == 0 || (IsPlayer(attacker) && L4D_GetClientTeam(attacker) != L4DTeam_Infected)))
+		return Plugin_Continue;
 
-    if(HPToGive + GetEntityHealth(attacker) >= GetEntityMaxHealth(attacker))
-        SetEntityHealth(attacker, GetEntityMaxHealth(attacker));
+	else if(!GunXP_RPGShop_IsSkillUnlocked(victim, parryTacticsIndex))
+		return Plugin_Continue;
 
-    else
-        SetEntityHealth(attacker, GetEntityHealth(attacker) + HPToGive);
-}
+	SetEntityHealth(victim, GetEntityHealth(victim) - RoundFloat(damage));
+	Event hNewEvent = CreateEvent("player_hurt", true);
 
-public void GunXP_OnPlayerSpawned(int client)
-{
-	if(GunXP_SkillShop_IsSkillUnlocked(client, vampireIndex))
+	SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
+
+	if(IsPlayer(attacker))
 	{
-    	SetEntityHealth(client, GetEntityHealth(client) + 30);
-    	SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 30);
+		SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
 	}
-}
+	else
+	{
+		SetEventInt(hNewEvent, "attacker", 0);
+	}
+	
+	SetEventInt(hNewEvent, "attackerentid", attacker);
+	SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
+	SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
+	SetEventInt(hNewEvent, "dmg_armor", 0);
+	SetEventInt(hNewEvent, "hitgroup", 0);
+	SetEventInt(hNewEvent, "type", damagetype);
 
+    FireEvent(hNewEvent);
+
+   return Plugin_Stop;
+}
 
 stock bool IsPlayer(int client)
 {

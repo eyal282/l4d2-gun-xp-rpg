@@ -68,23 +68,23 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     levelReqs = new ArrayList(1);
 
-    descriptions.PushString("+20% revive speed.");
+    descriptions.PushString("+20%% revive speed.");
     costs.Push(300);
     levelReqs.Push(4);
 
-    descriptions.PushString("+40% revive speed.");
+    descriptions.PushString("+40%% revive speed.");
     costs.Push(1000);
     levelReqs.Push(9);
 
-    descriptions.PushString("+60% revive speed.");
+    descriptions.PushString("+60%% revive speed.");
     costs.Push(5000);
     levelReqs.Push(15);
 
-    descriptions.PushString("+80% revive speed.");
+    descriptions.PushString("+80%% revive speed.");
     costs.Push(10000);
     levelReqs.Push(21);
 
-    descriptions.PushString("+100% revive speed.");
+    descriptions.PushString("+100%% revive speed.");
     costs.Push(50000);
     levelReqs.Push(26);
 
