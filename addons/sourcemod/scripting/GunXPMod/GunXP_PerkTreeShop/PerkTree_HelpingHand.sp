@@ -1,6 +1,7 @@
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
+#include <left4dhooks>
 
 #define PLUGIN_VERSION "1.0"
 #pragma newdecls required

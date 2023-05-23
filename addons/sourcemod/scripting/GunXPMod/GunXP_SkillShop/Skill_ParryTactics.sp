@@ -44,7 +44,7 @@ public void OnPluginStart()
 
 public void RegisterSkill()
 {
-    parryTacticsIndex = GunXP_RPGShop_RegisterSkill("Parry Tactics", "Parry Tactics", "While you are incapped, your revive cannot be interrupted by damage", 1, 1);
+    parryTacticsIndex = GunXP_RPGShop_RegisterSkill("Parry Tactics", "Parry Tactics", "While you are incapped, your revive cannot be interrupted by damage", 8000, 15);
 }
 
 public void OnClientPutInServer(int client)
