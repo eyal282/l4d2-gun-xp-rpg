@@ -229,6 +229,9 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+
+	CreateNative("GunXP_RPG_GetClientLevel", Native_GetClientLevel);
+
 	CreateNative("GunXP_RPGShop_RegisterSkill", Native_RegisterSkill);
 	CreateNative("GunXP_RPGShop_IsSkillUnlocked", Native_IsSkillUnlocked);
 	CreateNative("GunXP_RPGShop_RegisterPerkTree", Native_RegisterPerkTree);
@@ -237,8 +240,6 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("GunXP_UnlockShop_RegisterProduct", Native_RegisterProduct);
 	CreateNative("GunXP_UnlockShop_ReplenishProducts", Native_ReplenishProducts);
 	CreateNative("GunXP_UnlockShop_IsProductUnlocked", Native_IsProductUnlocked);
-
-	//CreateNative("GunXP_IsFFA", Native_IsFFA);
 
 	RegPluginLibrary("GunXPMod");
 	RegPluginLibrary("GunXP_UnlockShop");
@@ -249,6 +250,13 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 
 
 // GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null)
+
+public int Native_GetClientLevel(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	return GetClientLevel(client);
+}
 public int Native_RegisterSkill(Handle caller, int numParams)
 {
 	enSkill skill;
@@ -1324,22 +1332,14 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 	}
 	
 	float PremiumMultiplier = GetConVarFloat(hcv_VIPMultiplier);
-	if(CheckCommandAccess(attacker, "sm_checkcommandaccess_custom4", ADMFLAG_VIP) && PremiumMultiplier != 1.0)
+	if(CheckCommandAccess(attacker, "sm_vip_cca", ADMFLAG_VIP) && PremiumMultiplier != 1.0)
 	{
 		float xp = float(xpToAdd);
 		
 		xp *= PremiumMultiplier;
 		
 		xpToAdd = RoundFloat(xp);
-		
-		Format(HudFormat, sizeof(HudFormat), "%sx %.1f XP ( VIP )\n", HudFormat, PremiumMultiplier);
 	}
-	if(HudFormat[0] != EOS)
-	{
-		SetHudMessage(0.05, 0.7, 6.0, Colors[0], Colors[1], Colors[2], 255, 1, 5.0);
-		ShowHudMessage(attacker, HUD_KILL_CHANNEL, HudFormat);
-	}
-
 	AddClientXP(attacker, xpToAdd);
 
 
@@ -1490,12 +1490,12 @@ public Action Event_WitchDeath(Handle hEvent, const char[] name, bool dontBroadc
 	return Plugin_Continue;
 }
 
-public Action Event_Heal(Handle hEvent, const char[] name, bool dontBroadcast)
+public Action Event_HealSuccess(Handle hEvent, const char[] name, bool dontBroadcast)
 {
 	int restored = GetEventInt(event, "health_restored");
-	CLIENT
+	int client = GetClientOfUserId(GetEventInt(event, "subject"));
 	int subject = GetClientOfUserId(GetEventInt(event, "subject"));
-	if (subject > 0 && client > 0 && !IsFakeClient(client) && GetClientTeam(client) == 2 && IsAllowedGameMode() && GetConVarInt(Enable) == 1)
+	if (subject != 0 && client != 0 && !IsFakeClient(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 	{
 		if (client == subject) return Plugin_Continue;
 		if (restored > 39)

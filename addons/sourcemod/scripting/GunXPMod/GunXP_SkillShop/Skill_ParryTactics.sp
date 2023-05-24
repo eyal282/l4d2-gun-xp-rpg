@@ -10,6 +10,16 @@
 
 #define MIN_FLOAT -2147483647.0
 
+public Plugin myinfo =
+{
+	name        = "Parry Tactics Skill --> Gun XP - RPG",
+	author      = "Eyal282",
+	description = "Skill that prevents you from ",
+	version     = PLUGIN_VERSION,
+	url         = ""
+};
+
+
 // Make identifier as descriptive as possible.
 native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null);
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);

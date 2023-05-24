@@ -8,6 +8,15 @@
 
 #pragma semicolon 1
 
+public Plugin myinfo =
+{
+	name        = "Helping Hand Perk Tree --> Gun XP RPG",
+	author      = "Eyal282",
+	description = "Perk tree to reduce the duration of reviving teammates.",
+	version     = PLUGIN_VERSION,
+	url         = ""
+};
+
 #define MIN_FLOAT -2147483647.0
 
 // Make identifier as descriptive as possible.
