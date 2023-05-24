@@ -30,11 +30,23 @@ public Plugin myinfo = {
 
 bool SaveLastGuns[MAXPLAYERS+1];
 
-Handle hcv_xpCIKill = INVALID_HANDLE;
-Handle hcv_xpCIHS = INVALID_HANDLE;
-Handle hcv_xpSIKill = INVALID_HANDLE;
-Handle hcv_xpSIHS = INVALID_HANDLE;
-Handle hcv_VIPMultiplier = INVALID_HANDLE;
+ConVar hcv_xpSIKill;
+ConVar hcv_xpSIHS;
+
+
+ConVar hcv_xpKillingSpree;
+ConVar hcv_xpKillingSpreeNumber;
+
+ConVar hcv_xpHeadshotSpree;
+ConVar hcv_xpHeadshotSpreeNumber;
+
+
+ConVar hcv_xpHeal;
+ConVar hcv_xpDefib;
+ConVar hcv_xpRevive;
+ConVar hcv_xpLedge;
+
+ConVar hcv_VIPMultiplier;
 
 int KillStreak[MAXPLAYERS+1];
 
@@ -49,9 +61,6 @@ Handle cpLastSecondary, cpLastPrimary;
 bool TookWeapons[MAXPLAYERS+1];
 
 int StartOfPrimary = 13; // Change to the beginning of rifles in the levels, remember to count [0]
-
-int HUD_INFO_CHANNEL = 25;
-int HUD_KILL_CHANNEL = 82;
 
 #define MAX_LEVEL 28
 
@@ -114,6 +123,9 @@ ArrayList g_aPerkTrees;
 bool g_bUnlockedProducts[MAXPLAYERS+1][MAX_ITEMS];
 bool g_bUnlockedSkills[MAXPLAYERS+1][MAX_ITEMS];
 int g_iUnlockedPerkTrees[MAXPLAYERS+1][MAX_ITEMS];
+
+int g_iCommonKills[MAXPLAYERS+1];
+int g_iCommonHeadshots[MAXPLAYERS+1];
 
 GlobalForward g_fwOnUnlockShopBuy;
 GlobalForward g_fwOnSkillBuy;
@@ -502,17 +514,29 @@ public void OnPluginStart()
 	//HookEvent("tank_killed", Event_TankDeath, EventHookMode_Pre);
 	//HookEvent("witch_killed", Event_WitchDeath);
 	HookEvent("heal_success", Event_HealSuccess);
-	HookEvent("revive_success", Event_ReviveSuccess);
 	HookEvent("defibrillator_used", Event_DefibSuccess);
-	HookEvent("player_now_it", Event_BiledTank);
+	HookEvent("revive_success", Event_ReviveSuccess);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Post);
 	
 	SetConVarString(UC_CreateConVar("gun_xp_version", PLUGIN_VERSION), PLUGIN_VERSION);
 
-	hcv_xpKill = UC_CreateConVar("gun_xp_kill", "15", "Amount of xp you get per kill");
-	hcv_xpHS = UC_CreateConVar("gun_xp_bonus_hs", "5", "Amount of bonus xp you get per headshot kill");
-	hcv_VIPMultiplier = UC_CreateConVar("gun_xp_vip_multiplier", "2.0", "How much to mulitply rewards for VIP players. 1 to disable.");
+	hcv_xpSIKill = UC_CreateConVar("gun_xp_si_kill", "15", "Amount of xp you get per SI kill");
+	hcv_xpSIHS = UC_CreateConVar("gun_xp_si_kill_bonus_hs", "5", "Amount of bonus xp you get per SI headshot kill");
+
+
+	hcv_xpKillingSpree = UC_CreateConVar("gun_xp_killing_spree", "10", "Amount of XP you get per killing spree");
+	hcv_xpKillingSpreeNumber = UC_CreateConVar("gun_xp_killing_spree_number", "20", "Amount of commons to kill for a killing spree");
+
+	hcv_xpHeadshotSpree = UC_CreateConVar("gun_xp_headshot_spree", "30", "Amount of xp you get per headshot spree");
+	hcv_xpHeadshotSpreeNumber = UC_CreateConVar("gun_xp_headshot_spree_number", "20", "Amount of common headshots for a headshot spree");
+
+	hcv_xpHeal = UC_CreateConVar("gun_xp_heal", "20", "Amount of XP gained for healing, including medkit spam");
+	hcv_xpDefib = UC_CreateConVar("gun_xp_defib", "30", "Amount of XP gained for defibrillating a survivor");
+	hcv_xpRevive = UC_CreateConVar("gun_xp_revive", "12", "Amount of XP gained for reviving an incapped survivor");
+	hcv_xpLedge = UC_CreateConVar("gun_xp_ledge", "0", "Amount of XP gained for reviving a survivor from a ledge. This can be farmed easily.");
+
+	hcv_VIPMultiplier = UC_CreateConVar("gun_xp_vip_multiplier", "1.0", "How much to mulitply rewards for VIP players. 1 to disable.");
 	
 	cpLastSecondary = RegClientCookie("GunXP_LastSecondary", "Last Chosen Secondary Weapon", CookieAccess_Private);
 	cpLastPrimary = RegClientCookie("GunXP_LastPrimary", "Last Chosen Primary Weapon", CookieAccess_Private);
@@ -592,12 +616,12 @@ public Action HudMessageXP(Handle hTimer)
 		if(!IsValidPlayer(i))
 			continue;
 			
-		SetHudMessage(0.2, 0.1, 2.5, 232, 61, 22);
+		
 		if(LEVELS[Level[i]] != 2147483647)
-			ShowHudMessage(i, HUD_INFO_CHANNEL, "[Level : %i]\n[XP : %i/%i]\n[XP Currency : %i]\n[Weapon : %s]", Level[i], XP[i], LEVELS[Level[i]], XPCurrency[i], GUNS_NAMES[Level[i]]);
+			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]", Level[i], XP[i], LEVELS[Level[i]], XPCurrency[i], GUNS_NAMES[Level[i]]);
 			
 		else 
-			ShowHudMessage(i, HUD_INFO_CHANNEL, "[Level : %i]\n[XP : %i/∞]\n[XP Currency : %i]\n[Weapon : %s]", Level[i], XP[i], XPCurrency[i], GUNS_NAMES[Level[i]]);
+			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]", Level[i], XP[i], XPCurrency[i], GUNS_NAMES[Level[i]]);
 	}
 
 	return Plugin_Continue;
@@ -616,6 +640,9 @@ public void OnClientAuthorized(int client)
 {
 	if(!dbFullConnected)
 		return;
+
+	g_iCommonKills[client]     = 0;
+	g_iCommonHeadshots[client] = 0;
 
 	FetchStats(client);
 }
@@ -782,7 +809,7 @@ public Action Command_GiveXP(int client, int args)
 		Format(LogFormat, sizeof(LogFormat), "Admin %N has given %i EXP to %s.", client, StringToInt(arg2), arg);
 		LogToFile(Path, LogFormat);
 		
-		AddClientXP(target_list[0], StringToInt(arg2));
+		AddClientXP(target_list[0], StringToInt(arg2), false);
 		
 		PrintToChatAll("\x01Admin\x03 %N\x01 has given\x04 %i\x01 XP to \x05%N", client, StringToInt(arg2), target_list[0]);
 	}
@@ -1312,34 +1339,14 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	bool headshot = GetEventBool(hEvent, "headshot");
 
-	
-	char HudFormat[100];
-	int xpToAdd = GetConVarInt(hcv_xpKill);
-	int hsXP = GetConVarInt(hcv_xpHS);
-	int Colors[3];
-	
-	KillStreak[victim] = 0;	
-	KillStreak[attacker]++;
-	
-	Colors = {0, 255, 0};
-	// xpToAdd already equal to getconvarint(hcv_xpHs);
-	Format(HudFormat, sizeof(HudFormat), "+ %i XP ( Kill )\n", xpToAdd);
+	int xpToAdd = GetConVarInt(hcv_xpSIKill);
+	int hsXP = GetConVarInt(hcv_xpSIHS);
 
-	if(headshot && hsXP > 0)
+	if(headshot)
 	{
 		xpToAdd += hsXP;
-		Format(HudFormat, sizeof(HudFormat), "%s+ %i XP ( Headshot )\n", HudFormat, hsXP);
 	}
 	
-	float PremiumMultiplier = GetConVarFloat(hcv_VIPMultiplier);
-	if(CheckCommandAccess(attacker, "sm_vip_cca", ADMFLAG_VIP) && PremiumMultiplier != 1.0)
-	{
-		float xp = float(xpToAdd);
-		
-		xp *= PremiumMultiplier;
-		
-		xpToAdd = RoundFloat(xp);
-	}
 	AddClientXP(attacker, xpToAdd);
 
 
@@ -1349,7 +1356,12 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 
 public Action Event_CommonDeath(Handle hEvent, const char[] name, bool dontBroadcast)
 {
-	bool headshot = GetEventBool(event, "headshot");
+	bool headshot = GetEventBool(hEvent, "headshot");
+
+	int infected_id = GetEventInt(hEvent, "infected_id");
+	int R           = 0;
+	int G           = 0;
+	int B           = 0;
 
 	if (infected_id > 0)
 	{
@@ -1358,331 +1370,106 @@ public Action Event_CommonDeath(Handle hEvent, const char[] name, bool dontBroad
 		SetEntPropFloat(infected_id, Prop_Data, "m_flModelScale", 1.0);
 		AcceptEntityInput(GetEntPropEnt(infected_id, Prop_Send, "m_hRagdoll"), "Kill");
 	}
-	ATTACKER
-	ACHECK2
+
+	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+
+	if(attacker > 0 && L4D_GetClientTeam(attacker) == L4DTeam_Survivor && !IsFakeClient(attacker))
 	{
 		if (headshot)
 		{
-			headshotcount[attacker]++;
+			g_iCommonHeadshots[attacker]++;
 		}
-		if (headshotcount[attacker] == GetConVarInt(SNumberHead) && GetConVarInt(SValueHeadSpree) > 0)
+		if (g_iCommonHeadshots[attacker] == GetConVarInt(hcv_xpHeadshotSpreeNumber) && GetConVarInt(hcv_xpHeadshotSpree) > 0)
 		{
-			float fPoints = GetConVarFloat(SValueHeadSpree);
-			CalculatePointsGain(attacker, fPoints, "Multiple Headshots");
-			g_fPoints[attacker] += fPoints;
-			headshotcount[attacker] = 0;
-			if (GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 Head Hunter \x05+ %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(attacker));
+			if (GetConVarInt(hcv_xpHeadshotSpree) <= 0) return Plugin_Continue;
+
+			g_iCommonHeadshots[attacker] = 0;
+			
+			int xpToAdd = GetConVarInt(hcv_xpHeadshotSpree);
+
+			AddClientXP(attacker, xpToAdd);
+
 		}
-		killcount[attacker]++;
-		if (killcount[attacker] == GetConVarInt(SNumberKill) && GetConVarInt(SValueKillingSpree) > 0)
+
+		g_iCommonKills[attacker]++;
+
+		if (g_iCommonKills[attacker] == GetConVarInt(hcv_xpKillingSpreeNumber) && GetConVarInt(hcv_xpKillingSpree) > 0)
 		{
-			float fPoints = GetConVarFloat(SValueKillingSpree);
-			CalculatePointsGain(attacker, fPoints, "Killing Spree");
-			g_fPoints[attacker] += fPoints;
-			killcount[attacker] = 0;
-			if (GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 Killing Spree \x05+ %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(attacker));
+			if (GetConVarInt(hcv_xpKillingSpree) <= 0) return Plugin_Continue;
+
+			g_iCommonKills[attacker] = 0;
+			int xpToAdd = GetConVarInt(hcv_xpKillingSpree);
+
+			AddClientXP(attacker, xpToAdd);
 		}
 	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_Incap(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	int userid = GetClientOfUserId(GetEventInt(event, "userid"));
-	ATTACKER
-	ACHECK3
-	{
-		if (GetConVarInt(IIncap) == -1) return Plugin_Continue;
-		float fPoints = GetConVarFloat(IIncap);
-		CalculatePointsGain(attacker, fPoints, "Incap Survivor");
-		g_fPoints[attacker] += fPoints;
-		if (GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 Incapped \x01%N\x05 + %d\x03 points (Σ: \x05%d\x03)", userid, RoundToFloor(fPoints), GetClientPoints(attacker));
-	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_Death(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	ATTACKER
-	CLIENT
-	if (attacker > 0 && client > 0 && !IsFakeClient(attacker) && IsAllowedGameMode() && GetConVarInt(Enable) == 1)
-	{
-		if (GetClientTeam(attacker) == 2)
-		{
-			if (GetConVarInt(SSIKill) <= 0 || GetClientTeam(client) == 2) return Plugin_Continue;
-			if (GetEntProp(client, Prop_Send, "m_zombieClass") == 8) return Plugin_Continue;
-			float fPoints = GetConVarFloat(SSIKill);
-			CalculatePointsGain(attacker, fPoints, "Killed SI");
-			g_fPoints[attacker] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 Killed \x01%N\x05 + %d\x03 points (Σ: \x05%d\x03)", client, RoundToFloor(fPoints), GetClientPoints(attacker));
-		}
-		// If headshot == 2 ( which is a boolean usually ) then a karma kill occured.
-		if (GetClientTeam(attacker) == 3 && GetEventInt(event, "headshot") != 2)
-		{
-			if (GetConVarInt(IKill) <= 0 || GetClientTeam(client) == 3) return Plugin_Continue;
-			float fPoints = GetConVarFloat(IKill);
-			CalculatePointsGain(attacker, fPoints, "Killed Survivor");
-			g_fPoints[attacker] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 Killed \x01%N\x05 + %d\x03 points (Σ: \x05%d\x03)", client, RoundToFloor(fPoints), GetClientPoints(attacker));
-		}
-	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_TankDeath(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	int solo = GetEventBool(event, "solo");
-	ATTACKER
-	ACHECK2
-	{
-		if (solo && GetConVarInt(STSolo) > 0)
-		{
-			float fPoints = GetConVarFloat(STSolo);
-			CalculatePointsGain(attacker, fPoints, "Tank Solo");
-			g_fPoints[attacker] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 TANK SOLO! \x05+ %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(attacker));
-		}
-	}
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientInGame(i) && !IsFakeClient(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && GetConVarInt(STankKill) > 0 && GetConVarInt(Enable) == 1 && IsAllowedGameMode())
-		{
-			float fPoints = GetConVarFloat(STankKill);
-			CalculatePointsGain(attacker, fPoints, "Killed Tank");
-			g_fPoints[attacker] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(i, "\x04[PS]\x03 Killed Tank \x05+ %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(i));
-		}
-	}
-	tankburning[attacker] = 0;
-	tankbiled[attacker]   = 0;
-
-	return Plugin_Continue;
-}
-
-public Action Event_WitchDeath(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	int oneshot = GetEventBool(event, "oneshot");
-	CLIENT
-	CCHECK2
-	{
-		if (GetConVarInt(SWitchKill) <= 0) return Plugin_Continue;
-
-		if (oneshot && GetConVarInt(SWitchCrown) > 0)
-		{
-			float fPoints = GetConVarFloat(SWitchCrown);
-			CalculatePointsGain(client, fPoints, "Crowned Witch");
-			g_fPoints[client] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Crowned The Witch + \x05%d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(client));
-		}
-		else
-		{
-			float fPoints = GetConVarFloat(SWitchKill);
-			CalculatePointsGain(client, fPoints, "Killed Witch");
-			g_fPoints[client] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Killed Witch + \x05%d\x03 points", GetConVarInt(SWitchKill), GetClientPoints(client));
-		}
-	}
-	witchburning[client] = 0;
 
 	return Plugin_Continue;
 }
 
 public Action Event_HealSuccess(Handle hEvent, const char[] name, bool dontBroadcast)
 {
-	int restored = GetEventInt(event, "health_restored");
-	int client = GetClientOfUserId(GetEventInt(event, "subject"));
-	int subject = GetClientOfUserId(GetEventInt(event, "subject"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "subject"));
+	int subject = GetClientOfUserId(GetEventInt(hEvent, "subject"));
+
 	if (subject != 0 && client != 0 && !IsFakeClient(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 	{
 		if (client == subject) return Plugin_Continue;
-		if (restored > 39)
-		{
-			if (GetConVarInt(SHeal) <= 0) return Plugin_Continue;
-			float fPoints = GetConVarFloat(SHeal);
-			CalculatePointsGain(client, fPoints, "Healed Teammate");
-			g_fPoints[client] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Healed \x01%N\x05 + %d\x03 points (Σ: \x05%d\x03)", subject, RoundToFloor(fPoints), GetClientPoints(client));
-		}
-		else
-		{
-			if (GetConVarInt(SHealWarning) <= 0) return Plugin_Continue;
-			float fPoints = GetConVarFloat(SHealWarning);
-			CalculatePointsGain(client, fPoints, "Healed Teammate Warning");
-			g_fPoints[client] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Don't Harvest Heal Points\x05 + %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(client));
-		}
+
+		if (GetConVarInt(hcv_xpHeal) <= 0) return Plugin_Continue;
+
+		int xpToAdd = GetConVarInt(hcv_xpHeal);
+
+		AddClientXP(client, xpToAdd);
 	}
 
 	return Plugin_Continue;
 }
 
-public Action Event_Protect(Handle hEvent, const char[] name, bool dontBroadcast)
+public Action Event_ReviveSuccess(Handle hEvent, const char[] name, bool dontBroadcast)
 {
-	CLIENT
-	int award = GetEventInt(event, "award");
-	if (client > 0 && award == 67 && IsClientInGame(client) && IsClientConnected(client) && GetClientTeam(client) > 1 && !IsFakeClient(client) && IsAllowedGameMode())
-	{
-		if (GetConVarInt(SProtect) <= 0) return Plugin_Continue;
-		protectcount[client]++;
-		if (protectcount[client] == GetConVarInt(SNumberProtect))
-		{
-			float fPoints = GetConVarFloat(SProtect);
-			CalculatePointsGain(client, fPoints, "Protected Teammate");
-			g_fPoints[client] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 %sProtection\x05 + %d\x03 points (Σ: \x05%d\x03)", protectcount[client] > 1 ? "Multiple " : "", RoundToFloor(fPoints), GetClientPoints(client));
-			protectcount[client] = 0;
-		}
-	}
+	bool ledge = GetEventBool(hEvent, "ledge_hang");
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	int subject = GetClientOfUserId(GetEventInt(hEvent, "subject"));
 
-	return Plugin_Continue;
-}
-
-public Action Event_Revive(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	bool ledge = GetEventBool(event, "ledge_hang");
-	CLIENT
-	int subject = GetClientOfUserId(GetEventInt(event, "subject"));
-	CCHECK2
+	if (client > 0 && !IsFakeClient(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 	{
 		if (subject == client) return Plugin_Continue;
-		if (!ledge && GetConVarInt(SRevive) > 0)
+		if (!ledge && GetConVarInt(hcv_xpRevive) > 0)
 		{
-			float fPoints = GetConVarFloat(SRevive);
-			CalculatePointsGain(client, fPoints, "Revived Teammate");
-			g_fPoints[client] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Revived \x01%N\x05 + %d\x03 points (Σ: \x05%d\x03)", subject, RoundToFloor(fPoints), GetClientPoints(client));
+			if (GetConVarInt(hcv_xpRevive) <= 0) return Plugin_Continue;
+
+			int xpToAdd = GetConVarInt(hcv_xpRevive);
+			AddClientXP(client, xpToAdd);
 		}
-		if (ledge && GetConVarInt(SLedge) > 0)
+		if (ledge && GetConVarInt(hcv_xpLedge) > 0)
 		{			
-			float fPoints = GetConVarFloat(SLedge);
-			CalculatePointsGain(client, fPoints, "Revived Teammate From Ledge");
-			g_fPoints[client] += fPoints;
-			if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Revived \x01%N\x03 From Ledge\x05 + %d\x03 points (Σ: \x05%d\x03)", subject, RoundToFloor(fPoints), GetClientPoints(client));
+			if (GetConVarInt(hcv_xpLedge) <= 0) return Plugin_Continue;
+
+			int xpToAdd = GetConVarInt(hcv_xpLedge);
+			AddClientXP(client, xpToAdd);
 		}
 	}
 
 	return Plugin_Continue;
 }
 
-public Action Event_Shock(Handle hEvent, const char[] name, bool dontBroadcast)
+public Action Event_DefibSuccess(Handle hEvent, const char[] name, bool dontBroadcast)
 {
-	int subject = GetClientOfUserId(GetEventInt(event, "subject"));
-	CLIENT
-	CCHECK2
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if (client > 0 && !IsFakeClient(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 	{
-		if (GetConVarInt(SDefib) <= 0) return Plugin_Continue;
-		float fPoints = GetConVarFloat(SDefib);
-		CalculatePointsGain(client, fPoints, "Defib Teammate");
-		g_fPoints[client] += fPoints;
-		if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Defibbed \x01%N\x05 + %d\x03 points (Σ: \x05%d\x03)", subject, RoundToFloor(fPoints), GetClientPoints(client));
+		if (GetConVarInt(hcv_xpDefib) <= 0) return Plugin_Continue;
+
+		int xpToAdd = GetConVarInt(hcv_xpDefib);
+
+		AddClientXP(client, xpToAdd);
 	}
 
 	return Plugin_Continue;
 }
 
-public Action Event_Choke(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	CLIENT
-	CCHECK3
-	{
-		if (GetConVarInt(IChoke) <= 0) return Plugin_Continue;
-		float fPoints = GetConVarFloat(IChoke);
-		CalculatePointsGain(client, fPoints, "Choked Survivor");
-		g_fPoints[client] += fPoints;
-		if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Choked Survivor\x05 + %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(client));
-	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_Boom(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	ATTACKER
-	CLIENT
-	if (attacker > 0 && !IsFakeClient(attacker) && IsAllowedGameMode() && GetConVarInt(Enable) == 1)
-	{
-		if (GetClientTeam(attacker) == 3 && GetConVarInt(ITag) > 0)
-		{
-			float fPoints = GetConVarFloat(ITag);
-			CalculatePointsGain(attacker, fPoints, "Biled Survivor");
-			g_fPoints[attacker] += fPoints;
-			if (GetClientTeam(client) == 2 && GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 Boomed \x01%N\x05 + %d\x03 points (Σ: \x05%d\x03)", client, RoundToFloor(fPoints), GetClientPoints(attacker));
-		}
-		if (GetClientTeam(attacker) == 2 && GetConVarInt(STag) > 0)
-		{
-			float fPoints = GetConVarFloat(STag);
-			CalculatePointsGain(attacker, fPoints, "Biled Tank");
-			g_fPoints[attacker] += fPoints;
-			if (GetClientTeam(client) == 3 && GetEntProp(client, Prop_Send, "m_zombieClass") == 8 && GetConVarBool(Notifications)) PrintToChat(attacker, "\x04[PS]\x03 Biled Tank + \x05%d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(attacker));
-			tankbiled[attacker] = 1;
-		}
-	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_Pounce(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	CLIENT
-	CCHECK3
-	{
-		if (GetConVarInt(IPounce) <= 0) return Plugin_Continue;
-		float fPoints = GetConVarFloat(IPounce);
-		CalculatePointsGain(client, fPoints, "Pounced Survivor");
-		g_fPoints[client] += fPoints;
-		if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Pounced Survivor \x05+ %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(client));
-	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_Ride(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	CLIENT
-	CCHECK3
-	{
-		if (GetConVarInt(IRide) <= 0) return Plugin_Continue;
-		float fPoints = GetConVarFloat(IRide);
-		CalculatePointsGain(client, fPoints, "Jockeyed Survivor");
-		g_fPoints[client] += fPoints;
-		if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Jockeyed Survivor \x05+ %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(client));
-	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_Carry(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	CLIENT
-	CCHECK3
-	{
-		if (GetConVarInt(ICarry) <= 0) return Plugin_Continue;
-		float fPoints = GetConVarFloat(ICarry);
-		CalculatePointsGain(client, fPoints, "Charged Survivor");
-		g_fPoints[client] += fPoints;
-		if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Charged Survivor \x05+ %d\x03 points (Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(client));
-	}
-
-	return Plugin_Continue;
-}
-
-public Action Event_Impact(Handle hEvent, const char[] name, bool dontBroadcast)
-{
-	CLIENT
-	CCHECK3
-	{
-		if (GetConVarInt(IImpact) <= 0) return Plugin_Continue;
-		float fPoints = GetConVarFloat(IImpact);
-		CalculatePointsGain(client, fPoints, "Impacted Survivor");
-		g_fPoints[client] += fPoints;
-		if (GetConVarBool(Notifications)) PrintToChat(client, "\x04[PS]\x03 Impacted Survivor \x05+ %d\x03 points(Σ: \x05%d\x03)", RoundToFloor(fPoints), GetClientPoints(client));
-	}
-
-	return Plugin_Continue;
-}
 
 public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
 {
@@ -1873,8 +1660,19 @@ stock void CalculateStats(int client)
 	}
 }
 
-stock void AddClientXP(int client, int amount)
+stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 {	
+	float PremiumMultiplier = GetConVarFloat(hcv_VIPMultiplier);
+	
+	if(CheckCommandAccess(client, "sm_vip_cca", ADMFLAG_VIP) && PremiumMultiplier != 1.0 && bPremiumMultiplier)
+	{
+		float xp = float(amount);
+		
+		xp *= PremiumMultiplier;
+		
+		amount = RoundFloat(xp);
+	}
+
 	CalculateStats(client);
 	
 	int preCalculatedLevel = Level[client];
