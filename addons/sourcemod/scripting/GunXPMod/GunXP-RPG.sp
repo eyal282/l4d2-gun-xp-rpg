@@ -28,6 +28,52 @@ public Plugin myinfo = {
 	url = "NULL"
 };
 
+
+
+char g_sAllowedDropWeapons[][] =
+{
+	"weapon_adrenaline",
+	"weapon_cola_bottles",
+	"weapon_defibrillator",
+	"weapon_fireworkcrate",
+	"weapon_gascan",
+	"weapon_gnome",
+	"weapon_molotov",
+	"weapon_oxygentank",
+	"weapon_pain_pills",
+	"weapon_pipe_bomb",
+	"weapon_propanetank",
+	"weapon_upgradepack_explosive",
+	"weapon_upgradepack_incendiary",
+	"weapon_vomitjar"
+};
+
+char g_sForbiddenMapWeapons[][] =
+{
+	"weapon_autoshotgun_spawn",
+	"weapon_chainsaw_spawn",
+	"weapon_hunting_rifle_spawn",
+	"weapon_item_spawn",
+	"weapon_melee_spawn",
+	"weapon_pistol_magnum_spawn",
+	"weapon_pistol_spawn",
+	"weapon_pumpshotgun_spawn",
+	"weapon_rifle_ak47_spawn",
+	"weapon_rifle_desert_spawn",
+	"weapon_rifle_m60_spawn",
+	"weapon_rifle_sg552_spawn",
+	"weapon_rifle_spawn",
+	"weapon_shotgun_chrome_spawn",
+	"weapon_shotgun_spas_spawn",
+	"weapon_smg_mp5_spawn",
+	"weapon_smg_silenced_spawn",
+	"weapon_smg_spawn",
+	"weapon_sniper_awp_spawn",
+	"weapon_sniper_military_spawn",
+	"weapon_sniper_scout_spawn",
+	"weapon_spawn"
+};
+
 bool SaveLastGuns[MAXPLAYERS+1];
 
 ConVar hcv_xpSIKill;
@@ -50,15 +96,16 @@ ConVar hcv_VIPMultiplier;
 
 int KillStreak[MAXPLAYERS+1];
 
-int Level[MAXPLAYERS+1], XP[MAXPLAYERS+1], XPCurrency[MAXPLAYERS+1];
+int g_iLevel[MAXPLAYERS+1], g_iXP[MAXPLAYERS+1], g_iXPCurrency[MAXPLAYERS+1];
+bool g_bLoadedFromDB[MAXPLAYERS+1];
 
 Database dbGunXP;
 
 bool dbFullConnected;
 
-Handle cpLastSecondary, cpLastPrimary;
+Handle cpLastSecondary, cpLastPrimary, cpAutoRPG;
 
-bool TookWeapons[MAXPLAYERS+1];
+bool g_bTookWeapons[MAXPLAYERS+1];
 
 int StartOfPrimary = 13; // Change to the beginning of rifles in the levels, remember to count [0]
 
@@ -145,30 +192,30 @@ int LEVELS[MAX_LEVEL+1] =
 	180, // needed for level 2 
 	300, // needed for level 3 
 	450, // needed for level 4 
-	700, // needed for level 5
-	1200, // needed for level 6
-	1800, // needed for level 7
-	2800, // needed for level 8
-	4100, // needed for level 9 
-	5200, // needed for level 10 
-	6000, // needed for level 11 
-	6800, // needed for level 12 
-	8200, // needed for level 13 
-	10200, // needed for level 14, the first rifle
-	12000, // needed for level 15 
-	15000, // needed for level 16 
-	17500, // needed for level 17 
-	20500, // needed for level 18 
-	25500, // needed for level 19 
-	29000, // needed for level 20 
-	35000, // needed for level 21 
-	46000, // needed for level 22 
-	58000, // needed for level 23 
-	71000,  // needed for level 24 
-	85000,  // needed for level 25 
+	650, // needed for level 5
+	850, // needed for level 6
+	1000, // needed for level 7
+	1200, // needed for level 8
+	1500, // needed for level 9 
+	2000, // needed for level 10 
+	2250, // needed for level 11 
+	2500, // needed for level 12 
+	2750, // needed for level 13 
+	3000, // needed for level 14, the first rifle
+	3500, // needed for level 15 
+	4000, // needed for level 16 
+	4500, // needed for level 17 
+	5000, // needed for level 18 
+	6000, // needed for level 19 
+	10000, // needed for level 20 
+	14000, // needed for level 21 
+	18000, // needed for level 22 
+	25000, // needed for level 23 
+	35000,  // needed for level 24 
+	50000,  // needed for level 25 
 	100000,  // needed for level 26
 	200000,  // needed for level 27
-	500000,  // needed for level 28
+	400000,  // needed for level 28
 	2147483647 // This shall never change, NEVERRRRR
 };
 char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
@@ -350,7 +397,7 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 
 	for(int i=0;i < g_aPerkTrees.Length;i++)
 	{
-		enSkill iPerkTree;
+		enPerkTree iPerkTree;
 		g_aPerkTrees.GetArray(i, iPerkTree);
 		
 		if(StrEqual(identifier, iPerkTree.identifier))
@@ -483,8 +530,8 @@ public int Native_ReplenishProducts(Handle caller, int numParams)
 public void OnPluginStart()
 {
 	g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
-	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell);
-	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnSpawned = CreateGlobalForward("GunXP_OnPlayerSpawned", ET_Ignore, Param_Cell);
 
 	g_aUnlockItems = CreateArray(sizeof(enProduct));
@@ -493,7 +540,7 @@ public void OnPluginStart()
 
 	#if defined _autoexecconfig_included
 	
-	AutoExecConfig_SetFile("GunXPMod");
+	AutoExecConfig_SetFile("GunXP-RPG");
 	
 	#endif
 	
@@ -540,6 +587,7 @@ public void OnPluginStart()
 	
 	cpLastSecondary = RegClientCookie("GunXP_LastSecondary", "Last Chosen Secondary Weapon", CookieAccess_Private);
 	cpLastPrimary = RegClientCookie("GunXP_LastPrimary", "Last Chosen Primary Weapon", CookieAccess_Private);
+	cpAutoRPG = RegClientCookie("GunXP_AutoRPG", "Are we playing auto RPG?", CookieAccess_Private);
 	
 	#if defined _autoexecconfig_included
 	
@@ -548,15 +596,18 @@ public void OnPluginStart()
 	AutoExecConfig_CleanFile();
 	
 	#endif
-	/*
-	new String:ServerIP[50];
-	
-	GetServerIP(ServerIP, sizeof(ServerIP));
-	
-	if(!StrEqual(ServerIP, "93.186.198.117:30415"))
-		SetFailState("Only Spectre Gaming can use this plugin.");
-		
-	*/
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsClientAuthorized(i))
+			continue;
+
+		// Prevent issues of late load...
+		g_bTookWeapons[i] = true;
+	}
 
 	RegPluginLibrary("GunXP_PerkTreeShop");
 	RegPluginLibrary("GunXP_SkillShop");
@@ -605,11 +656,85 @@ public void OnClientConnected(int client)
 
 public void OnMapStart()
 {
-	CreateTimer(2.5, HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(2.5, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+
+	CreateTimer(1.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		
-	CreateTimer(150.0, TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(150.0, Timer_TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
-public Action HudMessageXP(Handle hTimer)
+
+public Action Timer_AutoRPG(Handle hTimer)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		else if(!g_bLoadedFromDB[i])
+			continue;
+
+		else if(!IsClientAutoRPG(i))
+			continue;
+		
+		int iPosPerkTree;
+		int iCostPerkTree;
+		bool bFoundPerkTree = AutoRPG_FindCheapestPerkTree(i, iPosPerkTree, iCostPerkTree);
+
+		int iPosSkill;
+		int iCostSkill;
+		bool bFoundSkill = AutoRPG_FindCheapestSkill(i, iPosSkill, iCostSkill);
+
+		// Only need to check both, as the unfound will have infinite cost.
+		if(!bFoundPerkTree && !bFoundSkill)
+			continue;
+
+		if(iCostPerkTree < iCostSkill)
+		{
+			enPerkTree perkTree;
+			g_aPerkTrees.GetArray(iPosPerkTree, perkTree);
+
+			PurchasePerkTreeLevel(i, iPosPerkTree, perkTree);
+
+			PrintToChat(i, "Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
+
+			Call_StartForward(g_fwOnPerkTreeBuy);
+
+			Call_PushCell(i);
+			Call_PushCell(iPosPerkTree);
+
+			// Auto RPG?
+			Call_PushCell(true);
+
+			Call_Finish();
+		}
+		else
+		{
+			enSkill skill;
+			g_aSkills.GetArray(iPosSkill, skill);
+
+			PurchaseSkill(i, iPosSkill, skill);
+
+			PrintToChat(i, "Successfully unlocked the Skill %s!", skill.name);
+
+			Call_StartForward(g_fwOnSkillBuy);
+
+			Call_PushCell(i);
+			Call_PushCell(iPosSkill);
+
+			// Auto RPG?
+			Call_PushCell(true);
+
+			Call_Finish();
+		}
+
+
+	}
+	return Plugin_Continue;
+}
+public Action Timer_HudMessageXP(Handle hTimer)
 {
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -617,18 +742,18 @@ public Action HudMessageXP(Handle hTimer)
 			continue;
 			
 		
-		if(LEVELS[Level[i]] != 2147483647)
-			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]", Level[i], XP[i], LEVELS[Level[i]], XPCurrency[i], GUNS_NAMES[Level[i]]);
+		if(LEVELS[g_iLevel[i]] != 2147483647)
+			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]", g_iLevel[i], g_iXP[i], LEVELS[g_iLevel[i]], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]]);
 			
 		else 
-			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]", Level[i], XP[i], XPCurrency[i], GUNS_NAMES[Level[i]]);
+			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]", g_iLevel[i], g_iXP[i], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]]);
 	}
 
 	return Plugin_Continue;
 }
 
 
-public Action TellAboutShop(Handle hTimer)
+public Action Timer_TellAboutShop(Handle hTimer)
 {
 
 	PrintToChatAll("\x01Type\x03 !rpg\x01 to buy permanent perks!");
@@ -648,10 +773,27 @@ public void OnClientAuthorized(int client)
 }
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_WeaponEquip, SDKEvent_WeaponEquip);
+	//SDKHook(client, SDKHook_WeaponEquip, SDKEvent_WeaponEquip);
+	SDKHook(client, SDKHook_WeaponDrop, SDKEvent_WeaponDrop);
 }
 
+public Action SDKEvent_WeaponDrop(int client, int weapon)
+{
+	char sClassname[64];
+	GetEdictClassname(weapon, sClassname, sizeof(sClassname)); 
 
+	for(int i=0;i < sizeof(g_sAllowedDropWeapons);i++)
+	{
+		if(StrEqual(sClassname, g_sAllowedDropWeapons[i]))
+		{
+			return Plugin_Handled;
+		}
+	}
+
+	return Plugin_Continue;
+}
+
+/*
 public Action SDKEvent_WeaponEquip(int client, int weapon) 
 {
 	char Classname[64]; 
@@ -673,14 +815,14 @@ public Action SDKEvent_WeaponEquip(int client, int weapon)
 		}
 	}
     
-	if(Level[client] < i && Found)
+	if(g_iLevel[client] < i && Found)
 	{
 		AcceptEntityInput(weapon, "Kill");
 		return Plugin_Handled;
 	}
 	
 	return Plugin_Continue; 
-}  
+}  */
 /*public Action Command_UnlockShop(int client, int args)
 {
 	Handle hMenu = CreateMenu(UnlockShop_MenuHandler);
@@ -697,7 +839,7 @@ public Action SDKEvent_WeaponEquip(int client, int weapon)
 		if(!(gamemode & product.gamemode))
 			continue;
 			
-		if(Level[client] < product.minLevel)
+		if(g_iLevel[client] < product.minLevel)
 		{
 			FormatEx(TempFormat, sizeof(TempFormat), "%s - (%i XP) - (Level: %i)", product.name, product.cost, product.minLevel);
 			AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DISABLED);
@@ -728,9 +870,9 @@ public int UnlockShop_MenuHandler(Handle hMenu, MenuAction action, int client, i
 		enProduct product;
 		g_aUnlockItems.GetArray(item, product);
 
-		if(product.cost > XP[client])
+		if(product.cost > g_iXP[client])
 		{
-			PrintToChat(client, "You need %i more XP to unlock this item!", product.cost - XP[client]);
+			PrintToChat(client, "You need %i more XP to unlock this item!", product.cost - g_iXP[client]);
 			return 0;
 		}
 		else
@@ -766,10 +908,10 @@ public Action Command_Guns(int client, int args)
 		SaveLastGuns[client] = false;
 		PrintToChat(client, "\x05Last guns save\x01 is now disabled.");
 		
-		if(TookWeapons[client])
+		if(g_bTookWeapons[client])
 			return Plugin_Handled;
 	}
-	/*if(TookWeapons[client])
+	/*if(g_bTookWeapons[client])
 		PrintToChat(client, "\01You have already taken weapons this round.");*/
 		
 	return Plugin_Handled;
@@ -828,11 +970,19 @@ public Action Command_RPG(int client, int args)
 
 	AddMenuItem(hMenu, "", "Reset choices [FREE]");
 
+	if(IsClientAutoRPG(client))
+	{
+		AddMenuItem(hMenu, "", "Auto RPG [ON]");
+	}
+	else
+	{
+		AddMenuItem(hMenu, "", "Auto RPG [OFF]");
+	}
+
 	AddMenuItem(hMenu, "", "Perk Trees");
 	AddMenuItem(hMenu, "", "Skills");
 
-
-	FormatEx(TempFormat, sizeof(TempFormat), "Perk Trees are upgradable abilities.\nSkills are singular abilities.:\nYou have %i XP and %i XP Currency.", GetClientXP(client), GetClientXPCurrency(client));
+	FormatEx(TempFormat, sizeof(TempFormat), "Perk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : %i | XP : %i | XP Curency : %i", GetClientLevel(client), GetClientXP(client), GetClientXPCurrency(client));
 	SetMenuTitle(hMenu, TempFormat);
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
@@ -860,10 +1010,16 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 
 			case 1:
 			{
+				SetClientAutoRPG(client, !IsClientAutoRPG(client));
+
+				PrintToChat(client, "\x01Auto RPG mode is now\x03 %s", IsClientAutoRPG(client) ? "Enabled" : "Disabled");
+			}
+			case 2:
+			{
 				Command_PerkTrees(client, 0);
 			}
 
-			case 2:
+			case 3:
 			{
 				Command_Skills(client, 0);
 			}
@@ -899,7 +1055,7 @@ public Action Command_PerkTrees(int client, int args)
 	}
 
 
-	FormatEx(TempFormat, sizeof(TempFormat), "Level: %i | XP Currency: %i\nChoose your Perk Trees:", GetClientLevel(client), GetClientXP(client));
+	FormatEx(TempFormat, sizeof(TempFormat), "Choose your Perk Trees:\nLevel : %i | XP : %i | XP Curency : %i", GetClientLevel(client), GetClientXP(client), GetClientXPCurrency(client));
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);
@@ -937,8 +1093,6 @@ public void ShowPerkTreeInfo(int client, int item)
 	enPerkTree perkTree;
 	g_aPerkTrees.GetArray(item, perkTree);
 
-	int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][item] + 1);
-
 	char sInfo[11];
 	IntToString(item, sInfo, sizeof(sInfo));
 
@@ -954,6 +1108,8 @@ public void ShowPerkTreeInfo(int client, int item)
 	}
 	else
 	{
+		int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][item] + 1);
+
 		char sCurrentUpgrade[128];
 		char sNextUpgrade[128];
 
@@ -999,10 +1155,21 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 		g_aPerkTrees.GetArray(perkIndex, perkTree);
 
 		int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex] + 1);
+		int levelReq = perkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][perkIndex] + 1);
 
-		if(cost > GetClientXPCurrency(client))
+		if(levelReq > GetClientLevel(client))
+		{
+			PrintToChat(client, "You need to reach Level %i to unlock this Perk Tree Level!", levelReq);
+			return 0;
+		}
+		else if(cost > GetClientXPCurrency(client))
 		{
 			PrintToChat(client, "You need %i more XP Currency to unlock this Perk Tree level!", cost - GetClientXPCurrency(client));
+			return 0;
+		}
+		else if(IsClientAutoRPG(client))
+		{
+			PrintToChat(client, "You must have auto RPG disabled to purhcase Perk Trees!");
 			return 0;
 		}
 		else
@@ -1015,6 +1182,9 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 
 			Call_PushCell(client);
 			Call_PushCell(perkIndex);
+
+			// Auto RPG?
+			Call_PushCell(false);
 
 			Call_Finish();
 		}
@@ -1114,21 +1284,34 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 
 		g_aSkills.GetArray(skillIndex, skill);
 
-		if(skill.cost > GetClientXPCurrency(client))
+		if(skill.levelReq > GetClientLevel(client))
+		{
+			PrintToChat(client, "You need to reach Level %i to unlock this Perk Tree Level!", skill.levelReq);
+			return 0;
+		}
+		else if(skill.cost > GetClientXPCurrency(client))
 		{
 			PrintToChat(client, "You need %i more XP Currency to unlock this skill!", skill.cost - GetClientXPCurrency(client));
+			return 0;
+		}
+		else if(IsClientAutoRPG(client))
+		{
+			PrintToChat(client, "You must have auto RPG disabled to purhcase Perk Trees!");
 			return 0;
 		}
 		else
 		{
 			PurchaseSkill(client, skillIndex , skill);
 
-			PrintToChat(client, "Successfully unlocked the skill %s!", skill.name);
+			PrintToChat(client, "Successfully unlocked the Skill %s!", skill.name);
 
 			Call_StartForward(g_fwOnSkillBuy);
 
 			Call_PushCell(client);
 			Call_PushCell(skillIndex);
+
+			// Auto RPG?
+			Call_PushCell(false);
 
 			Call_Finish();
 		}
@@ -1153,7 +1336,7 @@ public Action ShowChoiceMenu(int client)
 	
 	char TempFormat[100];
 	
-	if(Level[client] >= StartOfPrimary)
+	if(g_iLevel[client] >= StartOfPrimary)
 		Format(TempFormat, sizeof(TempFormat), "Choose your guns:\n \nLast Secondary: %s\nLast Primary: %s \n ", GUNS_NAMES[GetClientLastSecondary(client)], GUNS_NAMES[GetClientLastPrimary(client)]);
 		
 	else
@@ -1208,7 +1391,7 @@ public void ChooseSecondaryMenu(int client)
 	for(int i=0;i < StartOfPrimary;i++)
 	{
 		Format(TempFormat, sizeof(TempFormat), "%s (Level: %i)", GUNS_NAMES[i], i);
-		AddMenuItem(hMenu, "", TempFormat, Level[client] >= i ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		AddMenuItem(hMenu, "", TempFormat, g_iLevel[client] >= i ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 	
 	//MessageMenu[client] = hMenu;
@@ -1230,7 +1413,7 @@ public int Secondary_MenuHandler(Handle hMenu, MenuAction action, int client, in
 			
 		SetClientLastSecondary(client, item);
 		
-		if(Level[client] >= StartOfPrimary)
+		if(g_iLevel[client] >= StartOfPrimary)
 			ChoosePrimaryMenu(client);
 			
 		else
@@ -1254,7 +1437,7 @@ void ChoosePrimaryMenu(int client)
 	for(int i=StartOfPrimary;i < MAX_LEVEL;i++)
 	{
 		Format(TempFormat, sizeof(TempFormat), "%s (Level: %i)", GUNS_NAMES[i], i);
-		AddMenuItem(hMenu, "", TempFormat, Level[client] >= i ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		AddMenuItem(hMenu, "", TempFormat, g_iLevel[client] >= i ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 	
 	//MessageMenu[client] = hMenu;
@@ -1295,34 +1478,45 @@ public void GiveGuns(int client)
 	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
 		return;
 
+	else if(L4D_IsPlayerIncapacitated(client))
+	{
+		StripPlayerWeapons(client);
+		GivePlayerItem(client, "weapon_pistol");
+		return;
+	}
+
+	StripPlayerWeapons(client);
+
 	int LastSecondary, LastPrimary;
 	LastSecondary = GetClientLastSecondary(client);
 	LastPrimary = GetClientLastPrimary(client);
 	
-	if(LastPrimary > Level[client] || LastPrimary < StartOfPrimary)
+	if(LastPrimary > g_iLevel[client] || LastPrimary < StartOfPrimary)
 		LastPrimary = StartOfPrimary;
 		
-	if(LastSecondary > Level[client] || LastSecondary >= StartOfPrimary)
+	if(LastSecondary > g_iLevel[client] || LastSecondary >= StartOfPrimary)
 		LastSecondary = 0;
 
 	char sClassname[64];
 	FormatEx(sClassname, sizeof(sClassname), "weapon_%s", GUNS_CLASSNAMES[LastSecondary]);	
+
+	// No double pistols, but may be redundant with the above StripPlayerWeapons
 	StripWeaponFromPlayer(client, sClassname);
 	GivePlayerItem(client, GUNS_CLASSNAMES[LastSecondary]);
 
-	if(Level[client] > 3 && StrEqual(GUNS_CLASSNAMES[LastSecondary], "pistol"))
+	if(g_iLevel[client] > 3 && StrEqual(GUNS_CLASSNAMES[LastSecondary], "pistol"))
 	{
 		GivePlayerItem(client, GUNS_CLASSNAMES[LastSecondary]);
 	}
 	
-	if(Level[client] >= StartOfPrimary)
+	if(g_iLevel[client] >= StartOfPrimary)
 	{
 		FormatEx(sClassname, sizeof(sClassname), "weapon_%s", GUNS_CLASSNAMES[LastPrimary]);	
 		StripWeaponFromPlayer(client, sClassname);
 		GivePlayerItem(client, GUNS_CLASSNAMES[LastPrimary]);
 	}
 		
-	TookWeapons[client] = true;
+	g_bTookWeapons[client] = true;
 }
 
 public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
@@ -1432,6 +1626,12 @@ public Action Event_ReviveSuccess(Handle hEvent, const char[] name, bool dontBro
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	int subject = GetClientOfUserId(GetEventInt(hEvent, "subject"));
 
+	if(!g_bTookWeapons[subject])
+	{
+		StripPlayerWeapons(subject);
+		GiveGuns(subject);
+	}
+	
 	if (client > 0 && !IsFakeClient(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 	{
 		if (subject == client) return Plugin_Continue;
@@ -1505,10 +1705,11 @@ public void Event_PlayerSpawnFrame(int UserId)
 		return;
 
 	StripPlayerWeapons(client);
+	GivePlayerItem(client, "weapon_pistol");
 	
 	CalculateStats(client);	
 	
-	TookWeapons[client] = false;
+	g_bTookWeapons[client] = false;
 	KillStreak[client] = 0;
 	
 	if(SaveLastGuns[client])
@@ -1553,11 +1754,20 @@ public Action Event_WeaponOutOfAmmo(Handle hEvent, char[] Name, bool dontBroadca
 	GivePlayerAmmo(client, 999, GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType"), true);
 }
 */
+
 public void OnEntityCreated(int entity, const char[] classname)
 {
-	if(StrEqual(classname, "game_player_equip"))
-		SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
+	// Sometimes a map will want to give RPG to continue progress.
+	//if(StrEqual(classname, "game_player_equip"))
+	//	SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
 
+	for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
+	{
+		if(StrEqual(classname, g_sForbiddenMapWeapons[i]))
+		{
+			SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
+		}
+	}
 }
 
 public Action OnShouldSpawn_NeverSpawn(int entity)
@@ -1582,7 +1792,7 @@ public Action Command_XP(int client, int args)
 	CalculateStats(client);
 	if(args == 0)
 	{
-		PrintToChat(client, "\x01You have\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", XP[client], Level[client], GetClientXPCurrency(client));
+		PrintToChat(client, "\x01You have\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", g_iXP[client], g_iLevel[client], GetClientXPCurrency(client));
 	}
 	else
 	{
@@ -1609,7 +1819,7 @@ public Action Command_XP(int client, int args)
 		}
 	
 		CalculateStats(target_list[0]);
-		PrintToChat(client, "\x01%N has\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", target_list[0], XP[target_list[0]], Level[target_list[0]], GetClientXPCurrency(target_list[0]));
+		PrintToChat(client, "\x01%N has\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", target_list[0], g_iXP[target_list[0]], g_iLevel[target_list[0]], GetClientXPCurrency(target_list[0]));
 	}
 	return Plugin_Handled;
 }
@@ -1617,6 +1827,12 @@ public Action Command_XP(int client, int args)
 
 stock void FetchStats(int client)
 {
+	g_iXP[client] = 0;
+	g_iLevel[client] = 0;
+	g_iXPCurrency[client] = 0;
+
+	g_bLoadedFromDB[client] = false;
+
 	for(int i=0;i < MAX_ITEMS;i++)
 	{
 		g_bUnlockedSkills[client][i] = false;
@@ -1650,13 +1866,13 @@ stock void CalculateStats(int client)
 	if(!IsClientInGame(client))
 		return;
 		
-	Level[client] = 0;
-	XP[client] = GetClientXP(client);
+	g_iLevel[client] = 0;
+	g_iXP[client] = GetClientXP(client);
 
 	for(int i=0;i < MAX_LEVEL;i++)
 	{
-		if(XP[client] >= LEVELS[i])
-			Level[client]++;
+		if(g_iXP[client] >= LEVELS[i])
+			g_iLevel[client]++;
 	}
 }
 
@@ -1675,14 +1891,14 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 
 	CalculateStats(client);
 	
-	int preCalculatedLevel = Level[client];
+	int preCalculatedLevel = g_iLevel[client];
 	
-	XP[client] += amount;
-	XPCurrency[client] += amount;
+	g_iXP[client] += amount;
+	g_iXPCurrency[client] += amount;
 
 	for(int i=preCalculatedLevel;i < MAX_LEVEL;i++)
 	{
-		if(XP[client] >= LEVELS[i])
+		if(g_iXP[client] >= LEVELS[i])
 		{
 			PrintToChatAll("\x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
 			SaveLastGuns[client] = false;
@@ -1702,17 +1918,17 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 
 stock int GetClientXP(int client)
 {	
-	return XP[client];
+	return g_iXP[client];
 }
 
 stock int GetClientXPCurrency(int client)
 {	
-	return XPCurrency[client];
+	return g_iXPCurrency[client];
 }
 
 stock int GetClientLevel(int client)
 {	
-	return Level[client];
+	return g_iLevel[client];
 }
 
 stock void ResetPerkTreesAndSkills(int client)
@@ -1723,7 +1939,7 @@ stock void ResetPerkTreesAndSkills(int client)
 		g_iUnlockedPerkTrees[client][i] = -1;
 	}
 
-	XPCurrency[client] = XP[client];
+	g_iXPCurrency[client] = g_iXP[client];
 
 	Transaction transaction = SQL_CreateTransaction();
 
@@ -1749,7 +1965,7 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree)
 	g_iUnlockedPerkTrees[client][perkIndex]++;
 
 	int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex]);
-	XPCurrency[client] -= cost;
+	g_iXPCurrency[client] -= cost;
 
 	Transaction transaction = SQL_CreateTransaction();
 
@@ -1774,7 +1990,7 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill)
 {
 	g_bUnlockedSkills[client][skillIndex] = true;
 
-	XPCurrency[client] -= skill.cost;
+	g_iXPCurrency[client] -= skill.cost;
 
 	Transaction transaction = SQL_CreateTransaction();
 
@@ -1807,8 +2023,10 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 	
 	if(!SQL_FetchRow(results[0]))
 	{
-		XP[client] = 0;
-		XPCurrency[client] = 0;
+		g_iXP[client] = 0;
+		g_iXPCurrency[client] = 0;
+
+		g_bLoadedFromDB[client] = true;
 
 		char AuthId[35];
 		GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
@@ -1825,8 +2043,8 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 		return;
 	}
 
-	XP[client] = SQL_FetchIntByName(results[0], "XP");
-	XPCurrency[client] = SQL_FetchIntByName(results[0], "XPCurrency");
+	g_iXP[client] = SQL_FetchIntByName(results[0], "XP");
+	g_iXPCurrency[client] = SQL_FetchIntByName(results[0], "XPCurrency");
 
 	while (SQL_FetchRow(results[1]))
 	{
@@ -1868,6 +2086,8 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 		}
 	}
 
+	g_bLoadedFromDB[client] = true;
+
 	CalculateStats(client);
 }
 
@@ -1905,8 +2125,7 @@ stock void StripPlayerWeapons(int client)
 	if(!IsValidPlayer(client))
 		return;
 	
-	// <= 4 removes bomb
-	for(int i=0;i < 4;i++)
+	for(int i=0;i < 2;i++)
 	{
 		int weapon = GetPlayerWeaponSlot(client, i);
 		
@@ -1947,6 +2166,31 @@ stock void SetClientLastPrimary(int client, int amount)
 	IntToString(amount, strAmount, sizeof(strAmount));
 	
 	SetClientCookie(client, cpLastPrimary, strAmount);
+	
+}
+
+stock bool IsClientAutoRPG(int client)
+{
+	char strAutoRPG[3];
+	
+	GetClientCookie(client, cpAutoRPG, strAutoRPG, sizeof(strAutoRPG));
+	
+	if(strAutoRPG[0] == EOS)
+	{
+		return true;
+	}
+	bool bAutoRPG = view_as<bool>(StringToInt(strAutoRPG));
+	
+	return bAutoRPG;
+}
+
+stock void SetClientAutoRPG(int client, bool bAutoRPG)
+{
+	char strAutoRPG[30];
+	
+	IntToString(view_as<int>(bAutoRPG), strAutoRPG, sizeof(strAutoRPG));
+	
+	SetClientCookie(client, cpAutoRPG, strAutoRPG);
 	
 }
 
@@ -2232,4 +2476,78 @@ stock int GetEntityMaxHealth(int entity)
 stock int GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Send, "m_iHealth");
+}
+
+
+
+// AUTO RPG
+
+stock bool AutoRPG_FindCheapestPerkTree(int client, int &position, int &cost)
+{
+	CalculateStats(client);
+
+	position = -1;
+
+	for(int i=0;i < g_aPerkTrees.Length;i++)
+	{
+		enPerkTree iPerkTree;
+		g_aPerkTrees.GetArray(i, iPerkTree);
+
+		// This also safely enables checking for next level without leaving array bounds.
+		if(g_iUnlockedPerkTrees[client][i] >= iPerkTree.costs.Length - 1)
+			continue;
+
+		else if(GetClientLevel(client) < iPerkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][i] + 1))
+			continue;
+
+		else if(GetClientXPCurrency(client) < iPerkTree.costs.Get(g_iUnlockedPerkTrees[client][i] + 1))
+			continue;
+
+		if(position == -1 || iPerkTree.costs.Get(g_iUnlockedPerkTrees[client][i] + 1) < cost)
+		{
+			position = i;
+			cost = iPerkTree.costs.Get(g_iUnlockedPerkTrees[client][i] + 1);
+		}
+	}
+
+	if(position == -1)
+	{
+		cost = 2147483647;
+		return false;
+	}
+
+	return true;
+}
+
+stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost)
+{
+	CalculateStats(client);
+
+	position = -1;
+
+	for(int i=0;i < g_aSkills.Length;i++)
+	{
+		enSkill iSkill;
+		g_aSkills.GetArray(i, iSkill);
+
+		if(GetClientLevel(client) < iSkill.levelReq)
+			continue;
+
+		else if(GetClientXPCurrency(client) < iSkill.cost)
+			continue;
+
+		if(position == -1 || iSkill.cost < cost)
+		{
+			position = i;
+			cost = iSkill.cost;
+		}
+	}
+
+	if(position == -1)
+	{
+		cost = 2147483647;
+		return false;
+	}
+
+	return true;
 }

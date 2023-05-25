@@ -33,7 +33,7 @@ public void BileGoggles_OnDoesHaveBileGoggles(int client, bool &bGoggles, float 
 {
 	fCleanTime += 85.0;
 	fCleanTime -= GunXP_RPG_GetClientLevel(client);
-	
+
 	if(GunXP_RPGShop_IsSkillUnlocked(client, bileGogglesIndex))
 	{
 		bGoggles = true;
@@ -59,6 +59,7 @@ public void OnPluginStart()
 
 public void RegisterSkill()
 {
-    bileGogglesIndex = GunXP_RPGShop_RegisterSkill("Bile Goggles", "Bile Goggles", "Press +ZOOM to remove the Bile Goggles to see again.\nIf your eyes are hit while it's removed,\n they won't help you.\nGoggles return to eyes in 100 seconds subtracted by your level.", 20000, 25);
+    bileGogglesIndex = GunXP_RPGShop_RegisterSkill("Bile Goggles", "Bile Goggles", "Press +ZOOM to remove the Bile Goggles to see again.\nIf your eyes are hit while it's removed,\n they won't help you.\nGoggles return to eyes in 100 seconds subtracted by your level.",
+	 20000, 25);
 }
 
