@@ -44,12 +44,9 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    AddNormalSoundHook(SoundHook);
     RegisterPerkTree();
 
     g_hKitDuration = FindConVar("first_aid_kit_use_duration");
-
-    g_fKitDuration = g_hKitDuration.FloatValue;
 
     for (int i = 1; i <= MaxClients; i++)
     {
@@ -60,29 +57,25 @@ public void OnPluginStart()
     }
 }
 
-public Action SoundHook(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH],
-	  int &entity, int &channel, float &volume, int &level, int &pitch, int &flags,
-	  char soundEntry[PLATFORM_MAX_PATH], int &seed)
+public Action L4D2_BackpackItem_StartAction(int client, int entity)
 {
-    if(StrEqual(sample, "player/survivor/heal/bandaging_1.wav"))
+    int reviver = entity;
+
+    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, empathyIndex);
+
+    g_fKitDuration = g_hKitDuration.FloatValue;
+
+    if(perkLevel != -1)
     {
-        int reviver = entity;
-
-        int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, empathyIndex);
-
-        PrintToChatAll("%i", perkLevel);
-
-        if(perkLevel == -1)
-        {
-            g_hKitDuration.FloatValue = g_fKitDuration;
-        }
-        else
-        {
-            g_hKitDuration.FloatValue = -(((g_fKitDuration * (100 * (perkLevel + 1)) / 100)) - g_fKitDuration);
-        }
-
-        return Plugin_Continue;
+        g_hKitDuration.FloatValue = -(((g_fKitDuration * (50 * (perkLevel + 1)) / 100)) - g_fKitDuration);
     }
+
+    return Plugin_Continue;
+}
+
+public void L4D2_BackpackItem_StartAction_Post(int client, int entity)
+{
+    g_hKitDuration.FloatValue = g_fKitDuration;
 }
 public void OnClientPutInServer(int client)
 {

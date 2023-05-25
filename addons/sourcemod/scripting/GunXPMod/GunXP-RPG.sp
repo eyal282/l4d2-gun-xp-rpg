@@ -231,7 +231,7 @@ char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
 	"cricket_bat",
 	"machete",
 	"fireaxe",
-	"magnum",
+	"pistol_magnum",
 	"chainsaw",
 	"sniper_scout",
 	"sniper_awp",
