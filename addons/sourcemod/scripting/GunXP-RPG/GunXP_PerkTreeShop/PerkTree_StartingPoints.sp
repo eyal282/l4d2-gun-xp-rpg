@@ -55,47 +55,47 @@ public void PointSystemAPI_OnSetStartPoints(int client, L4DTeam team, float &fSt
 
 public void RegisterPerkTree()
 {
-    ArrayList descriptions, costs, levelReqs;
+    ArrayList descriptions, costs, xpReqs;
     descriptions = new ArrayList(128);
     costs = new ArrayList(1);
-    levelReqs = new ArrayList(1);
+    xpReqs = new ArrayList(1);
 
     descriptions.PushString("+15%% starting points (relative to average price of items)");
     costs.Push(300);
-    levelReqs.Push(0);
+    xpReqs.Push(0);
 
     descriptions.PushString("+30%% starting points (relative to average price of items)");
     costs.Push(1000);
-    levelReqs.Push(2);
+    xpReqs.Push(5000);
 
     descriptions.PushString("+45%% starting points (relative to average price of items)");
     costs.Push(2000);
-    levelReqs.Push(6);
+    xpReqs.Push(15000);
 
     descriptions.PushString("+60%% starting points (relative to average price of items)");
     costs.Push(3500);
-    levelReqs.Push(9);
+    xpReqs.Push(25000);
 
     descriptions.PushString("+90%% starting points (relative to average price of items)");
     costs.Push(6000);
-    levelReqs.Push(12);
+    xpReqs.Push(50000);
 
 
     descriptions.PushString("+125%% starting points (relative to average price of items)");
     costs.Push(13000);
-    levelReqs.Push(15);
+    xpReqs.Push(75000);
 
     descriptions.PushString("+150%% starting points (relative to average price of items)");
     costs.Push(21000);
-    levelReqs.Push(18);
+    xpReqs.Push(100000);
 
     descriptions.PushString("+175%% starting points (relative to average price of items)");
     costs.Push(30000);
-    levelReqs.Push(21);
+    xpReqs.Push(200000);
 
     descriptions.PushString("+200%% starting points (relative to average price of items)");
     costs.Push(100000);
-    levelReqs.Push(25);
+    xpReqs.Push(500000);
 
-    startingPointsIndex = GunXP_RPGShop_RegisterPerkTree("Starting Points", "Starting Points", descriptions, costs, levelReqs);
+    startingPointsIndex = GunXP_RPGShop_RegisterPerkTree("Starting Points", "Starting Points", descriptions, costs, xpReqs);
 }

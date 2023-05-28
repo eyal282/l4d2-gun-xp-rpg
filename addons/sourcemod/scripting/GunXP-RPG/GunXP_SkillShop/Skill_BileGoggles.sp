@@ -1,6 +1,7 @@
 
 
 #include <ps_api>
+#include <GunXP-RPG>
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
@@ -20,14 +21,6 @@ public Plugin myinfo =
 };
 
 int bileGogglesIndex;
-
-// Make identifier as descriptive as possible.
-
-native int GunXP_RPG_GetClientLevel(int client);
-
-native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null);
-native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
-
 
 public void BileGoggles_OnDoesHaveBileGoggles(int client, bool &bGoggles, float &fCleanTime)
 {
@@ -60,6 +53,6 @@ public void OnPluginStart()
 public void RegisterSkill()
 {
     bileGogglesIndex = GunXP_RPGShop_RegisterSkill("Bile Goggles", "Bile Goggles", "Press +ZOOM to remove the Bile Goggles to see again.\nIf your eyes are hit while it's removed,\n they won't help you.\nGoggles return to eyes in 100 seconds subtracted by your level.",
-	 20000, 25);
+	 20000, 75000);
 }
 

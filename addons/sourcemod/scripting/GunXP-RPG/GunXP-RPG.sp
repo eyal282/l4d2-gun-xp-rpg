@@ -1,3 +1,4 @@
+#include <GunXP-RPG>
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
@@ -174,7 +175,7 @@ int g_iUnlockedPerkTrees[MAXPLAYERS+1][MAX_ITEMS];
 int g_iCommonKills[MAXPLAYERS+1];
 int g_iCommonHeadshots[MAXPLAYERS+1];
 
-GlobalForward g_fwOnUnlockShopBuy;
+//GlobalForward g_fwOnUnlockShopBuy;
 GlobalForward g_fwOnSkillBuy;
 GlobalForward g_fwOnPerkTreeBuy;
 GlobalForward g_fwOnSpawned;
@@ -296,9 +297,9 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("GunXP_RPGShop_RegisterPerkTree", Native_RegisterPerkTree);
 	CreateNative("GunXP_RPGShop_IsPerkTreeUnlocked", Native_IsPerkTreeUnlocked);
 
-	CreateNative("GunXP_UnlockShop_RegisterProduct", Native_RegisterProduct);
-	CreateNative("GunXP_UnlockShop_ReplenishProducts", Native_ReplenishProducts);
-	CreateNative("GunXP_UnlockShop_IsProductUnlocked", Native_IsProductUnlocked);
+//	CreateNative("GunXP_UnlockShop_RegisterProduct", Native_RegisterProduct);
+//	CreateNative("GunXP_UnlockShop_ReplenishProducts", Native_ReplenishProducts);
+//	CreateNative("GunXP_UnlockShop_IsProductUnlocked", Native_IsProductUnlocked);
 
 	RegPluginLibrary("GunXPMod");
 	RegPluginLibrary("GunXP_UnlockShop");
@@ -343,7 +344,7 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	int cost = GetNativeCell(4);
 
-	int levelReq = GetNativeCell(5);
+	int levelReq = GetClosestLevelToXP(GetNativeCell(5));
 
 	ArrayList reqIdentifiers = GetNativeCell(6);
 
@@ -411,6 +412,13 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 	perkTree.descriptions = descriptions.Clone();
 	perkTree.costs = costs.Clone();
 	perkTree.levelReqs = levelReqs.Clone();
+
+	for(int i=0;i < perkTree.levelReqs.Length;i++)
+	{
+		int levelReq = GetClosestLevelToXP(perkTree.levelReqs.Get(i));
+
+		perkTree.levelReqs.Set(i, levelReq);
+	}
 
 	if(reqIdentifiers == null)
 	{
@@ -504,6 +512,7 @@ public any Native_IsProductUnlocked(Handle caller, int numParams)
 // This basically means "Treat the situation as if we bought every product again"
 
 // If you got a teleport grenade bought, and this plugin is called, you will get a free smoke.
+/*
 public int Native_ReplenishProducts(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -527,12 +536,13 @@ public int Native_ReplenishProducts(Handle caller, int numParams)
 
 	return 0;
 }
+*/
 public void OnPluginStart()
 {
-	g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
+	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
 	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
-	g_fwOnSpawned = CreateGlobalForward("GunXP_OnPlayerSpawned", ET_Ignore, Param_Cell);
+	g_fwOnSpawned = CreateGlobalForward("GunXP_RPG_OnPlayerSpawned", ET_Ignore, Param_Cell);
 
 	g_aUnlockItems = CreateArray(sizeof(enProduct));
 	g_aSkills = CreateArray(sizeof(enSkill));
@@ -1720,7 +1730,6 @@ public void Event_PlayerSpawnFrame(int UserId)
 	else
 		ShowChoiceMenu(client);
 	
-
 	SetEntityMaxHealth(client, 100);
 
 	Call_StartForward(g_fwOnSpawned);
@@ -2316,23 +2325,6 @@ stock bool StripWeaponFromPlayer(int client, const char[] Classname)
 	
 	return false;
 }
-#if defined _autoexecconfig_included
-
-stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description = "", int flags = 0, bool hasMin = false, float min = 0.0, bool hasMax = false, float max = 0.0)
-{
-	return AutoExecConfig_CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
-}
-
-#else
-
-stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description = "", int flags = 0, bool hasMin = false, float min = 0.0, bool hasMax = false, float max = 0.0)
-{
-	return CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
-}
- 
-#endif
-
-
 
 stock void PrintToChatEyal(const char[] format, any ...)
 {
@@ -2463,22 +2455,6 @@ stock int Abs(int value)
 }
 
 
-stock void SetEntityMaxHealth(int entity, int amount)
-{
-	SetEntProp(entity, Prop_Data, "m_iMaxHealth", amount);
-}
-
-stock int GetEntityMaxHealth(int entity)
-{
-	return GetEntProp(entity, Prop_Data, "m_iMaxHealth");
-}
-
-stock int GetEntityHealth(int entity)
-{
-	return GetEntProp(entity, Prop_Send, "m_iHealth");
-}
-
-
 
 // AUTO RPG
 
@@ -2550,4 +2526,17 @@ stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost)
 	}
 
 	return true;
+}
+
+stock int GetClosestLevelToXP(int xp)
+{
+	int level = 0;
+
+	for(int i=0;i < MAX_LEVEL;i++)
+	{
+		if(xp >= LEVELS[i])
+			level++;
+	}
+
+	return level;
 }
