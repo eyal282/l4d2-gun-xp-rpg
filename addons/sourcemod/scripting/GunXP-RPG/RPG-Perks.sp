@@ -25,10 +25,23 @@ ConVar g_hRPGKitDuration;
 ConVar g_hReviveDuration;
 ConVar g_hRPGReviveDuration;
 
+ConVar g_hIncapHealth;
+ConVar g_hRPGIncapHealth;
+
+ConVar g_hLedgeHangHealth;
+ConVar g_hRPGLedgeHangHealth;
+
+ConVar g_hStartIncapWeapon;
+
 GlobalForward g_fwOnGetRPGKitDuration;
 GlobalForward g_fwOnGetRPGReviveDuration;
+GlobalForward g_fwOnGetRPGIncapWeapon;
+GlobalForward g_fwOnGetRPGIncapHealth;
 GlobalForward g_fwOnCalculateDamage;
 
+char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
+int g_iLastSecondaryClip[MAXPLAYERS+1];
+bool g_bLastSecondaryDual[MAXPLAYERS+1];
 
 public void OnPluginEnd()
 {
@@ -38,10 +51,17 @@ public void OnPluginEnd()
 
 public void OnPluginStart()
 {
+	HookEvent("player_incapacitated_start", Event_PlayerIncapStartPre, EventHookMode_Pre);
+	HookEvent("revive_success", Event_ReviveSuccess, EventHookMode_Post);
+	HookEvent("bot_player_replace", Event_PlayerReplacesABot, EventHookMode_Post);
+	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Post);
+	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabPre, EventHookMode_Pre);
 	HookEvent("revive_begin", Event_ReviveBeginPre, EventHookMode_Pre);
 
 	g_fwOnGetRPGKitDuration = CreateGlobalForward("RPG_Perks_OnGetKitDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGReviveDuration = CreateGlobalForward("RPG_Perks_OnGetReviveDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
+	g_fwOnGetRPGIncapHealth = CreateGlobalForward("RPG_Perks_OnGetIncapHealth", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
+	g_fwOnGetRPGIncapWeapon = CreateGlobalForward("RPG_Perks_OnGetIncapWeapon", ET_Ignore, Param_Cell, Param_CellByRef);
 
 	// Run an incap or held slot check to determine if you want to prevent interrupting actions.
 	// public void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor, float &damage, int damagetype, bool &bDontInterruptActions)
@@ -54,6 +74,15 @@ public void OnPluginStart()
 
 	g_hReviveDuration = FindConVar("survivor_revive_duration");
 	g_hRPGReviveDuration = AutoExecConfig_CreateConVar("rpg_survivor_revive_duration", "5", "Default time for reviving.");
+
+
+	g_hIncapHealth = FindConVar("survivor_incap_health");
+	g_hRPGIncapHealth = AutoExecConfig_CreateConVar("rpg_survivor_incap_health", "300", "Default HP for being incapacitated");
+
+	g_hLedgeHangHealth = FindConVar("survivor_ledge_grab_health");
+	g_hRPGLedgeHangHealth = AutoExecConfig_CreateConVar("rpg_survivor_ledge_grab_health", "300", "Default HP for ledge hanging");
+
+	g_hStartIncapWeapon = AutoExecConfig_CreateConVar("rpg_start_incap_weapon", "0", "0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum");
 
 	AutoExecConfig_ExecuteFile();
 
@@ -99,6 +128,196 @@ public Action Event_ReviveBeginPre(Event event, const char[] name, bool dontBroa
 	Call_Finish();
 
 	g_hReviveDuration.FloatValue = fDuration;
+
+	return Plugin_Continue;
+}
+
+
+public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	int health = g_hRPGIncapHealth.IntValue;
+
+	Call_StartForward(g_fwOnGetRPGIncapHealth);
+
+	Call_PushCell(client);
+	Call_PushCell(false);
+	Call_PushCellRef(health);
+
+	Call_Finish();
+
+	g_hIncapHealth.IntValue = health;
+
+	int weapon = GetPlayerWeaponSlot(client, 1);
+	
+	if(weapon != -1)
+	{
+		GetEdictClassname(weapon, g_sLastSecondaryClassname[client], sizeof(g_sLastSecondaryClassname[]));
+
+		PrintToChatAll("aA%s %i", g_sLastSecondaryClassname[client], sizeof(g_sLastSecondaryClassname[]));
+		g_iLastSecondaryClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
+		g_bLastSecondaryDual[client] = view_as<bool>(GetEntProp(weapon, Prop_Send, "m_isDualWielding"));
+	}
+	else
+	{
+		g_sLastSecondaryClassname[client][0] = EOS;	
+		g_iLastSecondaryClip[client] = 0;
+		g_bLastSecondaryDual[client] = false;
+	}
+
+	return Plugin_Continue;
+}
+
+public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool dontBroadcast)
+{
+	int newPlayer = GetClientOfUserId(GetEventInt(event, "player"));
+
+	g_sLastSecondaryClassname[newPlayer][0] = EOS;
+	g_iLastSecondaryClip[newPlayer] = 0;
+	g_bLastSecondaryDual[newPlayer] = false;
+
+	return Plugin_Continue;
+}
+
+
+public Action Event_ReviveSuccess(Handle event, const char[] name, bool dontBroadcast)
+{
+	int revived = GetClientOfUserId(GetEventInt(event, "subject"));
+
+	PrintToChatAll("%i", revived);
+	if(revived == 0)
+		return Plugin_Continue;
+
+	int weapon = GetPlayerWeaponSlot(revived, 1);
+
+	PrintToChatAll("%sa ", g_sLastSecondaryClassname[revived]);
+	if(g_sLastSecondaryClassname[revived][0] != EOS)
+	{
+		if(weapon != -1)
+		{
+			RemovePlayerItem(revived, weapon);
+		}
+
+		int newWeapon = GivePlayerItem(revived, g_sLastSecondaryClassname[revived]);
+
+		SetEntProp(newWeapon, Prop_Send, "m_iClip1", g_iLastSecondaryClip[revived]);
+
+		if(g_bLastSecondaryDual[revived])
+		{
+			SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 0);
+            SDKHooks_DropWeapon(revived, newWeapon);
+            SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 1);
+
+			EquipPlayerWeapon(revived, newWeapon);
+
+			// We already restore ammo.
+			//SetEntProp(newWeapon, Prop_Send, "m_iClip1", GetEntProp(newWeapon, Prop_Send, "m_iClip1") * 2);
+		}
+	}
+
+	return Plugin_Continue;
+}
+
+
+
+public Action Event_PlayerIncap(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	// Fastest reviver in the west
+
+	if(!L4D_IsPlayerIncapacitated(client))
+		return Plugin_Continue;
+
+	int index = g_hStartIncapWeapon.IntValue;
+
+	Call_StartForward(g_fwOnGetRPGIncapWeapon);
+
+	Call_PushCell(client);
+	Call_PushCellRef(index);
+
+	Call_Finish();
+
+	PrintToChatAll("%i", index);
+	
+	switch(index)
+	{
+		case 0:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+		}
+		case 1:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			weapon = GivePlayerItem(client, "weapon_pistol");
+
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
+            SDKHooks_DropWeapon(client, weapon);
+
+			EquipPlayerWeapon(client, weapon);
+		}
+		case 2:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			weapon = GivePlayerItem(client, "weapon_pistol");
+			
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
+            SDKHooks_DropWeapon(client, weapon);
+            SetEntProp(weapon, Prop_Send, "m_isDualWielding", 1);
+
+			EquipPlayerWeapon(client, weapon);
+
+			SetEntProp(weapon, Prop_Send, "m_iClip1", GetEntProp(weapon, Prop_Send, "m_iClip1") * 2);
+		}
+		default:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			GivePlayerItem(client, "weapon_pistol_magnum");
+		}
+	}
+
+	return Plugin_Continue;
+}
+public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	int health = g_hRPGLedgeHangHealth.IntValue;
+
+	Call_StartForward(g_fwOnGetRPGIncapHealth);
+
+	Call_PushCell(client);
+	Call_PushCell(true);
+	Call_PushCellRef(health);
+
+	Call_Finish();
+
+	g_hLedgeHangHealth.IntValue = health;
 
 	return Plugin_Continue;
 }

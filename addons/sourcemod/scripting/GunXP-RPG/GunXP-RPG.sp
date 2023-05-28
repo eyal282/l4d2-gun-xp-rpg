@@ -5,6 +5,7 @@
 #include <clientprefs>
 #include <left4dhooks>
 #include <smlib>
+#include <ps_api>
 
 #undef REQUIRE_PLUGIN
 #undef REQUIRE_EXTENSIONS
@@ -108,22 +109,11 @@ Handle cpLastSecondary, cpLastPrimary, cpAutoRPG;
 
 bool g_bTookWeapons[MAXPLAYERS+1];
 
-int StartOfPrimary = 13; // Change to the beginning of rifles in the levels, remember to count [0]
+int StartOfPrimary = 14; // Change to the beginning of rifles in the levels, remember to count [0]
 
-#define MAX_LEVEL 28
+#define MAX_LEVEL 29
 
 #define PERK_TREE_NOT_UNLOCKED -1
-
-enum struct enProduct
-{
-	char name[64];
-	char description[256];
-
-	// cost in XP.
-	int cost;
-	// min level to use.
-	int minLevel;
-}
 
 enum struct enSkill
 {
@@ -162,7 +152,7 @@ enum struct enPerkTree
 	ArrayList reqIdentifiers;
 }
 
-ArrayList g_aUnlockItems;
+//ArrayList g_aUnlockItems;
 ArrayList g_aSkills;
 ArrayList g_aPerkTrees;
 
@@ -198,25 +188,26 @@ int LEVELS[MAX_LEVEL+1] =
 	1000, // needed for level 7
 	1200, // needed for level 8
 	1500, // needed for level 9 
-	2000, // needed for level 10 
-	2250, // needed for level 11 
-	2500, // needed for level 12 
-	2750, // needed for level 13 
-	3000, // needed for level 14, the first rifle
-	3500, // needed for level 15 
-	4000, // needed for level 16 
-	4500, // needed for level 17 
-	5000, // needed for level 18 
-	6000, // needed for level 19 
-	10000, // needed for level 20 
-	14000, // needed for level 21 
-	18000, // needed for level 22 
-	25000, // needed for level 23 
-	35000,  // needed for level 24 
-	50000,  // needed for level 25 
-	100000,  // needed for level 26
-	200000,  // needed for level 27
-	400000,  // needed for level 28
+	1750, // needed for level 10
+	2000, // needed for level 11 
+	2250, // needed for level 12 
+	2500, // needed for level 13 
+	2750, // needed for level 14 
+	3000, // needed for level 15, the first rifle
+	3500, // needed for level 16 
+	4000, // needed for level 17 
+	4500, // needed for level 18 
+	5000, // needed for level 19 
+	6000, // needed for level 20 
+	10000, // needed for level 21
+	14000, // needed for level 22 
+	18000, // needed for level 23 
+	25000, // needed for level 24 
+	35000,  // needed for level 25
+	50000,  // needed for level 26
+	100000,  // needed for level 27
+	200000,  // needed for level 28
+	400000,  // needed for level 29
 	2147483647 // This shall never change, NEVERRRRR
 };
 char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
@@ -231,6 +222,7 @@ char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
 	"crowbar",
 	"cricket_bat",
 	"machete",
+	"katana",
 	"fireaxe",
 	"pistol_magnum",
 	"chainsaw",
@@ -265,6 +257,7 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 	"Crowbar",
 	"Bat",
 	"Machete",
+	"Katana",
 	"Fireaxe",
 	"Magnum",
 	"Chainsaw",
@@ -287,10 +280,58 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 };
 
 
+public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, const char[] sAliases, const char[] sName, int target, float fCost, float fDelay, float fCooldown)
+{
+	if(!L4D_IsPlayerIncapacitated(target))
+		return Plugin_Continue;
+
+	else if(StrEqual(sInfo, "give pistol") || StrEqual(sInfo, "give pistol_magnum"))
+	{
+		PSAPI_SetErrorByPriority(50, "\x04[Gun-XP]\x03 Error:\x01 Pistols cannot be bought when incapacitated");
+		return Plugin_Stop;
+	}
+
+	return Plugin_Continue;
+}
+
+public Action PointSystemAPI_OnGetParametersProduct(int buyer, const char[] sAliases, char[] sInfo, char[] sName, char[] sDescription, int target, float& fCost, float& fDelay, float& fCooldown)
+{
+	if(strncmp(sInfo, "give ", 5) != 0)
+		return Plugin_Continue;
+
+	char sClass[32];
+	FormatEx(sClass, sizeof(sClass), sInfo);
+
+	ReplaceStringEx(sClass, sizeof(sClass), "give ", "");
+
+	for(int i=0;i < sizeof(GUNS_CLASSNAMES);i++)
+	{
+		if(StrEqual(sClass, GUNS_CLASSNAMES[i]))
+		{
+			if(IsFakeClient(target))
+			{
+				fCost = 0.0;
+				return Plugin_Changed;
+			}
+
+			else if(i <= GetClientLevel(target))
+			{
+				fCost = 0.0;
+				return Plugin_Changed;
+			}
+
+			return Plugin_Continue;
+		}
+	}
+	
+	return Plugin_Continue;
+}
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
 
 	CreateNative("GunXP_RPG_GetClientLevel", Native_GetClientLevel);
+
+	CreateNative("GunXP_RPG_AddClientXP", Native_AddClientXP);
 
 	CreateNative("GunXP_RPGShop_RegisterSkill", Native_RegisterSkill);
 	CreateNative("GunXP_RPGShop_IsSkillUnlocked", Native_IsSkillUnlocked);
@@ -308,7 +349,6 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	return APLRes_Success;
 }
 
-
 // GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null)
 
 public int Native_GetClientLevel(Handle caller, int numParams)
@@ -316,6 +356,18 @@ public int Native_GetClientLevel(Handle caller, int numParams)
 	int client = GetNativeCell(1);
 
 	return GetClientLevel(client);
+}
+
+public int Native_AddClientXP(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+	int amount = GetNativeCell(2);
+
+	bool bPremiumMultiplier = GetNativeCell(3);
+
+	AddClientXP(client, amount, bPremiumMultiplier);
+
+	return 0;
 }
 public int Native_RegisterSkill(Handle caller, int numParams)
 {
@@ -446,7 +498,7 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 
 	return g_iUnlockedPerkTrees[client][perkIndex];
 }
-
+/*
 public int Native_RegisterProduct(Handle caller, int numParams)
 {
 	enProduct product;
@@ -502,7 +554,7 @@ public any Native_IsProductUnlocked(Handle caller, int numParams)
 
 	return g_bUnlockedProducts[client][productIndex];
 }
-
+*/
 /*public any Native_IsFFA(Handle caller, int numParams)
 {
 	return GetConVarBool(FindConVar("mp_teammates_are_enemies"));
@@ -544,7 +596,7 @@ public void OnPluginStart()
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnSpawned = CreateGlobalForward("GunXP_RPG_OnPlayerSpawned", ET_Ignore, Param_Cell);
 
-	g_aUnlockItems = CreateArray(sizeof(enProduct));
+	//g_aUnlockItems = CreateArray(sizeof(enProduct));
 	g_aSkills = CreateArray(sizeof(enSkill));
 	g_aPerkTrees = CreateArray(sizeof(enPerkTree));
 
@@ -789,6 +841,9 @@ public void OnClientPutInServer(int client)
 
 public Action SDKEvent_WeaponDrop(int client, int weapon)
 {
+	if(weapon == -1)
+		return Plugin_Continue;
+
 	char sClassname[64];
 	GetEdictClassname(weapon, sClassname, sizeof(sClassname)); 
 
@@ -1552,7 +1607,6 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 	}
 	
 	AddClientXP(attacker, xpToAdd);
-
 
 	return Plugin_Continue;
 }

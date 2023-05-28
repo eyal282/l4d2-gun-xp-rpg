@@ -49,6 +49,9 @@ public void RegisterSkill()
 
 public void GunXP_RPG_OnPlayerSpawned(int client)
 {
+    if(!GunXP_RPGShop_IsSkillUnlocked(client, leaderIndex))
+        return;
+
     SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 25);
 }
 

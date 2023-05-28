@@ -47,7 +47,7 @@ public void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor,
         return;
 
     int perkLevel1 = GunXP_RPGShop_IsPerkTreeUnlocked(victim, friendlyIndex);
-    int perkLevel2 = GunXP_RPGShop_IsPerkTreeUnlocked(victim, friendlyIndex);
+    int perkLevel2 = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, friendlyIndex);
 
     int perkLevel = perkLevel1;
 

@@ -22,6 +22,7 @@ char ColorEquivalents[][] =
 native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null);
 native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 
+native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
 native int GunXP_RPG_GetClientLevel(int client);
 
 native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null);
@@ -33,6 +34,7 @@ forward void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor
 
 forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration);
 forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, float &fDuration);
+forward void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health);
 
 stock void UC_ReplyToCommand(int client, const char[] format, any ...)
 {
@@ -117,10 +119,7 @@ stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const
 
 stock bool IsPlayer(int entity)
 {
-	if(entity >= 1)
-		return true;
-		
-	else if(entity <= MaxClients)
+	if(entity >= 1 && entity <= MaxClients)
 		return true;
 		
 	return false;
