@@ -166,6 +166,7 @@ int g_iCommonKills[MAXPLAYERS+1];
 int g_iCommonHeadshots[MAXPLAYERS+1];
 
 //GlobalForward g_fwOnUnlockShopBuy;
+GlobalForward g_fwOnResetRPG;
 GlobalForward g_fwOnSkillBuy;
 GlobalForward g_fwOnPerkTreeBuy;
 GlobalForward g_fwOnSpawned;
@@ -295,6 +296,11 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 		Call_Finish();
 
 		SetEntityHealth(i, GetEntityMaxHealth(i));
+
+		L4D_SetPlayerTempHealth(i, 0);
+
+		if(IsFakeClient(i))
+			ShowChoiceMenu(i);
 	}
 }
 
@@ -396,6 +402,8 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	char description[512];
 	GetNativeString(3, description, sizeof(description));
+
+	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
 
 	for(int i=0;i < g_aSkills.Length;i++)
 	{
@@ -515,6 +523,16 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 		perkTree.levelReqs.Set(i, levelReq);
 	}
 
+	for(int i=0;i < perkTree.descriptions.Length;i++)
+	{
+		char description[512];
+		perkTree.descriptions.GetString(i, description, sizeof(description));
+
+		ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
+
+		perkTree.descriptions.SetString(i, description);
+	}
+
 	if(reqIdentifiers == null)
 	{
 		perkTree.reqIdentifiers = null;
@@ -559,6 +577,9 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 
 			averageLevel += g_iUnlockedPerkTrees[i][perkIndex] + 1;
 		}
+
+		if(count == 0)
+			return -1;
 
 		return RoundToCeil((float(averageLevel) / float(count)) / 2.0) - 1;
 	}
@@ -657,6 +678,7 @@ public int Native_ReplenishProducts(Handle caller, int numParams)
 public void OnPluginStart()
 {
 	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
+	g_fwOnResetRPG = CreateGlobalForward("GunXP_RPGShop_OnResetRPG", ET_Ignore, Param_Cell);
 	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnSpawned = CreateGlobalForward("GunXP_RPG_OnPlayerSpawned", ET_Ignore, Param_Cell);
@@ -680,6 +702,8 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_skill", Command_Skills);
 	RegConsoleCmd("sm_perk", Command_PerkTrees);
 	RegConsoleCmd("sm_perks", Command_PerkTrees);
+
+	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
 
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("infected_death", Event_CommonDeath, EventHookMode_Pre);
@@ -1462,6 +1486,12 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 
 public Action ShowChoiceMenu(int client)
 {	
+	if(IsFakeClient(client))
+	{
+		GiveGuns(client);
+		return Plugin_Handled;
+	}
+
 	CalculateStats(client);
 	
 	Handle hMenu = CreateMenu(Choice_MenuHandler);
@@ -1661,11 +1691,53 @@ public void GiveGuns(int client)
 	g_bTookWeapons[client] = true;
 }
 
+public Action Event_WeaponFire(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	
+	if(weapon == -1)
+		return Plugin_Continue;
+
+	char sClassname[64];
+	GetEdictClassname(weapon, sClassname, sizeof(sClassname));
+
+	ReplaceStringEx(sClassname, sizeof(sClassname), "weapon_", "");
+
+	for(int i=0;i < sizeof(GUNS_CLASSNAMES);i++)
+	{
+		if(StrEqual(sClassname, GUNS_CLASSNAMES[i]))
+		{
+			if(i <= GetClientLevel(client))
+			{
+				if(StrEqual(sClassname, "chainsaw"))
+				{
+					SetEntProp(weapon, Prop_Data, "m_iClip1", 30);
+					return Plugin_Continue;
+				}
+				else if(!HasEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType"))
+					return Plugin_Continue;
+
+				int ammoType = GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType");
+
+				SetEntProp(client, Prop_Data, "m_iAmmo", 999, _, ammoType);
+
+				return Plugin_Continue;
+			}
+
+			return Plugin_Continue;
+		}
+	}
+
+	return Plugin_Continue;
+}
+
 public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
-	if(!IsClientInGame(victim))
+	if(victim == 0)
 		return Plugin_Continue;
 
 	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
@@ -1744,7 +1816,7 @@ public Action Event_CommonDeath(Handle hEvent, const char[] name, bool dontBroad
 
 public Action Event_HealSuccess(Handle hEvent, const char[] name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(GetEventInt(hEvent, "subject"));
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	int subject = GetClientOfUserId(GetEventInt(hEvent, "subject"));
 
 	if (subject != 0 && client != 0 && !IsFakeClient(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
@@ -1872,6 +1944,8 @@ public void Event_PlayerSpawnFrame(int UserId)
 	if(L4D_IsInFirstCheckpoint(client) || L4D_IsInLastCheckpoint(client))
 	{
 		SetEntityHealth(client, GetEntityMaxHealth(client));
+
+		L4D_SetPlayerTempHealth(client, 0);
 	}
 }
 
@@ -2077,6 +2151,12 @@ stock int GetClientLevel(int client)
 
 stock void ResetPerkTreesAndSkills(int client)
 {
+	Call_StartForward(g_fwOnResetRPG);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
 	for(int i=0;i < MAX_ITEMS;i++)
 	{
 		g_bUnlockedSkills[client][i] = false;
@@ -2084,6 +2164,14 @@ stock void ResetPerkTreesAndSkills(int client)
 	}
 
 	g_iXPCurrency[client] = g_iXP[client];
+
+	if(IsPlayerAlive(client))
+	{
+		SetEntityMaxHealth(client, 100);
+
+		if(GetEntityHealth(client) > 100)
+			SetEntityHealth(client, 100);
+	}
 
 	Transaction transaction = SQL_CreateTransaction();
 

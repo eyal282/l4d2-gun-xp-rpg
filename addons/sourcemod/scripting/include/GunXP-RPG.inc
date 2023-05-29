@@ -19,16 +19,22 @@ char ColorEquivalents[][] =
 };
 
 // Make identifier as descriptive as possible.
+// Use {PERCENT} to denote percentages in descriptions.
 native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null);
 native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 
 native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
 native int GunXP_RPG_GetClientLevel(int client);
 
+// Make identifier as descriptive as possible.
+// Use {PERCENT} to denote percentages in descriptions.
 native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null);
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
 
+
+// This is called while the player still has their current perk tree and skills.
+forward void GunXP_RPGShop_OnResetRPG(int client);
 forward void GunXP_RPG_OnPlayerSpawned(int client);
 forward void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor, float &damage, int damagetype, bool &bDontInterruptActions);
 

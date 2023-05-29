@@ -430,8 +430,8 @@ public Action Event_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 	else if(!IsPlayer(victim))
 		return Plugin_Changed;
 
-	// Time to die.
-	else if(L4D_IsPlayerIncapacitated(victim) && damage >= float(GetEntityHealth(victim)))
+	// Time to die / incap
+	else if(damage >= float(GetEntityHealth(victim)))
 		return Plugin_Changed;
 
 	// Let fall damage insta kill.

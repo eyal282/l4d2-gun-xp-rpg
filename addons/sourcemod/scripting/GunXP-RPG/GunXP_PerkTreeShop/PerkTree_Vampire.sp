@@ -114,7 +114,7 @@ public Action Event_CommonDeath(Handle hEvent, const char[] name, bool dontBroad
 
     int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 
-    if(attacker > 0 && L4D_GetClientTeam(attacker) == L4DTeam_Survivor)
+    if(attacker != 0 && L4D_GetClientTeam(attacker) == L4DTeam_Survivor)
     {
         int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, vampireIndex);
 
