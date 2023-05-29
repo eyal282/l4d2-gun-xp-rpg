@@ -10,6 +10,15 @@
 
 #define MIN_FLOAT -2147483647.0
 
+public Plugin myinfo =
+{
+	name        = "Starting Points Perk Tree --> Gun XP RPG",
+	author      = "Eyal282",
+	description = "Perk tree to give starting points in PSAPI",
+	version     = PLUGIN_VERSION,
+	url         = ""
+};
+
 // Make identifier as descriptive as possible.
 native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null);
 native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
@@ -39,17 +48,13 @@ public void PointSystemAPI_OnSetStartPoints(int client, L4DTeam team, float &fSt
 {
     int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(client, startingPointsIndex);
 
-    if(!IsFakeClient(client))
-    {
-        LogError("%i - %.2f", perkLevel, fAveragePrice);
-    }
     if(perkLevel == -1)
     {
         return;
     }
     else
     {
-	    fStartPoints += fAveragePrice * ((perkLevel + 1) * 0.05);
+	    fStartPoints += fAveragePrice * ((perkLevel + 1) * 15.0/100.0);
     }
 }
 
@@ -61,41 +66,44 @@ public void RegisterPerkTree()
     xpReqs = new ArrayList(1);
 
     descriptions.PushString("+15%% starting points (relative to average price of items)");
-    costs.Push(300);
-    xpReqs.Push(0);
+    costs.Push(100);
+    xpReqs.Push(1000);
 
     descriptions.PushString("+30%% starting points (relative to average price of items)");
-    costs.Push(1000);
-    xpReqs.Push(5000);
+    costs.Push(200);
+    xpReqs.Push(2500);
 
     descriptions.PushString("+45%% starting points (relative to average price of items)");
-    costs.Push(2000);
-    xpReqs.Push(15000);
+    costs.Push(300);
+    xpReqs.Push(5000);
 
     descriptions.PushString("+60%% starting points (relative to average price of items)");
-    costs.Push(3500);
+    costs.Push(400);
+    xpReqs.Push(10000);
+
+    descriptions.PushString("+75%% starting points (relative to average price of items)");
+    costs.Push(500);
     xpReqs.Push(25000);
 
     descriptions.PushString("+90%% starting points (relative to average price of items)");
-    costs.Push(6000);
-    xpReqs.Push(50000);
-
-
-    descriptions.PushString("+125%% starting points (relative to average price of items)");
-    costs.Push(13000);
+    costs.Push(600);
     xpReqs.Push(75000);
 
-    descriptions.PushString("+150%% starting points (relative to average price of items)");
-    costs.Push(21000);
-    xpReqs.Push(100000);
+    descriptions.PushString("+105%% starting points (relative to average price of items)");
+    costs.Push(700);
+    xpReqs.Push(150000);
 
-    descriptions.PushString("+175%% starting points (relative to average price of items)");
-    costs.Push(30000);
-    xpReqs.Push(200000);
+    descriptions.PushString("+120%% starting points (relative to average price of items)");
+    costs.Push(800);
+    xpReqs.Push(300000);
 
-    descriptions.PushString("+200%% starting points (relative to average price of items)");
-    costs.Push(100000);
+    descriptions.PushString("+135%% starting points (relative to average price of items)");
+    costs.Push(900);
     xpReqs.Push(500000);
+
+    descriptions.PushString("+150%% starting points (relative to average price of items)");
+    costs.Push(1000);
+    xpReqs.Push(1000000);
 
     startingPointsIndex = GunXP_RPGShop_RegisterPerkTree("Starting Points", "Starting Points", descriptions, costs, xpReqs);
 }

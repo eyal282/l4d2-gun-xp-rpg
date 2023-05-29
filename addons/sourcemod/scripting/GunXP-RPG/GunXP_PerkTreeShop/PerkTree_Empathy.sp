@@ -47,7 +47,7 @@ public void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration
     if(perkLevel == -1)
         return;
 
-    float percent = (20.0 * (float(perkLevel) + 1.0));
+    float percent = (40.0 * (float(perkLevel) + 1.0));
 
     fDuration -= (percent * fDuration) / (percent + 100.0);
 }
@@ -60,23 +60,23 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+20%% medkit heal speed.");
+    descriptions.PushString("+40%% medkit heal speed.");
     costs.Push(500);
     xpReqs.Push(2000);
 
-    descriptions.PushString("+40%% medkit heal speed.");
+    descriptions.PushString("+80%% medkit heal speed.");
     costs.Push(2000);
     xpReqs.Push(5000);
 
-    descriptions.PushString("+60%% medkit heal speed.");
+    descriptions.PushString("+120%% medkit heal speed.");
     costs.Push(8000);
     xpReqs.Push(20000);
 
-    descriptions.PushString("+80%% medkit heal speed.");
+    descriptions.PushString("+160%% medkit heal speed.");
     costs.Push(15000);
     xpReqs.Push(50000);
 
-    descriptions.PushString("+100%% medkit heal speed.");
+    descriptions.PushString("+200%% medkit heal speed.");
     costs.Push(75000);
     xpReqs.Push(400000);
 

@@ -279,6 +279,24 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 	"NULL"
 };
 
+public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		SetEntityMaxHealth(i, 100);
+
+		Call_StartForward(g_fwOnSpawned);
+
+		Call_PushCell(i);
+
+		Call_Finish();
+
+		SetEntityHealth(i, GetEntityMaxHealth(i));
+	}
+}
 
 public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, const char[] sAliases, const char[] sName, int target, float fCost, float fDelay, float fCooldown)
 {
@@ -308,13 +326,7 @@ public Action PointSystemAPI_OnGetParametersProduct(int buyer, const char[] sAli
 	{
 		if(StrEqual(sClass, GUNS_CLASSNAMES[i]))
 		{
-			if(IsFakeClient(target))
-			{
-				fCost = 0.0;
-				return Plugin_Changed;
-			}
-
-			else if(i <= GetClientLevel(target))
+			if(i <= GetClientLevel(target))
 			{
 				fCost = 0.0;
 				return Plugin_Changed;
@@ -427,7 +439,38 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	int skillIndex = GetNativeCell(2);
 
-	return view_as<bool>(g_bUnlockedSkills[client][skillIndex]);
+	if(!IsFakeClient(client))
+		return view_as<bool>(g_bUnlockedSkills[client][skillIndex]);
+
+	// Check if average of humans have the skill unlocked.
+	else
+	{
+		int count = 0;
+		int unlockedCount = 0;
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(IsFakeClient(i))
+				continue;
+
+			count++;
+
+			if(g_bUnlockedSkills[i][skillIndex])
+			{
+				unlockedCount++;
+			}
+		}
+
+		if(float(unlockedCount) / float(count) >= 0.5)
+		{
+			return true;
+		}
+		
+		return false;
+	}
 }
 
 // GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null)
@@ -496,7 +539,29 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 
 	int perkIndex = GetNativeCell(2);
 
-	return g_iUnlockedPerkTrees[client][perkIndex];
+	if(!IsFakeClient(client))
+		return g_iUnlockedPerkTrees[client][perkIndex];
+
+	// Get average level divided by 2, rounded down.
+	else
+	{
+		int averageLevel = 0;
+		int count = 0;
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(IsFakeClient(i))
+				continue;
+
+			count++;
+
+			averageLevel += g_iUnlockedPerkTrees[i][perkIndex] + 1;
+		}
+
+		return RoundToCeil((float(averageLevel) / float(count)) / 2.0) - 1;
+	}
 }
 /*
 public int Native_RegisterProduct(Handle caller, int numParams)
@@ -682,7 +747,7 @@ public void ConnectDatabase()
 {
 	char     error[256];
 	Database hndl;
-	if ((hndl = SQLite_UseDatabase("GunXPMod-1", error, sizeof(error))) == null)
+	if ((hndl = SQLite_UseDatabase("GunXP-RPG", error, sizeof(error))) == null)
 		SetFailState(error);
 
 	else
@@ -718,7 +783,7 @@ public void OnClientConnected(int client)
 
 public void OnMapStart()
 {
-	CreateTimer(2.5, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 	CreateTimer(1.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		
@@ -758,7 +823,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 			enPerkTree perkTree;
 			g_aPerkTrees.GetArray(iPosPerkTree, perkTree);
 
-			PurchasePerkTreeLevel(i, iPosPerkTree, perkTree);
+			PurchasePerkTreeLevel(i, iPosPerkTree, perkTree, true);
 
 			PrintToChat(i, "Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
 
@@ -777,7 +842,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 			enSkill skill;
 			g_aSkills.GetArray(iPosSkill, skill);
 
-			PurchaseSkill(i, iPosSkill, skill);
+			PurchaseSkill(i, iPosSkill, skill, true);
 
 			PrintToChat(i, "Successfully unlocked the Skill %s!", skill.name);
 
@@ -800,15 +865,22 @@ public Action Timer_HudMessageXP(Handle hTimer)
 {
 	for(int i=1;i <= MaxClients;i++)
 	{
-		if(!IsValidPlayer(i))
+		if(!IsClientInGame(i))
 			continue;
 			
 		
+		char adrenalineFormat[64];
+
+		if(IsPlayerAlive(i) && GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) > 0.0)
+		{
+			FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "\n[Adrenaline : %i sec]", RoundFloat(Terror_GetAdrenalineTime(i)));
+		}
+
 		if(LEVELS[g_iLevel[i]] != 2147483647)
-			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]", g_iLevel[i], g_iXP[i], LEVELS[g_iLevel[i]], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]]);
+			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], LEVELS[g_iLevel[i]], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], adrenalineFormat);
 			
 		else 
-			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]", g_iLevel[i], g_iXP[i], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]]);
+			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], adrenalineFormat);
 	}
 
 	return Plugin_Continue;
@@ -836,13 +908,13 @@ public void OnClientAuthorized(int client)
 public void OnClientPutInServer(int client)
 {
 	//SDKHook(client, SDKHook_WeaponEquip, SDKEvent_WeaponEquip);
-	SDKHook(client, SDKHook_WeaponDrop, SDKEvent_WeaponDrop);
+	SDKHook(client, SDKHook_WeaponDropPost, SDKEvent_WeaponDropPost);
 }
 
-public Action SDKEvent_WeaponDrop(int client, int weapon)
+public void SDKEvent_WeaponDropPost(int client, int weapon)
 {
 	if(weapon == -1)
-		return Plugin_Continue;
+		return;
 
 	char sClassname[64];
 	GetEdictClassname(weapon, sClassname, sizeof(sClassname)); 
@@ -851,11 +923,11 @@ public Action SDKEvent_WeaponDrop(int client, int weapon)
 	{
 		if(StrEqual(sClassname, g_sAllowedDropWeapons[i]))
 		{
-			return Plugin_Handled;
+			return;
 		}
 	}
 
-	return Plugin_Continue;
+	AcceptEntityInput(weapon, "Kill");
 }
 
 /*
@@ -1239,7 +1311,7 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 		}
 		else
 		{
-			PurchasePerkTreeLevel(client, perkIndex, perkTree);
+			PurchasePerkTreeLevel(client, perkIndex, perkTree, false);
 
 			PrintToChat(client, "Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
 
@@ -1366,7 +1438,7 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 		}
 		else
 		{
-			PurchaseSkill(client, skillIndex , skill);
+			PurchaseSkill(client, skillIndex, skill, false);
 
 			PrintToChat(client, "Successfully unlocked the Skill %s!", skill.name);
 
@@ -1440,7 +1512,7 @@ public int Choice_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 	}	
 	else if(action == MenuAction_Cancel)
 	{
-		if(IsValidPlayer(client))
+		if(IsClientInGame(client))
 			PrintToChat(client, "Type\x05 !guns\x01 to re-open this menu.");
 	}
 
@@ -1473,7 +1545,7 @@ public int Secondary_MenuHandler(Handle hMenu, MenuAction action, int client, in
 	}
 	else if(action == MenuAction_Select)
 	{
-		if(!IsValidPlayer(client)) // Don't ask, I got an error :/
+		if(!IsClientInGame(client)) // Don't ask, I got an error :/
 			return 0;
 			
 		SetClientLastSecondary(client, item);
@@ -1486,7 +1558,7 @@ public int Secondary_MenuHandler(Handle hMenu, MenuAction action, int client, in
 	}
 	else if(action == MenuAction_Cancel)
 	{
-		if(IsValidPlayer(client))
+		if(IsClientInGame(client))
 			PrintToChat(client, "Type\x05 !guns\x01 to re-open this menu.");
 	}
 	
@@ -1519,7 +1591,7 @@ public int Primary_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 	}
 	else if(action == MenuAction_Select)
 	{
-		if(!IsValidPlayer(client)) // Don't ask, I got an error :/
+		if(!IsClientInGame(client)) // Don't ask, I got an error :/
 			return 0;
 			
 		SetClientLastPrimary(client, StartOfPrimary + item);
@@ -1528,7 +1600,7 @@ public int Primary_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 	}	
 	else if(action == MenuAction_Cancel)
 	{
-		if(IsValidPlayer(client))
+		if(IsClientInGame(client))
 			PrintToChat(client, "Type\x05 !guns\x01 to re-open this menu.");
 	}
 
@@ -1545,13 +1617,18 @@ public void GiveGuns(int client)
 
 	else if(L4D_IsPlayerIncapacitated(client))
 	{
-		StripPlayerWeapons(client);
-		GivePlayerItem(client, "weapon_pistol");
 		return;
 	}
 
 	StripPlayerWeapons(client);
 
+	if(IsFakeClient(client))
+	{
+		GivePlayerItem(client, "weapon_rifle");
+		GivePlayerItem(client, "weapon_pistol_magnum");
+
+		return;
+	}
 	int LastSecondary, LastPrimary;
 	LastSecondary = GetClientLastSecondary(client);
 	LastPrimary = GetClientLastPrimary(client);
@@ -1588,12 +1665,12 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
-	if(!IsValidPlayer(victim))
+	if(!IsClientInGame(victim))
 		return Plugin_Continue;
 
 	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	
-	if(attacker == victim || !IsValidPlayer(attacker))
+	if(attacker == victim || attacker == 0)
 		return Plugin_Continue;
 
 	bool headshot = GetEventBool(hEvent, "headshot");
@@ -1783,7 +1860,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 	}
 	else
 		ShowChoiceMenu(client);
-	
+
 	SetEntityMaxHealth(client, 100);
 
 	Call_StartForward(g_fwOnSpawned);
@@ -1792,6 +1869,10 @@ public void Event_PlayerSpawnFrame(int UserId)
 
 	Call_Finish();
 
+	if(L4D_IsInFirstCheckpoint(client) || L4D_IsInLastCheckpoint(client))
+	{
+		SetEntityHealth(client, GetEntityMaxHealth(client));
+	}
 }
 
 
@@ -2023,7 +2104,7 @@ stock void ResetPerkTreesAndSkills(int client)
 }
 
 
-stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree)
+stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, bool bAuto)
 {
 	g_iUnlockedPerkTrees[client][perkIndex]++;
 
@@ -2047,9 +2128,12 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree)
 	SQL_AddQuery(transaction, sQuery);
 
 	dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+
+	if(!bAuto)
+		ShowPerkTreeInfo(client, perkIndex);
 }
 
-stock void PurchaseSkill(int client, int skillIndex, enSkill skill)
+stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto)
 {
 	g_bUnlockedSkills[client][skillIndex] = true;
 
@@ -2069,6 +2153,9 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill)
 	SQL_AddQuery(transaction, sQuery);
 
 	dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+
+	if(!bAuto)
+		ShowSkillInfo(client, skillIndex);
 }
 
 public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
@@ -2172,22 +2259,8 @@ public void SQLCB_ErrorIgnore(Handle owner, DBResultSet hndl, const char[] Error
 }
 
 
-stock bool IsValidPlayer(int client)
-{
-	if(client <= 0)
-		return false;
-		
-	else if(client > MaxClients)
-		return false;
-		
-	return IsClientInGame(client);
-}
-
 stock void StripPlayerWeapons(int client)
 {
-	if(!IsValidPlayer(client))
-		return;
-	
 	for(int i=0;i < 2;i++)
 	{
 		int weapon = GetPlayerWeaponSlot(client, i);
@@ -2271,24 +2344,6 @@ stock int GetClientLastPrimary(int client)
 stock void SetHudMessage(float x = -1.0, float y = -1.0, float HoldTime = 6.0, int r = 255, int g = 0, int b = 0, int a = 255, int effects = 0, float fxTime = 12.0, float fadeIn = 0.0, float fadeOut = 0.0)
 {
 	SetHudTextParams(x, y, HoldTime, r, g, b, a, effects, fxTime, fadeIn, fadeOut);
-}
-
-stock void ShowHudMessage(int client, int channel = -1, char[] Message, any ...)
-{
-	char VMessage[300];
-	VFormat(VMessage, sizeof(VMessage), Message, 4);
-	
-	if(client != 0)
-		ShowHudText(client, channel, VMessage);
-	
-	else
-	{
-		for(int i=1;i <= MaxClients;i++)
-		{
-			if(IsValidPlayer(i))
-				ShowHudText(i, channel, VMessage);
-		}
-	}
 }
 
 stock bool IsStringNumber(char[] source)

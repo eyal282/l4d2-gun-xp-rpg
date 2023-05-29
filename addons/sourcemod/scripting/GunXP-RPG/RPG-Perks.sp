@@ -110,6 +110,77 @@ public void OnPluginStart()
 	}
 }
 
+// Must add natives for after a player spawns for incap hidden pistol.
+public void GunXP_RPG_OnPlayerSpawned(int client)
+{
+	// Fastest reviver in the west
+	if(!L4D_IsPlayerIncapacitated(client))
+		return;
+
+	else if(L4D_IsPlayerHangingFromLedge(client))
+		return;
+
+	int index = g_hStartIncapWeapon.IntValue;
+
+	Call_StartForward(g_fwOnGetRPGIncapWeapon);
+
+	Call_PushCell(client);
+	Call_PushCellRef(index);
+
+	Call_Finish();
+	
+	switch(index)
+	{
+		case 0:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+		}
+		case 1:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			weapon = GivePlayerItem(client, "weapon_pistol");
+
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
+			SDKHooks_DropWeapon(client, weapon);
+
+			EquipPlayerWeapon(client, weapon);
+		}
+		case 2:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			weapon = GivePlayerItem(client, "weapon_pistol");
+			
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
+			SDKHooks_DropWeapon(client, weapon);
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 1);
+
+			EquipPlayerWeapon(client, weapon);
+
+			SetEntProp(weapon, Prop_Send, "m_iClip1", GetEntProp(weapon, Prop_Send, "m_iClip1") * 2);
+		}
+		default:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			GivePlayerItem(client, "weapon_pistol_magnum");
+		}
+	}
+}
+
 public Action Event_ReviveBeginPre(Event event, const char[] name, bool dontBroadcast)
 {
 	int reviver = GetClientOfUserId(event.GetInt("userid"));
@@ -140,6 +211,10 @@ public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool don
 	if(client == 0)
 		return Plugin_Continue;
 
+	// Tanks get incapacitated on death.
+	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
+		return Plugin_Continue;
+
 	int health = g_hRPGIncapHealth.IntValue;
 
 	Call_StartForward(g_fwOnGetRPGIncapHealth);
@@ -158,9 +233,13 @@ public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool don
 	{
 		GetEdictClassname(weapon, g_sLastSecondaryClassname[client], sizeof(g_sLastSecondaryClassname[]));
 
-		PrintToChatAll("aA%s %i", g_sLastSecondaryClassname[client], sizeof(g_sLastSecondaryClassname[]));
 		g_iLastSecondaryClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
-		g_bLastSecondaryDual[client] = view_as<bool>(GetEntProp(weapon, Prop_Send, "m_isDualWielding"));
+		
+		if(HasEntProp(weapon, Prop_Send, "m_isDualWielding"))
+			g_bLastSecondaryDual[client] = view_as<bool>(GetEntProp(weapon, Prop_Send, "m_isDualWielding"));
+
+		else
+			g_bLastSecondaryDual[client] = false;
 	}
 	else
 	{
@@ -188,13 +267,14 @@ public Action Event_ReviveSuccess(Handle event, const char[] name, bool dontBroa
 {
 	int revived = GetClientOfUserId(GetEventInt(event, "subject"));
 
-	PrintToChatAll("%i", revived);
 	if(revived == 0)
+		return Plugin_Continue;
+
+	else if(GetEventBool(event, "ledge_hang"))
 		return Plugin_Continue;
 
 	int weapon = GetPlayerWeaponSlot(revived, 1);
 
-	PrintToChatAll("%sa ", g_sLastSecondaryClassname[revived]);
 	if(g_sLastSecondaryClassname[revived][0] != EOS)
 	{
 		if(weapon != -1)
@@ -209,8 +289,8 @@ public Action Event_ReviveSuccess(Handle event, const char[] name, bool dontBroa
 		if(g_bLastSecondaryDual[revived])
 		{
 			SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 0);
-            SDKHooks_DropWeapon(revived, newWeapon);
-            SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 1);
+			SDKHooks_DropWeapon(revived, newWeapon);
+			SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 1);
 
 			EquipPlayerWeapon(revived, newWeapon);
 
@@ -232,8 +312,11 @@ public Action Event_PlayerIncap(Event event, const char[] name, bool dontBroadca
 		return Plugin_Continue;
 
 	// Fastest reviver in the west
-
 	if(!L4D_IsPlayerIncapacitated(client))
+		return Plugin_Continue;
+
+	// Tanks get incapacitated on death.
+	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
 		return Plugin_Continue;
 
 	int index = g_hStartIncapWeapon.IntValue;
@@ -244,8 +327,6 @@ public Action Event_PlayerIncap(Event event, const char[] name, bool dontBroadca
 	Call_PushCellRef(index);
 
 	Call_Finish();
-
-	PrintToChatAll("%i", index);
 	
 	switch(index)
 	{
@@ -266,7 +347,7 @@ public Action Event_PlayerIncap(Event event, const char[] name, bool dontBroadca
 			weapon = GivePlayerItem(client, "weapon_pistol");
 
 			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
-            SDKHooks_DropWeapon(client, weapon);
+			SDKHooks_DropWeapon(client, weapon);
 
 			EquipPlayerWeapon(client, weapon);
 		}
@@ -280,8 +361,8 @@ public Action Event_PlayerIncap(Event event, const char[] name, bool dontBroadca
 			weapon = GivePlayerItem(client, "weapon_pistol");
 			
 			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
-            SDKHooks_DropWeapon(client, weapon);
-            SetEntProp(weapon, Prop_Send, "m_isDualWielding", 1);
+			SDKHooks_DropWeapon(client, weapon);
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 1);
 
 			EquipPlayerWeapon(client, weapon);
 
@@ -300,6 +381,7 @@ public Action Event_PlayerIncap(Event event, const char[] name, bool dontBroadca
 
 	return Plugin_Continue;
 }
+
 public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -329,7 +411,6 @@ public void OnClientPutInServer(int client)
 
 public Action Event_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
-	// public void RPG_Perks_OnCalculateDamage(int victim, int attacker, float &damage, int damagetype)
 
 	Call_StartForward(g_fwOnCalculateDamage);
 
@@ -338,6 +419,9 @@ public Action Event_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 	Call_PushCell(attacker);
 	Call_PushCell(inflictor);
 	Call_PushFloatRef(damage);
+	Call_PushCell(damagetype);
+	Call_PushCellRef(bDontInterruptActions);
+
 	Call_Finish();
 
 	if(damage == 0.0)

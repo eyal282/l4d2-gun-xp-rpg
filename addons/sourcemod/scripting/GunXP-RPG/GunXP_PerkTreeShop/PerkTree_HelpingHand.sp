@@ -47,7 +47,7 @@ public void RPG_Perks_OnGetReviveDuration(int reviver, int victim, float &fDurat
     if(perkLevel == -1)
         return;
 
-    float percent = (20.0 * (float(perkLevel) + 1.0));
+    float percent = (40.0 * (float(perkLevel) + 1.0));
 
     fDuration -= (percent * fDuration) / (percent + 100.0);
 }
@@ -59,23 +59,23 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+20%% revive speed.");
+    descriptions.PushString("+40%% revive speed.");
     costs.Push(300);
     xpReqs.Push(1000);
 
-    descriptions.PushString("+40%% revive speed.");
+    descriptions.PushString("+80%% revive speed.");
     costs.Push(1000);
     xpReqs.Push(2000);
 
-    descriptions.PushString("+60%% revive speed.");
+    descriptions.PushString("+120%% revive speed.");
     costs.Push(5000);
     xpReqs.Push(10000);
 
-    descriptions.PushString("+80%% revive speed.");
+    descriptions.PushString("+160%% revive speed.");
     costs.Push(10000);
     xpReqs.Push(25000);
 
-    descriptions.PushString("+100%% revive speed.");
+    descriptions.PushString("+200%% revive speed.");
     costs.Push(50000);
     xpReqs.Push(200000);
 

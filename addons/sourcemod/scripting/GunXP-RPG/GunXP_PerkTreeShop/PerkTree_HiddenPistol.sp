@@ -11,9 +11,9 @@
 
 public Plugin myinfo =
 {
-	name        = "Hard to Kill Tree --> Gun XP RPG",
+	name        = "Hidden Pistol Perk Tree --> Gun XP RPG",
 	author      = "Eyal282",
-	description = "Perk tree to increase incapped HP.",
+	description = "Perk tree to give pistols when incapped.",
 	version     = PLUGIN_VERSION,
 	url         = ""
 };
@@ -58,7 +58,7 @@ public void RegisterPerkTree()
     xpReqs = new ArrayList(1);
 
     descriptions.PushString("Gain a pistol when incapacitated");
-    costs.Push(1000);
+    costs.Push(750);
     xpReqs.Push(0);
 
     descriptions.PushString("Gain dual-pistols when incapacitated");
