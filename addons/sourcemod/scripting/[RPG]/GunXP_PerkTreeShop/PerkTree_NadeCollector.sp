@@ -133,6 +133,8 @@ public Action Event_CommonDeath(Handle hEvent, const char[] name, bool dontBroad
                 case 1: GivePlayerItem(attacker, "weapon_molotov");
                 case 2: GivePlayerItem(attacker, "weapon_pipebomb");
             }
+
+            g_iCommonKillsLeft[attacker] = MAX_INT;
         }
     }
 
