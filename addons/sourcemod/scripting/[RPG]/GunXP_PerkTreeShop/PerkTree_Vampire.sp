@@ -73,6 +73,14 @@ public void OnConfigsExecuted()
     RegisterPerkTree();
 
 }
+
+public void OnMapStart()
+{
+    for(int i=0;i < sizeof(g_iCommonKills);i++)
+    {
+        g_iCommonKills[i] = 0;
+    }
+}
 public void OnPluginStart()
 {
     RegisterPerkTree();

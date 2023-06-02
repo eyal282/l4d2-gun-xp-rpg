@@ -69,5 +69,5 @@ public void RegisterPerkTree()
     costs.Push(4500);
     xpReqs.Push(0);
 
-    hiddenPistolIndex = GunXP_RPGShop_RegisterPerkTree("Hidden Pistol", "Hidden Pistol", descriptions, costs, xpReqs);
+    hiddenPistolIndex = GunXP_RPGShop_RegisterPerkTree("Incap Pistol", "Hidden Pistol", descriptions, costs, xpReqs);
 }

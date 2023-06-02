@@ -63,9 +63,7 @@ public void OnPluginStart()
 	g_fwOnGetRPGIncapHealth = CreateGlobalForward("RPG_Perks_OnGetIncapHealth", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGIncapWeapon = CreateGlobalForward("RPG_Perks_OnGetIncapWeapon", ET_Ignore, Param_Cell, Param_CellByRef);
 
-	// Run an incap or held slot check to determine if you want to prevent interrupting actions.
-	// public void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor, float &damage, int damagetype, bool &bDontInterruptActions)
-	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_CellByRef);
+	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 
 	AutoExecConfig_SetFile("RPG-Perks");
 
@@ -106,7 +104,7 @@ public void OnPluginStart()
 		GetEdictClassname(i, sClassname, sizeof(sClassname));
 
 		if(StrEqual(sClassname, "infected") || StrEqual(sClassname, "witch"))
-			SDKHook(i, SDKHook_OnTakeDamage, Event_OnTakeDamage);
+			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
 	}
 }
 
@@ -406,65 +404,115 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_OnTakeDamage, Event_OnTakeDamage);
+	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
 }
 
-public Action Event_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
-{
-
-	Call_StartForward(g_fwOnCalculateDamage);
+public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
+{	
+	if(damage == 0.0)
+		return Plugin_Continue;
 
 	bool bDontInterruptActions;
-	Call_PushCell(victim);
-	Call_PushCell(attacker);
-	Call_PushCell(inflictor);
-	Call_PushFloatRef(damage);
-	Call_PushCell(damagetype);
-	Call_PushCellRef(bDontInterruptActions);
+	bool bDontStagger;
+	bool bDontInstakill;
 
-	Call_Finish();
+	for(int i=-5;i <= 5;i++)
+	{
+		Call_StartForward(g_fwOnCalculateDamage);
+
+		Call_PushCell(i);
+		Call_PushCell(victim);
+		Call_PushCell(attacker);
+		Call_PushCell(inflictor);
+		Call_PushFloatRef(damage);
+		Call_PushCell(damagetype);
+		Call_PushCell(hitbox);
+		Call_PushCell(hitgroup);
+		Call_PushCellRef(bDontInterruptActions);
+		Call_PushCellRef(bDontStagger);
+		Call_PushCellRef(bDontInstakill);
+
+		Call_Finish();
+	}
 
 	if(damage == 0.0)
 		return Plugin_Stop;
 
 	else if(!IsPlayer(victim))
-		return Plugin_Changed;
+		return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
 	// Time to die / incap
 	else if(damage >= float(GetEntityHealth(victim)))
-		return Plugin_Changed;
+		return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
 	// Let fall damage insta kill.
 	else if(attacker == victim || attacker == 0)
-		return Plugin_Changed;
+		return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
-	else if(!bDontInterruptActions)
-		return Plugin_Changed;
-
-	SetEntityHealth(victim, GetEntityHealth(victim) - RoundFloat(damage));
-	Event hNewEvent = CreateEvent("player_hurt", true);
-
-	SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
-
-	if(IsPlayer(attacker))
+	if(L4D_GetClientTeam(victim) == L4DTeam_Survivor)
 	{
-		SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
-	}
-	else
-	{
-		SetEventInt(hNewEvent, "attacker", 0);
-	}
-	
-	SetEventInt(hNewEvent, "attackerentid", attacker);
-	SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
-	SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
-	SetEventInt(hNewEvent, "dmg_armor", 0);
-	SetEventInt(hNewEvent, "hitgroup", 0);
-	SetEventInt(hNewEvent, "type", damagetype);
+		if(!bDontInterruptActions)
+			return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
-	FireEvent(hNewEvent);
-	
-	return Plugin_Stop;
+		SetEntityHealth(victim, GetEntityHealth(victim) - RoundFloat(damage));
+		Event hNewEvent = CreateEvent("player_hurt", true);
+
+		SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
+
+		if(IsPlayer(attacker))
+		{
+			SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
+		}
+		else
+		{
+			SetEventInt(hNewEvent, "attacker", 0);
+		}
+		
+		SetEventInt(hNewEvent, "attackerentid", attacker);
+		SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
+		SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
+		SetEventInt(hNewEvent, "dmg_armor", 0);
+		SetEventInt(hNewEvent, "hitgroup", 0);
+		SetEventInt(hNewEvent, "type", damagetype);
+
+		FireEvent(hNewEvent);
+
+		return Plugin_Stop;
+	}
+	else if(L4D_GetClientTeam(victim) == L4DTeam_Infected)
+	{
+		if(!bDontStagger)
+		{
+			return bDontInstakill ? Plugin_Changed : Plugin_Continue;
+		}
+
+		SetEntityHealth(victim, GetEntityHealth(victim) - RoundFloat(damage));
+		Event hNewEvent = CreateEvent("player_hurt", true);
+
+		SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
+
+		if(IsPlayer(attacker))
+		{
+			SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
+		}
+		else
+		{
+			SetEventInt(hNewEvent, "attacker", 0);
+		}
+		
+		SetEventInt(hNewEvent, "attackerentid", attacker);
+		SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
+		SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
+		SetEventInt(hNewEvent, "dmg_armor", 0);
+		SetEventInt(hNewEvent, "hitgroup", 0);
+		SetEventInt(hNewEvent, "type", damagetype);
+
+		FireEvent(hNewEvent);
+
+		return Plugin_Stop;
+	}
+
+	return Plugin_Continue;
 }
 
 public Action L4D2_BackpackItem_StartAction(int client, int entity)

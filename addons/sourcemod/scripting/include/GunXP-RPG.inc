@@ -20,7 +20,10 @@ char ColorEquivalents[][] =
 
 // Make identifier as descriptive as possible.
 // Use {PERCENT} to denote percentages in descriptions.
-native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null);
+// reqIdentifiers is unimplemented at the moment, and is the list of required perk trees or skills for each perk tree level.
+// reqIdentifier on a perk tree requires a minimum of level 1.
+// doubleEdged simply excludes a perk tree from auto RPG because it has apparent downsides.
+native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
 native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 
 native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
@@ -28,7 +31,10 @@ native int GunXP_RPG_GetClientLevel(int client);
 
 // Make identifier as descriptive as possible.
 // Use {PERCENT} to denote percentages in descriptions.
-native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null);
+// reqIdentifiers is unimplemented at the moment, and is the list of required perk trees or skills for each perk tree level.
+// reqIdentifier on a perk tree requires a minimum of level 1.
+// doubleEdged simply excludes a skill from auto RPG because it has apparent downsides.
+native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
 
@@ -36,7 +42,22 @@ native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 // This is called while the player still has their current perk tree and skills.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 forward void GunXP_RPG_OnPlayerSpawned(int client);
-forward void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor, float &damage, int damagetype, bool &bDontInterruptActions);
+
+// WARNING! THIS FORWARD FIRES 10 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
+// If you don't care whatsoever how damage is interacted and just want to multiply the damage, use "if(priority != 0) return;"
+// If you're altering on a negative priority, the closer it is to -5 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 5 it will run LAST.
+// Check for priority closer to -5 if you want to SET the damage to a certain value.
+// Check for priority closer to 5 if you want to go after another plugin to fix something they did.
+// Do not hog -5 and 5, this may have severe consequences when a programmer cannot naturally go before / after you.
+// bDontInterruptActions protects a Survivor from having a timer reset for picking incapacitated players and pouring gas cans.
+// bDontStagger protects a Special Infected or a Tank from explosive ammo stagger, RPG stagger, incendiary ammo burn, all instant kills.
+// bDontInstakill can seriously mess with damage output, and breaks explosive ammo stagger. Use with care.
+
+// If you want to distinguish what actions to protect, make an incap check or check if victim has a gascan like item held.
+// If you want to protect from stagger but allow incendiary ammo, check for damagetype == DMG_BLAST
+forward void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill);
 
 forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration);
 forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, float &fDuration);

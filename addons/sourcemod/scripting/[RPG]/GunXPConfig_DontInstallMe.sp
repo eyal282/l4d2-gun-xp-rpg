@@ -9,7 +9,7 @@ public Plugin myinfo =
 {
 	name        = "GunXP Config",
 	author      = "Eyal282",
-	description = "Basic Gun XP Config",
+	description = "This might be useful in the future? Don't install it for now.",
 	version     = "1.0",
 	url         = ""
 };

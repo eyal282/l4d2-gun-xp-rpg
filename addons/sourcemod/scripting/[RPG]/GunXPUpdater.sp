@@ -6,47 +6,54 @@
 #define REQUIRE_PLUGIN
 #define REQUIRE_EXTENSIONS
 
+// Only one update URL can be active at once. Start with left4dhooks then PointSystemAPI.
 #define UPDATE_URL "https://raw.githubusercontent.com/eyal282/l4d2-gun-xp-rpg/master/addons/sourcemod/updatefile.txt"
+#define UPDATE_URL2 "https://raw.githubusercontent.com/SilvDev/Left4DHooks/main/sourcemod/updater.txt"
 
-#define semicolon 1
-#define newdecls  required
+#pragma semicolon 1
+#pragma newdecls  required
 
 public Plugin myinfo =
 {
-	name        = "Gun XP Mod Updater",
+	name        = "Gun XP RPG Updater",
 	author      = "Eyal282",
 	description = "Enables auto updater support",
 	version     = "1.0",
 	url         = ""
 };
 
+
 public void OnMapEnd()
 {
-
 	RemoveServerTag2("GunXP");
-	RemoveServerTag2("GunXPMod");
-	RemoveServerTag2("GXM");
+	RemoveServerTag2("GunXP-RPG");
+	RemoveServerTag2("GunXPRPG");
+	RemoveServerTag2("RPG");
 }
 
 public void OnMapStart()
 {
 	AddServerTag2("GunXP");
-	AddServerTag2("GunXPMod");
-	AddServerTag2("GXM");
+	AddServerTag2("GunXP-RPG");
+	AddServerTag2("GunXPRPG");
+	AddServerTag2("RPG");
 
 }
-
-public void OnClientConnected(int client)
+public void OnPluginStart()
 {
-	if(!LibraryExists("GunXPMod"))
-	{
-		Updater_ForceUpdate();
-	}
+	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
+}
+
+public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	Func_OnAllPluginsLoaded();
+
+	return Plugin_Continue;
 }
 
 public void Updater_OnPluginUpdated()
 {
-	if(!LibraryExists("GunXPMod"))
+	if(!LibraryExists("GunXPMod") || !LibraryExists("left4dhooks"))
 	{
 		char MapName[64];
 		GetCurrentMap(MapName, sizeof(MapName));
@@ -55,12 +62,9 @@ public void Updater_OnPluginUpdated()
 	}
 }
 
-public void OnPluginStart()
+public void OnAllPluginsLoaded()
 {
-	if (LibraryExists("updater"))
-	{
-		Updater_AddPlugin(UPDATE_URL);
-	}
+	Func_OnAllPluginsLoaded();
 }
 
 public void OnLibraryAdded(const char[] name)
@@ -69,6 +73,33 @@ public void OnLibraryAdded(const char[] name)
 	{
 		Updater_AddPlugin(UPDATE_URL);
 	}
+}
+public void Func_OnAllPluginsLoaded()
+{
+	if (LibraryExists("updater"))
+	{
+		if(!LibraryExists("left4dhooks"))
+		{
+			Updater_AddPlugin(UPDATE_URL2);
+		}
+		else if(!LibraryExists("GunXPMod"))
+		{
+			Updater_AddPlugin(UPDATE_URL);
+		}
+		else
+		{
+			return;
+		}
+
+		CreateTimer(5.0, Timer_ForceUpdate);
+	}
+}
+
+public Action Timer_ForceUpdate(Handle hTimer)
+{
+	Updater_ForceUpdate();
+
+	return Plugin_Continue;
 }
 
 /**

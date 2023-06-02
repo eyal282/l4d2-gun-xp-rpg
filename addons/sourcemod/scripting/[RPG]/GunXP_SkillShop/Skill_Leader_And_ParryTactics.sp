@@ -55,9 +55,12 @@ public void GunXP_RPG_OnPlayerSpawned(int client)
     SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 25);
 }
 
-public void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor, float &damage, int damagetype, bool &bDontInterruptActions)
+public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill)
 {   
-	if(!IsPlayer(victim))
+	if(priority != 0)
+        return;
+
+	else if(!IsPlayer(victim))
 		return;
 
 	if(GunXP_RPGShop_IsSkillUnlocked(victim, leaderIndex) && !L4D_IsPlayerIncapacitated(victim))

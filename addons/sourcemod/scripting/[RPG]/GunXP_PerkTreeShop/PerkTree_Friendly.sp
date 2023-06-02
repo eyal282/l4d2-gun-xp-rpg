@@ -41,9 +41,15 @@ public void OnPluginStart()
 }
 
 
-public void RPG_Perks_OnCalculateDamage(int victim, int attacker, int inflictor, float &damage, int damagetype, bool &bDontInterruptActions)
+public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill)
 {
-    if(!IsPlayer(victim) || !IsPlayer(attacker))
+    if(priority != 0)
+        return;
+
+    else if(!IsPlayer(victim) || !IsPlayer(attacker))
+        return;
+
+    else if(L4D_GetClientTeam(victim) != L4D_GetClientTeam(attacker))
         return;
 
     int perkLevel1 = GunXP_RPGShop_IsPerkTreeUnlocked(victim, friendlyIndex);
@@ -87,5 +93,5 @@ public void RegisterPerkTree()
     costs.Push(5000);
     xpReqs.Push(10000);
 
-    friendlyIndex = GunXP_RPGShop_RegisterPerkTree("Friendly Fire", "Friendly", descriptions, costs, xpReqs);
+    friendlyIndex = GunXP_RPGShop_RegisterPerkTree("Friendly Fire Decrease", "Friendly", descriptions, costs, xpReqs);
 }

@@ -129,6 +129,9 @@ enum struct enSkill
 	// level requirement.
 	int levelReq;
 
+	// Exclude from auto RPG, as this skill has downsides.
+	bool doubleEdged;
+
 	// ArrayList of skill / perk tree identifiers required to go into this skill.
 	// A perk tree requires any level unlocked to count.
 	ArrayList reqIdentifiers;
@@ -146,6 +149,8 @@ enum struct enPerkTree
 	ArrayList levelReqs;
 	// level requirement.
 
+	// Exclude from auto RPG, as this perk tree has downsides.
+	bool doubleEdged;
 
 	// ArrayList of skill / perk tree identifiers required to go into this perk tree.
 	// A perk tree requires any level unlocked to count.
@@ -420,11 +425,14 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	ArrayList reqIdentifiers = GetNativeCell(6);
 
+	bool doubleEdged = GetNativeCell(7);
+
 	skill.identifier = identifier;
 	skill.name = name;
 	skill.description = description;
 	skill.cost = cost;
 	skill.levelReq = levelReq;
+	skill.doubleEdged = doubleEdged;
 
 	if(reqIdentifiers == null)
 	{
@@ -510,11 +518,14 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 
 	ArrayList reqIdentifiers = GetNativeCell(6);
 
+	bool doubleEdged = GetNativeCell(7);
+
 	perkTree.identifier = identifier;
 	perkTree.name = name;
 	perkTree.descriptions = descriptions.Clone();
 	perkTree.costs = costs.Clone();
 	perkTree.levelReqs = levelReqs.Clone();
+	perkTree.doubleEdged = doubleEdged;
 
 	for(int i=0;i < perkTree.levelReqs.Length;i++)
 	{
@@ -801,6 +812,7 @@ public void ConnectDatabase()
 public void OnClientConnected(int client)
 {
 	SaveLastGuns[client] = false;
+	g_bLoadedFromDB[client] = false;
 
 	CalculateStats(client);
 }
@@ -809,13 +821,15 @@ public void OnMapStart()
 {
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
-	CreateTimer(1.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(1.0, Timer_AutoRPG, _, TIMER_FLAG_NO_MAPCHANGE);
 		
 	CreateTimer(150.0, Timer_TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public Action Timer_AutoRPG(Handle hTimer)
 {
+	bool bFound = false;
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -849,7 +863,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 			PurchasePerkTreeLevel(i, iPosPerkTree, perkTree, true);
 
-			PrintToChat(i, "Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
+			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
 
 			Call_StartForward(g_fwOnPerkTreeBuy);
 
@@ -868,7 +882,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 			PurchaseSkill(i, iPosSkill, skill, true);
 
-			PrintToChat(i, "Successfully unlocked the Skill %s!", skill.name);
+			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked the Skill %s!", skill.name);
 
 			Call_StartForward(g_fwOnSkillBuy);
 
@@ -883,7 +897,13 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 
 	}
-	return Plugin_Continue;
+
+	if(bFound)
+		CreateTimer(0.1, Timer_AutoRPG, _, TIMER_FLAG_NO_MAPCHANGE);
+
+	else
+		CreateTimer(1.0, Timer_AutoRPG, _, TIMER_FLAG_NO_MAPCHANGE);
+	return Plugin_Stop;
 }
 public Action Timer_HudMessageXP(Handle hTimer)
 {
@@ -914,7 +934,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 public Action Timer_TellAboutShop(Handle hTimer)
 {
 
-	PrintToChatAll("\x01Type\x03 !rpg\x01 to buy permanent perks!");
+	PrintToChatAll("\x04[Gun-XP] \x01Type\x03 !rpg\x01 to buy permanent perks!");
 	
 	return Plugin_Continue;
 }
@@ -1166,14 +1186,14 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 			{
 				ResetPerkTreesAndSkills(client);
 
-				PrintToChat(client, "\x01You have successfully reset all your\x03 Perk Trees and Skills\x01.");
+				PrintToChat(client, "\x04[Gun-XP] \x01You have successfully reset all your\x03 Perk Trees and Skills\x01.");
 			}
 
 			case 1:
 			{
 				SetClientAutoRPG(client, !IsClientAutoRPG(client));
 
-				PrintToChat(client, "\x01Auto RPG mode is now\x03 %s", IsClientAutoRPG(client) ? "Enabled" : "Disabled");
+				PrintToChat(client, "\x04[Gun-XP] \x01Auto RPG mode is now\x03 %s", IsClientAutoRPG(client) ? "Enabled" : "Disabled");
 			}
 			case 2:
 			{
@@ -1320,24 +1340,24 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 
 		if(levelReq > GetClientLevel(client))
 		{
-			PrintToChat(client, "You need to reach Level %i to unlock this Perk Tree Level!", levelReq);
+			PrintToChat(client, "\x04[Gun-XP] \x01You need to reach Level %i to unlock this Perk Tree Level!", levelReq);
 			return 0;
 		}
 		else if(cost > GetClientXPCurrency(client))
 		{
-			PrintToChat(client, "You need %i more XP Currency to unlock this Perk Tree level!", cost - GetClientXPCurrency(client));
+			PrintToChat(client, "\x04[Gun-XP] \x01You need %i more XP Currency to unlock this Perk Tree level!", cost - GetClientXPCurrency(client));
 			return 0;
 		}
 		else if(IsClientAutoRPG(client))
 		{
-			PrintToChat(client, "You must have auto RPG disabled to purhcase Perk Trees!");
+			PrintToChat(client, "\x04[Gun-XP] \x01You must have auto RPG disabled to purhcase Perk Trees!");
 			return 0;
 		}
 		else
 		{
 			PurchasePerkTreeLevel(client, perkIndex, perkTree, false);
 
-			PrintToChat(client, "Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
+			PrintToChat(client, "\x04[Gun-XP] Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
 
 			Call_StartForward(g_fwOnPerkTreeBuy);
 
@@ -1447,24 +1467,24 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 
 		if(skill.levelReq > GetClientLevel(client))
 		{
-			PrintToChat(client, "You need to reach Level %i to unlock this Perk Tree Level!", skill.levelReq);
+			PrintToChat(client, "\x04[Gun-XP] You need to reach Level %i to unlock this Perk Tree Level!", skill.levelReq);
 			return 0;
 		}
 		else if(skill.cost > GetClientXPCurrency(client))
 		{
-			PrintToChat(client, "You need %i more XP Currency to unlock this skill!", skill.cost - GetClientXPCurrency(client));
+			PrintToChat(client, "\x04[Gun-XP] You need %i more XP Currency to unlock this skill!", skill.cost - GetClientXPCurrency(client));
 			return 0;
 		}
 		else if(IsClientAutoRPG(client))
 		{
-			PrintToChat(client, "You must have auto RPG disabled to purhcase Perk Trees!");
+			PrintToChat(client, "\x04[Gun-XP] You must have auto RPG disabled to purhcase Perk Trees!");
 			return 0;
 		}
 		else
 		{
 			PurchaseSkill(client, skillIndex, skill, false);
 
-			PrintToChat(client, "Successfully unlocked the Skill %s!", skill.name);
+			PrintToChat(client, "\x04[Gun-XP] Successfully unlocked the Skill %s!", skill.name);
 
 			Call_StartForward(g_fwOnSkillBuy);
 
@@ -1536,14 +1556,14 @@ public int Choice_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			{
 				GiveGuns(client);
 				SaveLastGuns[client] = true;
-				PrintToChat(client, "Last Guns save is now enabled. Type \x05!guns\x01 to disable it.");
+				PrintToChat(client, "\x04[Gun-XP] \x01Last Guns save is now enabled. Type \x05!guns\x01 to disable it.");
 			}
 		}
 	}	
 	else if(action == MenuAction_Cancel)
 	{
 		if(IsClientInGame(client))
-			PrintToChat(client, "Type\x05 !guns\x01 to re-open this menu.");
+			PrintToChat(client, "\x04[Gun-XP] \x01Type\x05 !guns\x01 to re-open this menu.");
 	}
 
 	return 0;
@@ -1589,7 +1609,7 @@ public int Secondary_MenuHandler(Handle hMenu, MenuAction action, int client, in
 	else if(action == MenuAction_Cancel)
 	{
 		if(IsClientInGame(client))
-			PrintToChat(client, "Type\x05 !guns\x01 to re-open this menu.");
+			PrintToChat(client, "\x04[Gun-XP] \x01Type\x05 !guns\x01 to re-open this menu.");
 	}
 	
 	return 0;
@@ -1631,7 +1651,7 @@ public int Primary_MenuHandler(Handle hMenu, MenuAction action, int client, int 
 	else if(action == MenuAction_Cancel)
 	{
 		if(IsClientInGame(client))
-			PrintToChat(client, "Type\x05 !guns\x01 to re-open this menu.");
+			PrintToChat(client, "\x04[Gun-XP] \x01Type\x05 !guns\x01 to re-open this menu.");
 	}
 
 	return 0;
@@ -1918,6 +1938,13 @@ public void Event_PlayerSpawnFrame(int UserId)
 		return;
 
 	StripPlayerWeapons(client);
+
+	if(IsFakeClient(client))
+	{
+		GiveGuns(client);
+		return;
+	}
+
 	GivePlayerItem(client, "weapon_pistol");
 	
 	CalculateStats(client);	
@@ -1927,7 +1954,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 	
 	if(SaveLastGuns[client])
 	{
-		PrintToChat(client, "\x01Type\x05 !guns\x01 to disable\x05 auto gun save\x01.");
+		PrintToChat(client, "\x04[Gun-XP] \x01Type\x05 !guns\x01 to disable\x05 auto gun save\x01.");
 		GiveGuns(client);
 	}
 	else
@@ -1990,6 +2017,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public Action OnShouldSpawn_NeverSpawn(int entity)
 {
+	AcceptEntityInput(entity, "Kill");
 	return Plugin_Handled;
 }
 public void OnWeaponReload(int weapon, bool bSuccessful)
@@ -2010,7 +2038,7 @@ public Action Command_XP(int client, int args)
 	CalculateStats(client);
 	if(args == 0)
 	{
-		PrintToChat(client, "\x01You have\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", g_iXP[client], g_iLevel[client], GetClientXPCurrency(client));
+		PrintToChat(client, "\x04[Gun-XP] \x01You have\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", g_iXP[client], g_iLevel[client], GetClientXPCurrency(client));
 	}
 	else
 	{
@@ -2037,7 +2065,7 @@ public Action Command_XP(int client, int args)
 		}
 	
 		CalculateStats(target_list[0]);
-		PrintToChat(client, "\x01%N has\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", target_list[0], g_iXP[target_list[0]], g_iLevel[target_list[0]], GetClientXPCurrency(target_list[0]));
+		PrintToChat(client, "\x04[Gun-XP] \x03%N\x01 has\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", target_list[0], g_iXP[target_list[0]], g_iLevel[target_list[0]], GetClientXPCurrency(target_list[0]));
 	}
 	return Plugin_Handled;
 }
@@ -2118,7 +2146,7 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 	{
 		if(g_iXP[client] >= LEVELS[i])
 		{
-			PrintToChatAll("\x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
+			PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
 			SaveLastGuns[client] = false;
 		}
 	}
@@ -2666,8 +2694,12 @@ stock bool AutoRPG_FindCheapestPerkTree(int client, int &position, int &cost)
 		enPerkTree iPerkTree;
 		g_aPerkTrees.GetArray(i, iPerkTree);
 
+		// Perk tree has downsides, don't wanna make it happen just yet.
+		if(iPerkTree.doubleEdged)
+			continue;
+
 		// This also safely enables checking for next level without leaving array bounds.
-		if(g_iUnlockedPerkTrees[client][i] >= iPerkTree.costs.Length - 1)
+		else if(g_iUnlockedPerkTrees[client][i] >= iPerkTree.costs.Length - 1)
 			continue;
 
 		else if(GetClientLevel(client) < iPerkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][i] + 1))
@@ -2703,7 +2735,11 @@ stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost)
 		enSkill iSkill;
 		g_aSkills.GetArray(i, iSkill);
 
-		if(GetClientLevel(client) < iSkill.levelReq)
+		// Perk tree has downsides, don't wanna make it happen just yet.
+		if(iSkill.doubleEdged)
+			continue;
+
+		else if(GetClientLevel(client) < iSkill.levelReq)
 			continue;
 
 		else if(GetClientXPCurrency(client) < iSkill.cost)
