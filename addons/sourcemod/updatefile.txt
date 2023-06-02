@@ -2,7 +2,7 @@
 {
 	"Version"
 	{
-		"Latest"	"1.1"
+		"Latest"	"999.0"
 	}
     
 	"Notes"	"Updater setup"
