@@ -1,16 +1,39 @@
 "Information"
 {
-    "Version"
-    {
-        "Latest"	"1.1"
-    }
+	"Version"
+	{
+		"Latest"	"1.1"
+	}
     
-    "Notes"	"Updater setup"
+	"Notes"	"Updater setup"
 }
     
 "Files"
 {
-    "Plugin"	"Path_SM/plugins/GunXPMod/GunXPMod.smx"
-	"Plugin"	"Path_SM/plugins/GunXPMod/GunXPConfig.smx"
+	"Plugin"	"Path_SM/plugins/BileGoggles.smx"
+	
+	
+	
+	"Plugin"	"Path_SM/plugins/[RPG]/GunXP-RPG.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/RPG-DynamicDifficulty.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/RPG-Perks.smx"
     
+    
+    
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_AdrenalineRun.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Empathy.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Friendly.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_HardToKill.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_HelpingHand.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_HiddenPistol.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_MeleeDamage.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_NadeCollector.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_SleightOfHand.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_StartingPoints.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Vampire.smx"
+
+ 
+ 
+ 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_BileGoggles.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Leader_And_ParryTactics.smx"
 }
