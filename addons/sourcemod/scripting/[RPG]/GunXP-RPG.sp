@@ -728,7 +728,7 @@ public void OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Post);
 	
-	SetConVarString(UC_CreateConVar("gun_xp_version", PLUGIN_VERSION), PLUGIN_VERSION);
+	SetConVarString(UC_CreateConVar("gun_xp_rpg_version", PLUGIN_VERSION), PLUGIN_VERSION);
 
 	hcv_xpSIKill = UC_CreateConVar("gun_xp_si_kill", "15", "Amount of xp you get per SI kill");
 	hcv_xpSIHS = UC_CreateConVar("gun_xp_si_kill_bonus_hs", "5", "Amount of bonus xp you get per SI headshot kill");
