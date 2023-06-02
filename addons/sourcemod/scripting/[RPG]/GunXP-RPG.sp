@@ -96,6 +96,8 @@ ConVar hcv_xpLedge;
 
 ConVar hcv_VIPMultiplier;
 
+float g_fRoundStartTime;
+
 int KillStreak[MAXPLAYERS+1];
 
 int g_iLevel[MAXPLAYERS+1], g_iXP[MAXPLAYERS+1], g_iXPCurrency[MAXPLAYERS+1];
@@ -727,6 +729,8 @@ public void OnPluginStart()
 	HookEvent("revive_success", Event_ReviveSuccess);
 	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Post);
+
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	
 	SetConVarString(UC_CreateConVar("gun_xp_rpg_version", PLUGIN_VERSION), PLUGIN_VERSION);
 
@@ -819,6 +823,8 @@ public void OnClientConnected(int client)
 
 public void OnMapStart()
 {
+	g_fRoundStartTime = 0.0;
+
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 	CreateTimer(1.0, Timer_AutoRPG, _, TIMER_FLAG_NO_MAPCHANGE);
@@ -1930,15 +1936,48 @@ public void Event_PlayerSpawnFrame(int UserId)
 
 	if(client == 0)
 		return;
-
-	else if(!IsPlayerAlive(client))
-		return;
 	
 	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
 		return;
 
-	StripPlayerWeapons(client);
+	else if(!IsPlayerAlive(client))
+	{
+		if(GetGameTime() < g_fRoundStartTime + 1.0)
+			L4D_RespawnPlayer(client);
 
+		else
+			return;
+	}
+
+	SetEntityMaxHealth(client, 100);
+
+	StripPlayerWeapons(client);
+	
+	Call_StartForward(g_fwOnSpawned);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
+	if(GetGameTime() < g_fRoundStartTime + 1.0)
+	{
+		if(IsPlayerStuck(client))
+		{
+			int spawn = FindEntityByClassname(-1, "info_survivor_position");
+
+			if(spawn != -1)
+			{
+				float fOrigin[3];
+				GetEntPropVector(spawn, Prop_Data, "m_vecOrigin", fOrigin);
+
+				TeleportEntity(client, fOrigin, NULL_VECTOR, NULL_VECTOR);
+			}
+		}
+
+		SetEntityHealth(client, GetEntityMaxHealth(client));
+
+		L4D_SetPlayerTempHealth(client, 0);
+	}
 	if(IsFakeClient(client))
 	{
 		GiveGuns(client);
@@ -1959,21 +1998,6 @@ public void Event_PlayerSpawnFrame(int UserId)
 	}
 	else
 		ShowChoiceMenu(client);
-
-	SetEntityMaxHealth(client, 100);
-
-	Call_StartForward(g_fwOnSpawned);
-
-	Call_PushCell(client);
-
-	Call_Finish();
-
-	if(L4D_IsInFirstCheckpoint(client) || L4D_IsInLastCheckpoint(client))
-	{
-		SetEntityHealth(client, GetEntityMaxHealth(client));
-
-		L4D_SetPlayerTempHealth(client, 0);
-	}
 }
 
 
@@ -1986,6 +2010,12 @@ public Action Event_PlayerDisconnect(Handle hEvent, char[] Name, bool dontBroadc
 
 	return Plugin_Continue;
 }
+
+public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	g_fRoundStartTime = GetGameTime();
+}
+
 /*
 public Action Event_WeaponOutOfAmmo(Handle hEvent, char[] Name, bool dontBroadcast)
 {
@@ -2772,4 +2802,38 @@ stock int GetClosestLevelToXP(int xp)
 	}
 
 	return level;
+}
+
+stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
+{
+	float vecMin[3], vecMax[3], vecOrigin[3];
+
+	GetClientMins(client, vecMin);
+	GetClientMaxs(client, vecMax);
+
+	if (UC_IsNullVector(Origin))
+	{
+		GetClientAbsOrigin(client, vecOrigin);
+
+		vecOrigin[2] += HeightOffset;
+	}
+	else
+	{
+		vecOrigin = Origin;
+
+		vecOrigin[2] += HeightOffset;
+	}
+
+	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
+	return TR_DidHit();
+}
+
+public bool TraceRayDontHitPlayers(int entityhit, int mask)
+{
+	return (entityhit > MaxClients || entityhit == 0);
+}
+
+stock bool UC_IsNullVector(const float Vector[3])
+{
+	return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
 }
