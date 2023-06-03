@@ -2014,6 +2014,8 @@ public Action Event_PlayerDisconnect(Handle hEvent, char[] Name, bool dontBroadc
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	g_fRoundStartTime = GetGameTime();
+
+	return Plugin_Continue;
 }
 
 /*
@@ -2134,7 +2136,7 @@ stock void FetchStats(int client)
 
 	WritePackCell(DP, GetClientUserId(client));
 
-	dbGunXP.Execute(transaction, SQLTrans_PlayerLoaded, SQLTrans_PlayerFailedToLoad, DP);
+	dbGunXP.Execute(transaction, SQLTrans_PlayerLoaded, SQLTrans_SetFailState, DP);
 }
 
 stock void CalculateStats(int client)
@@ -2302,29 +2304,6 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto)
 
 	if(!bAuto)
 		ShowSkillInfo(client, skillIndex);
-}
-
-public void SQLTrans_PlayerFailedToLoad(Database db, any DP, int numQueries, const char[] error, int failIndex, any[] queryData)
-{
-	if(StrContains(error, "UNIQUE constraint failed: GunXP_Skills.AuthId, GunXP_Skills.SkillIdentifier", false) != -1)
-	{
-		ResetPack(DP);
-
-		int userId = ReadPackCell(DP);
-
-		CloseHandle(DP);
-
-		int client = GetClientOfUserId(userId);
-
-		if(client == 0)
-			return;
-
-		ResetPerkTreesAndSkills(client);
-		
-		FetchStats(client);
-	}
-	else
-		SetFailState("Transaction at index %i failed:\n%s", failIndex, error);
 }
 
 public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
