@@ -1,6 +1,4 @@
 
-
-#include <ps_api>
 #include <GunXP-RPG>
 #include <sdkhooks>
 #include <sdktools>

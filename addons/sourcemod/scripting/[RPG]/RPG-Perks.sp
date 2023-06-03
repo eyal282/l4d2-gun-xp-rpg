@@ -31,17 +31,31 @@ ConVar g_hRPGIncapHealth;
 ConVar g_hLedgeHangHealth;
 ConVar g_hRPGLedgeHangHealth;
 
+ConVar g_hLimpSpeed;
+ConVar g_hRPGLimpSpeed;
+
+ConVar g_hLimpHealth;
+ConVar g_hRPGLimpHealth;
+
 ConVar g_hStartIncapWeapon;
 
 GlobalForward g_fwOnGetRPGKitDuration;
 GlobalForward g_fwOnGetRPGReviveDuration;
+
 GlobalForward g_fwOnGetRPGIncapWeapon;
 GlobalForward g_fwOnGetRPGIncapHealth;
+
+GlobalForward g_fwOnGetRPGLimpSpeed;
+GlobalForward g_fwOnGetRPGLimpHealth;
+
 GlobalForward g_fwOnCalculateDamage;
 
 char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
+
+int g_iLimpHealth[MAXPLAYERS+1];
+float g_fLimpSpeed[MAXPLAYERS+1];
 
 public void OnPluginEnd()
 {
@@ -49,6 +63,55 @@ public void OnPluginEnd()
 	g_hReviveDuration.FloatValue = g_hRPGReviveDuration.FloatValue;
 }
 
+public void OnMapStart()
+{
+	CreateTimer(1.0, Timer_CheckLimpSpeedAndHealth, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+}
+
+public Action Timer_CheckLimpSpeedAndHealth(Handle hTimer)
+{
+	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
+	g_hLimpSpeed.FloatValue = g_hRPGLimpSpeed.FloatValue;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		float fSpeed = g_hRPGLimpSpeed.FloatValue;
+
+		Call_StartForward(g_fwOnGetRPGLimpSpeed);
+
+		Call_PushCell(i);
+		Call_PushFloatRef(fSpeed);
+
+		Call_Finish();
+
+		g_fLimpSpeed[i] = fSpeed;
+
+		int health = g_hRPGLimpHealth.IntValue;
+
+		Call_StartForward(g_fwOnGetRPGLimpHealth);
+
+		Call_PushCell(i);
+
+		// We might want to increase limp HP if we discover the limp speed is bigger than 250 :)
+		Call_PushFloat(fSpeed);
+		Call_PushCellRef(health);
+
+		Call_Finish();
+
+		g_iLimpHealth[i] = health;
+	}
+
+	return Plugin_Continue;
+}
 public void OnPluginStart()
 {
 	HookEvent("player_incapacitated_start", Event_PlayerIncapStartPre, EventHookMode_Pre);
@@ -62,6 +125,9 @@ public void OnPluginStart()
 	g_fwOnGetRPGReviveDuration = CreateGlobalForward("RPG_Perks_OnGetReviveDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGIncapHealth = CreateGlobalForward("RPG_Perks_OnGetIncapHealth", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGIncapWeapon = CreateGlobalForward("RPG_Perks_OnGetIncapWeapon", ET_Ignore, Param_Cell, Param_CellByRef);
+
+	g_fwOnGetRPGLimpSpeed = CreateGlobalForward("RPG_Perks_OnGetLimpSpeed", ET_Ignore, Param_Cell, Param_FloatByRef);
+	g_fwOnGetRPGLimpHealth = CreateGlobalForward("RPG_Perks_OnGetLimpHealth", ET_Ignore, Param_Cell, Param_Float, Param_CellByRef);
 
 	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 
@@ -79,6 +145,12 @@ public void OnPluginStart()
 
 	g_hLedgeHangHealth = FindConVar("survivor_ledge_grab_health");
 	g_hRPGLedgeHangHealth = AutoExecConfig_CreateConVar("rpg_survivor_ledge_grab_health", "300", "Default HP for ledge hanging");
+
+	g_hLimpHealth = FindConVar("survivor_limp_health");
+	g_hRPGLimpHealth = AutoExecConfig_CreateConVar("rpg_survivor_limp_health", "40", "Default HP before you start limping");
+
+	g_hLimpSpeed = FindConVar("survivor_limp_walk_speed");
+	g_hRPGLimpSpeed = AutoExecConfig_CreateConVar("rpg_survivor_limp_walk_speed", "85", "Default speed after you start limping");
 
 	g_hStartIncapWeapon = AutoExecConfig_CreateConVar("rpg_start_incap_weapon", "0", "0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum");
 
@@ -106,6 +178,11 @@ public void OnPluginStart()
 		if(StrEqual(sClassname, "infected") || StrEqual(sClassname, "witch"))
 			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
 	}
+}
+
+public void GunXP_RPGShop_OnResetRPG(int client)
+{
+	g_fLimpSpeed[client] = g_hRPGLimpSpeed.FloatValue;
 }
 
 // Must add natives for after a player spawns for incap hidden pistol.
@@ -405,7 +482,25 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
+	SDKHook(client, SDKHook_PreThinkPost, Event_PreThinkPost);
+	
 }
+
+public Action Event_PreThinkPost(int client)
+{
+	if( L4D_GetClientTeam(client) == L4DTeam_Survivor && IsPlayerAlive(client) )
+	{
+		int iHealth = GetClientHealth(client);
+		
+		if (iHealth < g_iLimpHealth[client])
+		{
+			//SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", 1.0);
+			SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", g_fLimpSpeed[client]);
+		}
+	}
+
+	return Plugin_Continue;
+} 
 
 public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {	

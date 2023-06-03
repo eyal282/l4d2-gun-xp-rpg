@@ -2134,7 +2134,7 @@ stock void FetchStats(int client)
 
 	WritePackCell(DP, GetClientUserId(client));
 
-	dbGunXP.Execute(transaction, SQLTrans_PlayerLoaded, SQLTrans_SetFailState, DP);
+	dbGunXP.Execute(transaction, SQLTrans_PlayerLoaded, SQLTrans_PlayerFailedToLoad, DP);
 }
 
 stock void CalculateStats(int client)
@@ -2302,6 +2302,29 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto)
 
 	if(!bAuto)
 		ShowSkillInfo(client, skillIndex);
+}
+
+public void SQLTrans_PlayerFailedToLoad(Database db, any DP, int numQueries, const char[] error, int failIndex, any[] queryData)
+{
+	if(StrContains(error, "UNIQUE constraint failed: GunXP_Skills.AuthId, GunXP_Skills.SkillIdentifier", false) != -1)
+	{
+		ResetPack(DP);
+
+		int userId = ReadPackCell(DP);
+
+		CloseHandle(DP);
+
+		int client = GetClientOfUserId(userId);
+
+		if(client == 0)
+			return;
+
+		ResetPerkTreesAndSkills(client);
+		
+		FetchStats(client);
+	}
+	else
+		SetFailState("Transaction at index %i failed:\n%s", failIndex, error);
 }
 
 public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
@@ -2767,6 +2790,9 @@ stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost)
 
 		// Perk tree has downsides, don't wanna make it happen just yet.
 		if(iSkill.doubleEdged)
+			continue;
+
+		else if(g_bUnlockedSkills[client][i])
 			continue;
 
 		else if(GetClientLevel(client) < iSkill.levelReq)

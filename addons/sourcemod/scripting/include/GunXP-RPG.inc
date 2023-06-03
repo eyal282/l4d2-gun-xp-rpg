@@ -63,6 +63,8 @@ forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuratio
 forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, float &fDuration);
 forward void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health);
 
+forward void RPG_Perks_OnGetLimpSpeed(int)
+
 stock void UC_ReplyToCommand(int client, const char[] format, any ...)
 {
 	SetGlobalTransTarget(client);

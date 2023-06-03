@@ -150,7 +150,7 @@ public void cvChange_Difficulty(ConVar convar, const char[] oldValue, const char
         else if(StrEqual(newValue, "normal", false))
             hndl.SetString(diffCvar.normalValue);
 
-        else if(StrEqual(newValue, "advanced", false))
+        else if(StrEqual(newValue, "hard", false))
             hndl.SetString(diffCvar.advancedValue);
 
         else if(StrEqual(newValue, "impossible", false))
