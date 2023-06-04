@@ -78,20 +78,20 @@ public void RegisterPerkTree()
     xpReqs.Push(0);
 
     descriptions.PushString("-40%% friendly fire damage taken and received.\nDoesn't stack.");
-    costs.Push(500);
+    costs.Push(300);
     xpReqs.Push(0);
 
     descriptions.PushString("-60%% friendly fire damage taken and received.\nDoesn't stack.");
-    costs.Push(1000);
+    costs.Push(700);
     xpReqs.Push(0);
 
     descriptions.PushString("-80%% friendly fire damage taken and received.\nDoesn't stack.");
-    costs.Push(2000);
-    xpReqs.Push(50000);
+    costs.Push(1000);
+    xpReqs.Push(0);
 
     descriptions.PushString("No friendly fire damage taken and received.");
-    costs.Push(5000);
-    xpReqs.Push(10000);
+    costs.Push(1500);
+    xpReqs.Push(0);
 
     friendlyIndex = GunXP_RPGShop_RegisterPerkTree("Friendly Fire Decrease", "Friendly", descriptions, costs, xpReqs);
 }

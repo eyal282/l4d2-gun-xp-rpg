@@ -54,8 +54,8 @@ char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
 
-int g_iLimpHealth[MAXPLAYERS+1];
-float g_fLimpSpeed[MAXPLAYERS+1];
+int g_iLimpHealthDecrease[MAXPLAYERS+1];
+float g_fLimpSpeedIncrease[MAXPLAYERS+1];
 
 public void OnPluginEnd()
 {
@@ -84,30 +84,27 @@ public Action Timer_CheckLimpSpeedAndHealth(Handle hTimer)
 		else if(!IsPlayerAlive(i))
 			continue;
 
-		float fSpeed = g_hRPGLimpSpeed.FloatValue;
+		float fSpeedIncrease = 0.0;
 
 		Call_StartForward(g_fwOnGetRPGLimpSpeed);
 
 		Call_PushCell(i);
-		Call_PushFloatRef(fSpeed);
+		Call_PushFloatRef(fSpeedIncrease);
 
 		Call_Finish();
 
-		g_fLimpSpeed[i] = fSpeed;
+		g_fLimpSpeedIncrease[i] = fSpeedIncrease;
 
-		int health = g_hRPGLimpHealth.IntValue;
+		int healthDecrease = 0;
 
 		Call_StartForward(g_fwOnGetRPGLimpHealth);
 
 		Call_PushCell(i);
-
-		// We might want to increase limp HP if we discover the limp speed is bigger than 250 :)
-		Call_PushFloat(fSpeed);
-		Call_PushCellRef(health);
+		Call_PushCellRef(healthDecrease);
 
 		Call_Finish();
 
-		g_iLimpHealth[i] = health;
+		g_iLimpHealthDecrease[i] = healthDecrease;
 	}
 
 	return Plugin_Continue;
@@ -182,7 +179,7 @@ public void OnPluginStart()
 
 public void GunXP_RPGShop_OnResetRPG(int client)
 {
-	g_fLimpSpeed[client] = g_hRPGLimpSpeed.FloatValue;
+	g_fLimpSpeedIncrease[client] = 0;
 }
 
 // Must add natives for after a player spawns for incap hidden pistol.
@@ -488,17 +485,23 @@ public void OnClientPutInServer(int client)
 
 public Action Event_PreThinkPost(int client)
 {
-	if( L4D_GetClientTeam(client) == L4DTeam_Survivor && IsPlayerAlive(client) )
+	/*if( L4D_GetClientTeam(client) == L4DTeam_Survivor && IsPlayerAlive(client) )
 	{
-		int iHealth = GetClientHealth(client);
-		
-		if (iHealth < g_iLimpHealth[client])
+		if(!GetEntProp(client, Prop_Send, "m_bAdrenalineActive"))
 		{
-			//SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", 1.0);
-			SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", g_fLimpSpeed[client]);
+			int iHealth = GetClientHealth(client);
+
+			float fSpeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
+
+			if (iHealth < g_iLimpHealth[client] || )
+			{
+				//SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", 1.0);
+
+				SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", g_fLimpSpeed[client]);
+			}
 		}
 	}
-
+	*/
 	return Plugin_Continue;
 } 
 

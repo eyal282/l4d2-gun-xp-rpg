@@ -61,23 +61,23 @@ public void RegisterPerkTree()
     xpReqs = new ArrayList(1);
 
     descriptions.PushString("+40%% medkit heal speed.");
-    costs.Push(500);
+    costs.Push(100);
     xpReqs.Push(2000);
 
     descriptions.PushString("+80%% medkit heal speed.");
-    costs.Push(2000);
+    costs.Push(300);
     xpReqs.Push(5000);
 
     descriptions.PushString("+120%% medkit heal speed.");
-    costs.Push(8000);
+    costs.Push(700);
     xpReqs.Push(20000);
 
     descriptions.PushString("+160%% medkit heal speed.");
-    costs.Push(15000);
+    costs.Push(1000);
     xpReqs.Push(50000);
 
     descriptions.PushString("+200%% medkit heal speed.");
-    costs.Push(75000);
+    costs.Push(3000);
     xpReqs.Push(400000);
 
     empathyIndex = GunXP_RPGShop_RegisterPerkTree("Heal Speed", "Empathy", descriptions, costs, xpReqs);

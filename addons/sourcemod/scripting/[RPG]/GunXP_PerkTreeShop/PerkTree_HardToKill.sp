@@ -60,35 +60,35 @@ public void RegisterPerkTree()
     xpReqs = new ArrayList(1);
 
     descriptions.PushString("+25%% incap HP");
-    costs.Push(500);
+    costs.Push(100);
     xpReqs.Push(0);
 
     descriptions.PushString("+50%% incap HP.");
-    costs.Push(1000);
+    costs.Push(300);
     xpReqs.Push(0);
 
     descriptions.PushString("+75%% incap HP.");
-    costs.Push(4500);
+    costs.Push(700);
     xpReqs.Push(0);
 
     descriptions.PushString("+100%% incap HP.");
-    costs.Push(10000);
+    costs.Push(1000);
     xpReqs.Push(0);
 
     descriptions.PushString("+125%% incap HP.");
-    costs.Push(20000);
+    costs.Push(1500);
     xpReqs.Push(0);
 
     descriptions.PushString("+150%% incap HP.");
-    costs.Push(30000);
+    costs.Push(2500);
     xpReqs.Push(0);
 
     descriptions.PushString("+175%% incap HP.");
-    costs.Push(50000);
+    costs.Push(3500);
     xpReqs.Push(0);
 
     descriptions.PushString("+200%% incap HP.");
-    costs.Push(100000);
+    costs.Push(5000);
     xpReqs.Push(0);
 
     hardToKillIndex = GunXP_RPGShop_RegisterPerkTree("Incap HP", "Hard to Kill", descriptions, costs, xpReqs);

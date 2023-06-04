@@ -26,7 +26,8 @@ public void RPG_Perks_OnGetLimpSpeed(int client, float &fSpeed)
 
 	if(L4D2_IsTankInPlay() && GunXP_RPGShop_IsSkillUnlocked(client, cowardiceIndex))
 	{
-		fSpeed = 400.0;
+        if(fSpeed < 220)
+		    fSpeed = 220.0;
 	}
 }
 public void OnLibraryAdded(const char[] name)

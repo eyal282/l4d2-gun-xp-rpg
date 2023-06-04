@@ -302,7 +302,7 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 
 		Call_Finish();
 
-		SetEntityHealth(i, GetEntityMaxHealth(i));
+		PSAPI_FullHeal(i);
 
 		L4D_SetPlayerTempHealth(i, 0);
 
@@ -827,14 +827,15 @@ public void OnMapStart()
 
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
-	CreateTimer(1.0, Timer_AutoRPG, _, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(5.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		
 	CreateTimer(150.0, Timer_TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public Action Timer_AutoRPG(Handle hTimer)
 {
-	bool bFound = false;
+	Transaction transaction = SQL_CreateTransaction();
+	bool bFound = true;
 
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -867,7 +868,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 			enPerkTree perkTree;
 			g_aPerkTrees.GetArray(iPosPerkTree, perkTree);
 
-			PurchasePerkTreeLevel(i, iPosPerkTree, perkTree, true);
+			PurchasePerkTreeLevel(i, iPosPerkTree, perkTree, true, transaction);
 
 			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
 
@@ -880,13 +881,18 @@ public Action Timer_AutoRPG(Handle hTimer)
 			Call_PushCell(true);
 
 			Call_Finish();
+
+			bFound = true;
+			
+			// Retry this iteration of the loop.
+			i--;
 		}
 		else
 		{
 			enSkill skill;
 			g_aSkills.GetArray(iPosSkill, skill);
 
-			PurchaseSkill(i, iPosSkill, skill, true);
+			PurchaseSkill(i, iPosSkill, skill, true, transaction);
 
 			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked the Skill %s!", skill.name);
 
@@ -899,17 +905,18 @@ public Action Timer_AutoRPG(Handle hTimer)
 			Call_PushCell(true);
 
 			Call_Finish();
+
+			bFound = true;
+
+			// Retry this iteration of the loop.
+			i--;
 		}
-
-
 	}
 
 	if(bFound)
-		CreateTimer(0.1, Timer_AutoRPG, _, TIMER_FLAG_NO_MAPCHANGE);
-
-	else
-		CreateTimer(1.0, Timer_AutoRPG, _, TIMER_FLAG_NO_MAPCHANGE);
-	return Plugin_Stop;
+		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+		
+	return Plugin_Continue;
 }
 public Action Timer_HudMessageXP(Handle hTimer)
 {
@@ -1685,6 +1692,7 @@ public void GiveGuns(int client)
 
 		return;
 	}
+
 	int LastSecondary, LastPrimary;
 	LastSecondary = GetClientLastSecondary(client);
 	LastPrimary = GetClientLastPrimary(client);
@@ -1704,14 +1712,24 @@ public void GiveGuns(int client)
 
 	if(g_iLevel[client] > 3 && StrEqual(GUNS_CLASSNAMES[LastSecondary], "pistol"))
 	{
-		GivePlayerItem(client, GUNS_CLASSNAMES[LastSecondary]);
+		int weapon = GivePlayerItem(client, GUNS_CLASSNAMES[LastSecondary]);
+
+		if(!L4D_IsInFirstCheckpoint(client) && !StrEqual(GUNS_CLASSNAMES[LastSecondary], "chainsaw") && HasEntProp(weapon, Prop_Data, "m_iClip1"))
+		{
+			SetEntProp(weapon, Prop_Data, "m_iClip1", 0);
+		}
 	}
 	
 	if(g_iLevel[client] >= StartOfPrimary)
 	{
 		FormatEx(sClassname, sizeof(sClassname), "weapon_%s", GUNS_CLASSNAMES[LastPrimary]);	
 		StripWeaponFromPlayer(client, sClassname);
-		GivePlayerItem(client, GUNS_CLASSNAMES[LastPrimary]);
+		int weapon = GivePlayerItem(client, GUNS_CLASSNAMES[LastPrimary]);
+
+		if(!L4D_IsInFirstCheckpoint(client))
+		{
+			SetEntProp(weapon, Prop_Data, "m_iClip1", 0);
+		}
 	}
 		
 	g_bTookWeapons[client] = true;
@@ -1974,7 +1992,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 			}
 		}
 
-		SetEntityHealth(client, GetEntityMaxHealth(client));
+		PSAPI_FullHeal(client);
 
 		L4D_SetPlayerTempHealth(client, 0);
 	}
@@ -2252,14 +2270,21 @@ stock void ResetPerkTreesAndSkills(int client)
 }
 
 
-stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, bool bAuto)
+stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, bool bAuto, Transaction transaction = null)
 {
 	g_iUnlockedPerkTrees[client][perkIndex]++;
 
 	int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex]);
 	g_iXPCurrency[client] -= cost;
 
-	Transaction transaction = SQL_CreateTransaction();
+	bool bExecute = false;
+	
+	if(transaction == null)
+	{
+		transaction = SQL_CreateTransaction();
+
+		bExecute = true;
+	}
 
 	char AuthId[35];
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
@@ -2275,19 +2300,29 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree,
 	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_PerkTrees SET PerkTreeLevel = PerkTreeLevel + 1 WHERE AuthId = '%s' AND PerkTreeIdentifier = '%s'", AuthId, perkTree.identifier);
 	SQL_AddQuery(transaction, sQuery);
 
-	dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	if(bExecute)
+	{
+		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	}
 
 	if(!bAuto)
 		ShowPerkTreeInfo(client, perkIndex);
 }
 
-stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto)
+stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
 {
 	g_bUnlockedSkills[client][skillIndex] = true;
 
 	g_iXPCurrency[client] -= skill.cost;
 
-	Transaction transaction = SQL_CreateTransaction();
+	bool bExecute = false;
+
+	if(transaction == null)
+	{
+		transaction = SQL_CreateTransaction();
+
+		bExecute = true;
+	}
 
 	char AuthId[35];
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
@@ -2300,7 +2335,10 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto)
 	dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT INTO GunXP_Skills (AuthId, SkillIdentifier) VALUES ('%s', '%s')", AuthId, skill.identifier);
 	SQL_AddQuery(transaction, sQuery);
 
-	dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	if(bExecute)
+	{
+		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	}
 
 	if(!bAuto)
 		ShowSkillInfo(client, skillIndex);
