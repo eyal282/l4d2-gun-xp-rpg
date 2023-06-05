@@ -586,8 +586,6 @@ public Action RPG_OnTraceAttack(int victim, int& attacker, int& inflictor, float
 		if(!bDontInterruptActions)
 			return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
-
-		PrintToChatAll("%N - %i", victim, bDontInterruptActions);
 		//SDKHooks_TakeDamage(victim, victim, attacker, damage, damagetype, 0, NULL_VECTOR, NULL_VECTOR, true);
 
 		if(damage < float(GetEntityHealth(victim)))
