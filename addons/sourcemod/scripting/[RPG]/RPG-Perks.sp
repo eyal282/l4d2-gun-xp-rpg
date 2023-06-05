@@ -566,8 +566,6 @@ public Action RPG_OnTraceAttack(int victim, int& attacker, int& inflictor, float
 
 	if(IsPlayer(attacker) && IsPlayer(victim) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
 		bDontInterruptActions = false;
-
-	PrintToChatAll("a %i", bDontInterruptActions);
 	
 	if(damage == 0.0)
 		return Plugin_Stop;
