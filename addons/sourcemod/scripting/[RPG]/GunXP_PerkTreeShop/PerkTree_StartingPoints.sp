@@ -43,6 +43,10 @@ public void OnPluginStart()
     RegisterPerkTree();
 }
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterPerkTree();
+}
 
 public void PointSystemAPI_OnSetStartPoints(int client, L4DTeam team, float &fStartPoints, float fAveragePrice)
 {

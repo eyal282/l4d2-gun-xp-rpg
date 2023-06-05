@@ -70,7 +70,13 @@ public void OnConfigsExecuted()
     RegisterPerkTree();
 
 }
+
 public void OnPluginStart()
+{
+    RegisterPerkTree();
+}
+
+public void GunXP_RPGShop_OnReloadRPGPlugins()
 {
     RegisterPerkTree();
 }

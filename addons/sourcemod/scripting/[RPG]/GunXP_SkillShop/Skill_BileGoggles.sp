@@ -48,6 +48,11 @@ public void OnPluginStart()
     RegisterSkill();
 }
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterSkill();
+}
+
 public void RegisterSkill()
 {
     bileGogglesIndex = GunXP_RPGShop_RegisterSkill("Bile Goggles", "Bile Goggles", "Press +ZOOM to remove the Bile Goggles to see again.\nIf your eyes are hit while it's removed,\n they won't help you.\nGoggles return to eyes in 100 seconds subtracted by your level.",

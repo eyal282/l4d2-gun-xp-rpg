@@ -173,6 +173,8 @@ int g_iCommonKills[MAXPLAYERS+1];
 int g_iCommonHeadshots[MAXPLAYERS+1];
 
 //GlobalForward g_fwOnUnlockShopBuy;
+GlobalForward g_fwOnTryReloadRPGPlugins;
+GlobalForward g_fwOnReloadRPGPlugins;
 GlobalForward g_fwOnResetRPG;
 GlobalForward g_fwOnSkillBuy;
 GlobalForward g_fwOnPerkTreeBuy;
@@ -691,6 +693,8 @@ public int Native_ReplenishProducts(Handle caller, int numParams)
 public void OnPluginStart()
 {
 	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
+	g_fwOnTryReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnTryReloadRPGPlugins", ET_Event, Param_String);
+	g_fwOnReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnReloadRPGPlugins", ET_Ignore);
 	g_fwOnResetRPG = CreateGlobalForward("GunXP_RPGShop_OnResetRPG", ET_Ignore, Param_Cell);
 	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
@@ -710,6 +714,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_guns", Command_Guns);
 	//RegConsoleCmd("sm_ul", Command_UnlockShop);
 	RegAdminCmd("sm_givexp", Command_GiveXP, ADMFLAG_ROOT);
+	RegAdminCmd("sm_reloadrpg", Command_ReloadRPG, ADMFLAG_ROOT);
 	RegConsoleCmd("sm_rpg", Command_RPG);
 	RegConsoleCmd("sm_skills", Command_Skills);
 	RegConsoleCmd("sm_skill", Command_Skills);
@@ -876,6 +881,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 			Call_PushCell(i);
 			Call_PushCell(iPosPerkTree);
+			Call_PushCell(g_iUnlockedPerkTrees[i][iPosPerkTree]);
 
 			// Auto RPG?
 			Call_PushCell(true);
@@ -1111,6 +1117,34 @@ public Action Command_Guns(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_ReloadRPG(int client, int args)
+{
+
+
+	char sError[256];
+
+	Call_StartForward(g_fwOnTryReloadRPGPlugins);
+
+	Call_PushStringEx(sError, sizeof(sError), SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+
+	Action result;
+	Call_Finish(result);
+
+	if (result >= Plugin_Handled)
+	{
+		PrintToChat(client, sError);
+		return Plugin_Handled;
+	}
+
+	g_aPerkTrees.Clear();
+	g_aSkills.Clear();
+
+	Call_StartForward(g_fwOnReloadRPGPlugins);
+
+	Call_Finish();
+	
+	return Plugin_Handled;
+}
 public Action Command_GiveXP(int client, int args)
 {	
 	if (args < 1 || args > 2)
@@ -1376,6 +1410,7 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 
 			Call_PushCell(client);
 			Call_PushCell(perkIndex);
+			Call_PushCell(g_iUnlockedPerkTrees[client][perkIndex]);
 
 			// Auto RPG?
 			Call_PushCell(false);

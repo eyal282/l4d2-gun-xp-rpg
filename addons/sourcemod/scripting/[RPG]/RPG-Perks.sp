@@ -173,13 +173,17 @@ public void OnPluginStart()
 		GetEdictClassname(i, sClassname, sizeof(sClassname));
 
 		if(StrEqual(sClassname, "infected") || StrEqual(sClassname, "witch"))
+		{
 			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
+			SDKHook(i, SDKHook_OnTakeDamage, Event_TakeDamage);
+
+		}
 	}
 }
 
 public void GunXP_RPGShop_OnResetRPG(int client)
 {
-	g_fLimpSpeedIncrease[client] = 0;
+	g_fLimpSpeedIncrease[client] = 0.0;
 }
 
 // Must add natives for after a player spawns for incap hidden pistol.
@@ -274,7 +278,6 @@ public Action Event_ReviveBeginPre(Event event, const char[] name, bool dontBroa
 
 	return Plugin_Continue;
 }
-
 
 public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool dontBroadcast)
 {
@@ -479,6 +482,7 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
+	SDKHook(client, SDKHook_OnTakeDamage, Event_TakeDamage);
 	SDKHook(client, SDKHook_PreThinkPost, Event_PreThinkPost);
 	
 }
@@ -505,11 +509,35 @@ public Action Event_PreThinkPost(int client)
 	return Plugin_Continue;
 } 
 
+public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
+{
+	if(damage == 0.0)
+		return Plugin_Continue;
+
+	// Avoid double reduction of damage in both Event_TraceAttack and Event_TakeDamage
+	else if(IsPlayer(attacker))
+		return Plugin_Continue;
+
+	return RPG_OnTraceAttack(victim, attacker, inflictor, damage, damagetype, 0, 0);
+}
 public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {	
 	if(damage == 0.0)
 		return Plugin_Continue;
 
+	// Account for fire and fall damage in function above.
+	else if(damagetype & DMG_FALL || damagetype & DMG_BURN)
+		return Plugin_Continue;
+
+	// Commons don't trigger this event, maybe they will in the future?
+	else if(!IsPlayer(attacker))
+		return Plugin_Continue;
+
+	return RPG_OnTraceAttack(victim, attacker, inflictor, damage, damagetype, hitbox, hitgroup);
+}
+
+public Action RPG_OnTraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int hitbox, int hitgroup)
+{
 	bool bDontInterruptActions;
 	bool bDontStagger;
 	bool bDontInstakill;
@@ -533,6 +561,14 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 		Call_Finish();
 	}
 
+	if(IsPlayer(attacker) && L4D_GetClientTeam(attacker) == L4DTeam_Infected && L4D2_GetPlayerZombieClass(attacker) == L4D2ZombieClass_Tank)
+		bDontInterruptActions = false;
+
+	if(IsPlayer(attacker) && IsPlayer(victim) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
+		bDontInterruptActions = false;
+
+	PrintToChatAll("a %i", bDontInterruptActions);
+	
 	if(damage == 0.0)
 		return Plugin_Stop;
 
@@ -540,7 +576,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 		return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
 	// Time to die / incap
-	else if(damage >= float(GetEntityHealth(victim)))
+	else if(damage >= float(GetEntityHealth(victim) + L4D_GetPlayerTempHealth(victim)))
 		return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
 	// Let fall damage insta kill.
@@ -552,7 +588,23 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 		if(!bDontInterruptActions)
 			return bDontInstakill ? Plugin_Changed : Plugin_Continue;
 
-		SetEntityHealth(victim, GetEntityHealth(victim) - RoundFloat(damage));
+
+		PrintToChatAll("%N - %i", victim, bDontInterruptActions);
+		//SDKHooks_TakeDamage(victim, victim, attacker, damage, damagetype, 0, NULL_VECTOR, NULL_VECTOR, true);
+
+		if(damage < float(GetEntityHealth(victim)))
+		{
+			SetEntityHealth(victim, GetEntityHealth(victim) - RoundToFloor(damage));
+		}
+		else
+		{
+
+			// Above is already a detection if damage exceeds the player's entire health, no need to check.
+			L4D_SetPlayerTempHealth(victim, L4D_GetPlayerTempHealth(victim) - RoundToFloor(damage));
+
+			SetEntityHealth(victim, 1);
+		}
+		
 		Event hNewEvent = CreateEvent("player_hurt", true);
 
 		SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
@@ -565,7 +617,32 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 		{
 			SetEventInt(hNewEvent, "attacker", 0);
 		}
-		
+
+		if(inflictor != 0 && !IsPlayer(inflictor))
+		{
+
+			char sWeaponName[64];
+			GetEdictClassname(inflictor, sWeaponName, sizeof(sWeaponName));
+
+			ReplaceStringEx(sWeaponName, sizeof(sWeaponName), "weapon_", "");
+
+			SetEventString(hNewEvent, "weapon", sWeaponName);
+		}
+		else if(inflictor == attacker && IsPlayer(attacker))
+		{
+			int weapon = L4D_GetPlayerCurrentWeapon(attacker);
+
+			if(weapon != -1)
+			{
+				
+				char sWeaponName[64];
+				GetEdictClassname(weapon, sWeaponName, sizeof(sWeaponName));
+
+				ReplaceStringEx(sWeaponName, sizeof(sWeaponName), "weapon_", "");
+
+				SetEventString(hNewEvent, "weapon", sWeaponName);
+			}
+		}
 		SetEventInt(hNewEvent, "attackerentid", attacker);
 		SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
 		SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
@@ -574,7 +651,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 		SetEventInt(hNewEvent, "type", damagetype);
 
 		FireEvent(hNewEvent);
-
+		
 		return Plugin_Stop;
 	}
 	else if(L4D_GetClientTeam(victim) == L4DTeam_Infected)

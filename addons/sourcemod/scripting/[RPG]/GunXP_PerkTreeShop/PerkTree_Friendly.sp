@@ -40,6 +40,10 @@ public void OnPluginStart()
     RegisterPerkTree();
 }
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterPerkTree();
+}
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill)
 {

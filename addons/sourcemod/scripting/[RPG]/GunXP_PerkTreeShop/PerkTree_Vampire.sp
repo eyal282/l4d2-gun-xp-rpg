@@ -89,6 +89,11 @@ public void OnPluginStart()
     HookEvent("infected_death", Event_CommonDeath, EventHookMode_Post);
 }
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterPerkTree();
+}
+
 public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 {
     int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -146,6 +151,9 @@ stock void CalculateVampireGain(int attacker)
         g_iCommonKills[attacker] -= g_iCommonRequirements[perkLevel];
 
         int hpToAdd = g_iPermanentHealthReward[perkLevel];
+
+        if(GetEntityHealth(attacker) + L4D_GetPlayerTempHealth(attacker) > GetEntityMaxHealth(attacker))
+            break;
 
         if(GetEntityHealth(attacker) + hpToAdd + L4D_GetPlayerTempHealth(attacker) > GetEntityMaxHealth(attacker))
         {

@@ -48,6 +48,11 @@ public void OnPluginStart()
     RegisterSkill();
 }
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterSkill();
+}
+
 public void RegisterSkill()
 {
     cowardiceIndex = GunXP_RPGShop_RegisterSkill("No Limp Slowdown if Tank", "Cowardice", "If a tank is spawned, limping speed is disabled.",

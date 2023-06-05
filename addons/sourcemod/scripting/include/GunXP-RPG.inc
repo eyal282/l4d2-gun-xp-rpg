@@ -18,6 +18,8 @@ char ColorEquivalents[][] =
 	"\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x10", "\x0C", "\x0E"
 };
 
+
+
 // Make identifier as descriptive as possible.
 // Use {PERCENT} to denote percentages in descriptions.
 // reqIdentifiers is unimplemented at the moment, and is the list of required perk trees or skills for each perk tree level.
@@ -39,9 +41,18 @@ native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
 
 
+// return Plugin_Handled and edit sError to prevent reloading.
+forward Action GunXP_RPGShop_OnTryReloadRPGPlugins(char sError[256]);
+
+// At this point, every perk tree and skill were removed.
+forward void GunXP_RPGShop_OnReloadRPGPlugins();
+forward void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLevel, bool bAutoRPG);
+forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG);
+
 // This is called while the player still has their current perk tree and skills.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 forward void GunXP_RPG_OnPlayerSpawned(int client);
+
 
 // WARNING! THIS FORWARD FIRES 10 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
@@ -63,7 +74,7 @@ forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuratio
 forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, float &fDuration);
 forward void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health);
 
-forward void RPG_Perks_OnGetLimpSpeed(int)
+//forward void RPG_Perks_OnGetLimpSpeed(int)
 
 stock void UC_ReplyToCommand(int client, const char[] format, any ...)
 {

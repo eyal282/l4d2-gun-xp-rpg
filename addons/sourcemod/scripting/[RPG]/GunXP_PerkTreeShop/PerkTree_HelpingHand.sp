@@ -40,6 +40,11 @@ public void OnPluginStart()
     RegisterPerkTree();
 }
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterPerkTree();
+}
+
 public void RPG_Perks_OnGetReviveDuration(int reviver, int victim, float &fDuration)
 {
     int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, helpingHandIndex);

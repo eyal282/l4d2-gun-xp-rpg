@@ -40,6 +40,11 @@ public void OnPluginStart()
     RegisterPerkTree();
 }
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterPerkTree();
+}
+
 public void RPG_Perks_OnGetIncapHealth(int reviver, bool bLedge, int &health)
 {
     int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, hardToKillIndex);

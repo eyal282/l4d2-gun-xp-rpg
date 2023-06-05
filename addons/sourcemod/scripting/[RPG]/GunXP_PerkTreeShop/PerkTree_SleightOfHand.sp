@@ -68,6 +68,11 @@ public void OnPluginStart()
 }
 
 
+public void GunXP_RPGShop_OnReloadRPGPlugins()
+{
+    RegisterPerkTree();
+}
+
 public void WH_OnReloadModifier(int client, int weapon, int weapontype, float &speedmodifier)
 {
     int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(client, sleightOfHandIndex);
