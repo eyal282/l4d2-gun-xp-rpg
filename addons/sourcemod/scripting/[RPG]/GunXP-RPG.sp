@@ -118,7 +118,7 @@ bool g_bTookWeapons[MAXPLAYERS+1];
 
 int StartOfPrimary = 14; // Change to the beginning of rifles in the levels, remember to count [0]
 
-#define MAX_LEVEL 29
+#define MAX_LEVEL 52
 
 #define PERK_TREE_NOT_UNLOCKED -1
 
@@ -220,11 +220,35 @@ int LEVELS[MAX_LEVEL+1] =
 	25000, // needed for level 24 
 	35000,  // needed for level 25
 	50000,  // needed for level 26
-	100000,  // needed for level 27
-	200000,  // needed for level 28
-	400000,  // needed for level 29
+	60000, // needed for level 27
+	70000, // needed for level 28
+	80000, // needed for level 29
+	90000, // needed for level 30
+	100000,  // needed for level 31
+	125000,  // needed for level 32
+	150000,  // needed for level 33
+	175000,  // needed for level 34
+	200000,  // needed for level 35
+	225000,  // needed for level 36
+	250000,  // needed for level 37
+	275000,  // needed for level 38
+	300000,  // needed for level 39
+	325000,  // needed for level 40
+	350000,  // needed for level 41
+	375000,  // needed for level 42
+	400000,  // needed for level 43
+	425000,  // needed for level 44
+	450000,  // needed for level 45
+	475000,  // needed for level 46
+	500000,  // needed for level 47
+	600000,  // needed for level 48
+	700000,  // needed for level 49
+	800000,  // needed for level 50
+	900000,  // needed for level 51
+	1000000,  // needed for level 52
 	2147483647 // This shall never change, NEVERRRRR
 };
+
 char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
 {
 	"pistol",
@@ -256,12 +280,34 @@ char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
 	"rifle_sg552",
 	"rifle",
 	"rifle_ak47",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
 	"null"
 };
 
 char GUNS_NAMES[MAX_LEVEL+1][] =
 {
-
 	"Pistol",
 	"Pitchfork",
 	"Shovel",
@@ -291,6 +337,29 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 	"SG552",
 	"M-16",
 	"AK-47",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
 	"NULL"
 };
 
@@ -316,20 +385,6 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 		if(IsFakeClient(i))
 			ShowChoiceMenu(i);
 	}
-}
-
-public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, const char[] sAliases, const char[] sName, int target, float fCost, float fDelay, float fCooldown)
-{
-	if(!L4D_IsPlayerIncapacitated(target))
-		return Plugin_Continue;
-
-	else if(StrEqual(sInfo, "give pistol") || StrEqual(sInfo, "give pistol_magnum"))
-	{
-		PSAPI_SetErrorByPriority(50, "\x04[Gun-XP]\x03 Error:\x01 Pistols cannot be bought when incapacitated");
-		return Plugin_Stop;
-	}
-
-	return Plugin_Continue;
 }
 
 public Action PointSystemAPI_OnGetParametersProduct(int buyer, const char[] sAliases, char[] sInfo, char[] sName, char[] sDescription, int target, float& fCost, float& fDelay, float& fCooldown)
@@ -358,6 +413,55 @@ public Action PointSystemAPI_OnGetParametersProduct(int buyer, const char[] sAli
 	
 	return Plugin_Continue;
 }
+
+public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, const char[] sAliases, const char[] sName, int target, float fCost, float fDelay, float fCooldown)
+{
+	if(L4D_IsPlayerIncapacitated(target))
+	{
+		if(StrEqual(sInfo, "give pistol") || StrEqual(sInfo, "give pistol_magnum"))
+		{
+			PSAPI_SetErrorByPriority(50, "\x04[Gun-XP]\x03 Error:\x01 Pistols cannot be bought when incapacitated");
+			return Plugin_Stop;
+		}
+	}
+	if(strncmp(sInfo, "give ", 5) != 0)
+		return Plugin_Continue;
+
+	char sClass[32];
+	FormatEx(sClass, sizeof(sClass), sInfo);
+
+	ReplaceStringEx(sClass, sizeof(sClass), "give ", "");
+
+	for(int i=0;i < sizeof(GUNS_CLASSNAMES);i++)
+	{
+		if(StrEqual(sClass, GUNS_CLASSNAMES[i]))
+		{
+			if(i <= GetClientLevel(target))
+			{
+				PSAPI_SetErrorByPriority(50, "\x04[Gun-XP]\x03 Gun is already unlocked, equipped for free instead.");
+
+				char sClassname[64];
+				FormatEx(sClassname, sizeof(sClassname), "weapon_%s", sClass);	
+
+				StripWeaponFromPlayer(target, sClassname);
+				
+				int weapon = GivePlayerItem(target, sClass);
+
+				if(!L4D_IsInFirstCheckpoint(target) && !StrEqual(sClass, "chainsaw") && HasEntProp(weapon, Prop_Data, "m_iClip1"))
+				{
+					SetEntProp(weapon, Prop_Data, "m_iClip1", 0);
+				}
+				
+				return Plugin_Stop;
+			}
+
+			return Plugin_Continue;
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
 
@@ -1641,6 +1745,9 @@ public void ChooseSecondaryMenu(int client)
 
 	for(int i=0;i < StartOfPrimary;i++)
 	{
+		if(StrEqual(GUNS_CLASSNAMES[i], "null", false))
+			continue;
+
 		Format(TempFormat, sizeof(TempFormat), "%s (Level: %i)", GUNS_NAMES[i], i);
 		AddMenuItem(hMenu, "", TempFormat, g_iLevel[client] >= i ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
@@ -1687,6 +1794,9 @@ void ChoosePrimaryMenu(int client)
 
 	for(int i=StartOfPrimary;i < MAX_LEVEL;i++)
 	{
+		if(StrEqual(GUNS_CLASSNAMES[i], "null", false))
+			continue;
+
 		Format(TempFormat, sizeof(TempFormat), "%s (Level: %i)", GUNS_NAMES[i], i);
 		AddMenuItem(hMenu, "", TempFormat, g_iLevel[client] >= i ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
@@ -1758,6 +1868,10 @@ public void GiveGuns(int client)
 	FormatEx(sClassname, sizeof(sClassname), "weapon_%s", GUNS_CLASSNAMES[LastSecondary]);	
 
 	// No double pistols, but may be redundant with the above StripPlayerWeapons
+
+	if(StrEqual(GUNS_CLASSNAMES[LastSecondary], "null", false) || StrEqual(GUNS_CLASSNAMES[LastPrimary], "null", false))
+		return;
+
 	StripWeaponFromPlayer(client, sClassname);
 	GivePlayerItem(client, GUNS_CLASSNAMES[LastSecondary]);
 
@@ -2530,7 +2644,11 @@ stock void StripPlayerWeapons(int client)
 		int weapon = GetPlayerWeaponSlot(client, i);
 		
 		if(weapon != -1)
-		{
+		{		
+			char sClassname[64];
+			GetEdictClassname(weapon, sClassname, sizeof(sClassname));
+
+			
 			if(!RemovePlayerItem(client, weapon))
 				AcceptEntityInput(weapon, "Kill");
 		}

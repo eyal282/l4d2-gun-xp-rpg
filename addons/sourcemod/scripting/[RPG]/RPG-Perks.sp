@@ -41,6 +41,7 @@ ConVar g_hRPGLimpHealth;
 ConVar g_hStartIncapWeapon;
 
 GlobalForward g_fwOnGetRPGKitHealPercent;
+GlobalForward g_fwOnGetRPGReviveHealthPercent;
 
 GlobalForward g_fwOnGetRPGKitDuration;
 GlobalForward g_fwOnGetRPGReviveDuration;
@@ -128,6 +129,7 @@ public void OnPluginStart()
 	HookEvent("revive_begin", Event_ReviveBeginPre, EventHookMode_Pre);
 
 	g_fwOnGetRPGKitHealPercent = CreateGlobalForward("RPG_Perks_OnGetKitHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
+	g_fwOnGetRPGReviveHealthPercent = CreateGlobalForward("RPG_Perks_OnGetReviveHealthPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 
 	g_fwOnGetRPGKitDuration = CreateGlobalForward("RPG_Perks_OnGetKitDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGReviveDuration = CreateGlobalForward("RPG_Perks_OnGetReviveDuration", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef);
@@ -407,7 +409,7 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 
 	Call_Finish();
 
-	if(percentToHeal == 0)
+	if(percentToHeal <= 0)
 		return Plugin_Continue;
 	
 	SetEntityHealth(healed, GetEntityHealth(healed) - restored);
@@ -417,9 +419,11 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 	return Plugin_Continue;
 }
 
-public Action Event_ReviveSuccess(Handle event, const char[] name, bool dontBroadcast)
+public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroadcast)
 {
-	int revived = GetClientOfUserId(GetEventInt(event, "subject"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	int revived = GetClientOfUserId(event.GetInt("subject"));
 
 	if(revived == 0)
 		return Plugin_Continue;
@@ -427,6 +431,32 @@ public Action Event_ReviveSuccess(Handle event, const char[] name, bool dontBroa
 	else if(GetEventBool(event, "ledge_hang"))
 		return Plugin_Continue;
 
+	int temporaryHealthPercent = 0;
+	int permanentHealthPercent = 0;
+
+	Call_StartForward(g_fwOnGetRPGReviveHealthPercent);
+
+	Call_PushCell(client);
+	Call_PushCell(revived);
+
+	Call_PushCellRef(temporaryHealthPercent);
+	Call_PushCellRef(permanentHealthPercent);
+
+	Call_Finish();
+
+	if(temporaryHealthPercent > 0 || permanentHealthPercent > 0)
+	{
+		if(temporaryHealthPercent < 0)
+			temporaryHealthPercent = 0;
+
+		if(permanentHealthPercent < 0)
+			permanentHealthPercent = 0;
+
+		SetEntityHealth(revived, 0);
+		L4D_SetPlayerTempHealth(revived, 0);
+
+		GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100)));
+	}
 	int weapon = GetPlayerWeaponSlot(revived, 1);
 
 	if(g_sLastSecondaryClassname[revived][0] != EOS)

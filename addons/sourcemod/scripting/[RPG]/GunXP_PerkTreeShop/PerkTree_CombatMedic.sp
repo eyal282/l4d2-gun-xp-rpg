@@ -11,9 +11,9 @@
 
 public Plugin myinfo =
 {
-	name        = "Helping Hand Perk Tree --> Gun XP RPG",
+	name        = "Combat Medic Perk Tree --> Gun XP RPG",
 	author      = "Eyal282",
-	description = "Perk tree to reduce the duration of reviving teammates.",
+	description = "Perk tree to increase heal percent of medkit, changing how medkit works in general.",
 	version     = PLUGIN_VERSION,
 	url         = ""
 };

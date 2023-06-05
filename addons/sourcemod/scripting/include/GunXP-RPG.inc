@@ -71,10 +71,16 @@ forward void GunXP_RPG_OnPlayerSpawned(int client);
 forward void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill);
 
 forward void RPG_Perks_OnGetKitHealPercent(int reviver, int victim, int &percent);
+forward void RPG_Perks_OnGetReviveHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);
+
 forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration);
 forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, bool bLedge, float &fDuration);
+
 forward void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health);
 
+// index means the following:
+// 0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum
+forward void RPG_Perks_OnGetIncapWeapon(int reviver, int &index)
 //forward void RPG_Perks_OnGetLimpSpeed(int)
 
 stock void UC_ReplyToCommand(int client, const char[] format, any ...)
