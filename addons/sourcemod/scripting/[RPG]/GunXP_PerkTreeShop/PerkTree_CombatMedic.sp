@@ -20,7 +20,7 @@ public Plugin myinfo =
 
 #define MIN_FLOAT -2147483647.0
 
-int helpingHandIndex = -1;
+int combatMedicIndex = -1;
 
 public void OnLibraryAdded(const char[] name)
 {
@@ -45,16 +45,14 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnGetReviveDuration(int reviver, int victim, bool bLedge, float &fDuration)
+public void RPG_Perks_OnGetKitHealPercent(int reviver, int victim, int &percent)
 {
-    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, helpingHandIndex);
+    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, combatMedicIndex);
 
     if(perkLevel == -1)
-        return;
+        perkLevel = 0;
 
-    float percent = (40.0 * (float(perkLevel) + 1.0));
-
-    fDuration -= (percent * fDuration) / (percent + 100.0);
+    percent += 50 + (10 * perkLevel);
 }
 
 public void RegisterPerkTree()
@@ -64,25 +62,29 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+40%% revive speed.");
-    costs.Push(300);
-    xpReqs.Push(1000);
+    descriptions.PushString("+50{PERCENT} HP for Medkit");
+    costs.Push(0);
+    xpReqs.Push(0);
 
-    descriptions.PushString("+80%% revive speed.");
+    descriptions.PushString("+60{PERCENT} HP for Medkit");
     costs.Push(1000);
     xpReqs.Push(2000);
 
-    descriptions.PushString("+120%% revive speed.");
+    descriptions.PushString("+70{PERCENT} HP for Medkit");
     costs.Push(5000);
     xpReqs.Push(10000);
 
-    descriptions.PushString("+160%% revive speed.");
+    descriptions.PushString("+80{PERCENT} HP for Medkit");
     costs.Push(10000);
     xpReqs.Push(25000);
 
-    descriptions.PushString("+200%% revive speed.");
+    descriptions.PushString("+90{PERCENT} HP for Medkit");
+    costs.Push(20000);
+    xpReqs.Push(100000);
+
+    descriptions.PushString("Medkit fully restores HP");
     costs.Push(50000);
     xpReqs.Push(200000);
 
-    helpingHandIndex = GunXP_RPGShop_RegisterPerkTree("Revive Speed", "Helping Hand", descriptions, costs, xpReqs);
+    combatMedicIndex = GunXP_RPGShop_RegisterPerkTree("Medkit Heal Percent", "Combat Medic", descriptions, costs, xpReqs);
 }

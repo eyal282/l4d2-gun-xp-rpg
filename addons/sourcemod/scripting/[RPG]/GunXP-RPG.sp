@@ -76,7 +76,12 @@ char g_sForbiddenMapWeapons[][] =
 	"weapon_spawn"
 };
 
+bool g_bLate = false;
+
 bool SaveLastGuns[MAXPLAYERS+1];
+
+ConVar hcv_xpDifficultyMultiplier;
+ConVar hcv_xpVIPMultiplier;
 
 ConVar hcv_xpSIKill;
 ConVar hcv_xpSIHS;
@@ -94,9 +99,9 @@ ConVar hcv_xpDefib;
 ConVar hcv_xpRevive;
 ConVar hcv_xpLedge;
 
-ConVar hcv_VIPMultiplier;
-
 float g_fRoundStartTime;
+
+float g_fSpawnPoint[3];
 
 int KillStreak[MAXPLAYERS+1];
 
@@ -369,9 +374,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 //	CreateNative("GunXP_UnlockShop_ReplenishProducts", Native_ReplenishProducts);
 //	CreateNative("GunXP_UnlockShop_IsProductUnlocked", Native_IsProductUnlocked);
 
-	RegPluginLibrary("GunXPMod");
-	RegPluginLibrary("GunXP_UnlockShop");
-	RegPluginLibrary("GunXP_SkillShop");
+	g_bLate = bLate;
 
 	return APLRes_Success;
 }
@@ -694,7 +697,7 @@ public void OnPluginStart()
 {
 	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
 	g_fwOnTryReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnTryReloadRPGPlugins", ET_Event, Param_String);
-	g_fwOnReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnReloadRPGPlugins", ET_Ignore);
+	g_fwOnReloadRPGPlugins = CreateGlobalForward("GunXP_OnReloadRPGPlugins", ET_Ignore);
 	g_fwOnResetRPG = CreateGlobalForward("GunXP_RPGShop_OnResetRPG", ET_Ignore, Param_Cell);
 	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
@@ -739,6 +742,9 @@ public void OnPluginStart()
 	
 	SetConVarString(UC_CreateConVar("gun_xp_rpg_version", PLUGIN_VERSION), PLUGIN_VERSION);
 
+	hcv_xpDifficultyMultiplier = UC_CreateConVar("gun_xp_difficulty_multiplier", "1.0", "XP multiplier for current difficulty. To be modified with cfg/server_dynamic_difficulties.cfg");
+	hcv_xpVIPMultiplier = UC_CreateConVar("gun_xp_vip_multiplier", "1.0", "How much to mulitply rewards for VIP players. 1 to disable.");
+
 	hcv_xpSIKill = UC_CreateConVar("gun_xp_si_kill", "15", "Amount of xp you get per SI kill");
 	hcv_xpSIHS = UC_CreateConVar("gun_xp_si_kill_bonus_hs", "5", "Amount of bonus xp you get per SI headshot kill");
 
@@ -753,8 +759,6 @@ public void OnPluginStart()
 	hcv_xpDefib = UC_CreateConVar("gun_xp_defib", "30", "Amount of XP gained for defibrillating a survivor");
 	hcv_xpRevive = UC_CreateConVar("gun_xp_revive", "12", "Amount of XP gained for reviving an incapped survivor");
 	hcv_xpLedge = UC_CreateConVar("gun_xp_ledge", "0", "Amount of XP gained for reviving a survivor from a ledge. This can be farmed easily.");
-
-	hcv_VIPMultiplier = UC_CreateConVar("gun_xp_vip_multiplier", "1.0", "How much to mulitply rewards for VIP players. 1 to disable.");
 	
 	cpLastSecondary = RegClientCookie("GunXP_LastSecondary", "Last Chosen Secondary Weapon", CookieAccess_Private);
 	cpLastPrimary = RegClientCookie("GunXP_LastPrimary", "Last Chosen Primary Weapon", CookieAccess_Private);
@@ -780,10 +784,21 @@ public void OnPluginStart()
 		g_bTookWeapons[i] = true;
 	}
 
+	RegPluginLibrary("GunXPMod");
 	RegPluginLibrary("GunXP_PerkTreeShop");
 	RegPluginLibrary("GunXP_SkillShop");
 
 	ConnectDatabase();
+}
+
+public void OnAllPluginsLoaded()
+{
+	if(g_bLate)
+	{
+		Call_StartForward(g_fwOnReloadRPGPlugins);
+
+		Call_Finish();
+	}
 }
 
 
@@ -1136,13 +1151,8 @@ public Action Command_ReloadRPG(int client, int args)
 		return Plugin_Handled;
 	}
 
-	g_aPerkTrees.Clear();
-	g_aSkills.Clear();
+	GunXP_ReloadPlugin();
 
-	Call_StartForward(g_fwOnReloadRPGPlugins);
-
-	Call_Finish();
-	
 	return Plugin_Handled;
 }
 public Action Command_GiveXP(int client, int args)
@@ -1194,7 +1204,7 @@ public Action Command_RPG(int client, int args)
 {
 	Handle hMenu = CreateMenu(RPG_MenuHandler);
 
-	char TempFormat[200];
+	char TempFormat[512];
 
 	AddMenuItem(hMenu, "", "Reset choices [FREE]");
 
@@ -1211,6 +1221,12 @@ public Action Command_RPG(int client, int args)
 	AddMenuItem(hMenu, "", "Skills");
 
 	FormatEx(TempFormat, sizeof(TempFormat), "Perk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : %i | XP : %i | XP Curency : %i", GetClientLevel(client), GetClientXP(client), GetClientXPCurrency(client));
+
+	if(GetXPWorthOfPerkTrees(client) + GetXPWorthOfSkills(client) + GetClientXPCurrency(client) < GetClientXP(client))
+	{
+		Format(TempFormat, sizeof(TempFormat), "%s\nYou can claim %i XP Currency from deleted perk trees or skills by resetting your choices.", TempFormat, GetClientXP(client) - (GetXPWorthOfPerkTrees(client) + GetXPWorthOfSkills(client) + GetClientXPCurrency(client)));
+	}
+
 	SetMenuTitle(hMenu, TempFormat);
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
@@ -1995,7 +2011,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 
 	else if(!IsPlayerAlive(client))
 	{
-		if(GetGameTime() < g_fRoundStartTime + 1.0)
+		if(GetGameTime() < g_fRoundStartTime + 25.0)
 			L4D_RespawnPlayer(client);
 
 		else
@@ -2012,18 +2028,24 @@ public void Event_PlayerSpawnFrame(int UserId)
 
 	Call_Finish();
 
-	if(GetGameTime() < g_fRoundStartTime + 1.0)
+	if(GetGameTime() < g_fRoundStartTime + 25.0 || !L4D_HasAnySurvivorLeftSafeArea())
 	{
+
 		if(IsPlayerStuck(client))
 		{
-			int spawn = FindEntityByClassname(-1, "info_survivor_position");
-
-			if(spawn != -1)
+			if(UC_IsNullVector(g_fSpawnPoint))
 			{
-				float fOrigin[3];
-				GetEntPropVector(spawn, Prop_Data, "m_vecOrigin", fOrigin);
+				int spawn = FindEntityByClassname(-1, "info_survivor_position");
 
-				TeleportEntity(client, fOrigin, NULL_VECTOR, NULL_VECTOR);
+				if(spawn != -1)
+				{	
+					GetEntPropVector(spawn, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
+				}
+			}
+
+			if(!UC_IsNullVector(g_fSpawnPoint))
+			{
+				TeleportEntity(client, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
 			}
 		}
 
@@ -2098,6 +2120,16 @@ public void OnEntityCreated(int entity, const char[] classname)
 			SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
 		}
 	}
+
+	if(StrEqual(classname, "info_survivor_position"))
+	{
+		SDKHook(entity, SDKHook_SpawnPost, Event_OnSpawnpointSpawnPost);
+	}
+}
+
+public void Event_OnSpawnpointSpawnPost(int entity)
+{
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
 }
 
 public Action OnShouldSpawn_NeverSpawn(int entity)
@@ -2209,13 +2241,24 @@ stock void CalculateStats(int client)
 
 stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 {	
-	float PremiumMultiplier = GetConVarFloat(hcv_VIPMultiplier);
+	float PremiumMultiplier = GetConVarFloat(hcv_xpVIPMultiplier);
 	
 	if(CheckCommandAccess(client, "sm_vip_cca", ADMFLAG_VIP) && PremiumMultiplier != 1.0 && bPremiumMultiplier)
 	{
 		float xp = float(amount);
 		
 		xp *= PremiumMultiplier;
+		
+		amount = RoundFloat(xp);
+	}
+
+	float difficultyMultiplier = GetConVarFloat(hcv_xpDifficultyMultiplier);
+	
+	if(difficultyMultiplier != 1.0 && bPremiumMultiplier)
+	{
+		float xp = float(amount);
+		
+		xp *= difficultyMultiplier;
 		
 		amount = RoundFloat(xp);
 	}
@@ -2867,6 +2910,42 @@ stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost)
 	}
 
 	return true;
+}
+
+stock int GetXPWorthOfPerkTrees(int client)
+{
+	int totalXPWorth = 0;
+
+	for(int i=0;i < g_aPerkTrees.Length;i++)
+	{
+		enPerkTree iPerkTree;
+		g_aPerkTrees.GetArray(i, iPerkTree);
+
+		for(int a=0;a <= g_iUnlockedPerkTrees[client][i];a++)
+		{
+			totalXPWorth += iPerkTree.costs.Get(a);
+		}
+	}
+
+	return totalXPWorth;
+}
+
+stock int GetXPWorthOfSkills(int client)
+{
+	int totalXPWorth = 0;
+
+	for(int i=0;i < g_aSkills.Length;i++)
+	{
+		enSkill iSkill;
+		g_aSkills.GetArray(i, iSkill);
+
+		if(!g_bUnlockedSkills[client][i])
+			continue;
+
+		totalXPWorth += iSkill.cost;
+	}
+
+	return totalXPWorth;
 }
 
 stock int GetClosestLevelToXP(int xp)

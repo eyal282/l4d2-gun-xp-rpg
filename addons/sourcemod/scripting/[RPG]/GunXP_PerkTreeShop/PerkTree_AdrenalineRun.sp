@@ -76,9 +76,9 @@ public void OnPluginStart()
     RegisterPerkTree();
 }
 
-public void GunXP_RPGShop_OnReloadRPGPlugins()
+public void GunXP_OnReloadRPGPlugins()
 {
-    RegisterPerkTree();
+    GunXP_ReloadPlugin();
 }
 
 public void L4D_OnSpawnTank_Post(int client, const float vecPos[3], const float vecAng[3])

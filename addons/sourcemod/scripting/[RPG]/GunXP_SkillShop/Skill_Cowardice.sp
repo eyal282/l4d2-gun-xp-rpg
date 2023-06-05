@@ -48,9 +48,9 @@ public void OnPluginStart()
     RegisterSkill();
 }
 
-public void GunXP_RPGShop_OnReloadRPGPlugins()
+public void GunXP_OnReloadRPGPlugins()
 {
-    RegisterSkill();
+    GunXP_ReloadPlugin();
 }
 
 public void RegisterSkill()

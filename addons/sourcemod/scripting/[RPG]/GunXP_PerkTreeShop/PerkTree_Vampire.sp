@@ -89,9 +89,9 @@ public void OnPluginStart()
     HookEvent("infected_death", Event_CommonDeath, EventHookMode_Post);
 }
 
-public void GunXP_RPGShop_OnReloadRPGPlugins()
+public void GunXP_OnReloadRPGPlugins()
 {
-    RegisterPerkTree();
+    GunXP_ReloadPlugin();
 }
 
 public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
@@ -155,33 +155,9 @@ stock void CalculateVampireGain(int attacker)
         if(GetEntityHealth(attacker) + L4D_GetPlayerTempHealth(attacker) > GetEntityMaxHealth(attacker))
             break;
 
-        if(GetEntityHealth(attacker) + hpToAdd + L4D_GetPlayerTempHealth(attacker) > GetEntityMaxHealth(attacker))
-        {
-            if(GetEntityHealth(attacker) + hpToAdd > GetEntityMaxHealth(attacker))
-            {
-                SetEntityHealth(attacker, GetEntityMaxHealth(attacker));
-            }
-            else
-            {
-                SetEntityHealth(attacker, GetEntityHealth(attacker) + hpToAdd);
-                L4D_SetPlayerTempHealth(attacker, GetEntityMaxHealth(attacker) - GetEntityHealth(attacker) + 1);
-            }
-        }
-        else
-        {
-            SetEntityHealth(attacker, GetEntityHealth(attacker) + hpToAdd);
-        }
-
         hpToAdd = g_iTemporaryHealthReward[perkLevel];
         
-        if(GetEntityHealth(attacker) + hpToAdd + L4D_GetPlayerTempHealth(attacker) > GetEntityMaxHealth(attacker))
-        {
-            L4D_SetPlayerTempHealth(attacker, GetEntityMaxHealth(attacker) - GetEntityHealth(attacker) + 1);
-        }
-        else
-        {
-            L4D_SetPlayerTempHealth(attacker, L4D_GetPlayerTempHealth(attacker) + hpToAdd + 1);
-        }
+        GunXP_GiveClientHealth(attacker, g_iPermanentHealthReward[perkLevel], g_iTemporaryHealthReward[perkLevel]);
     }
 }
 

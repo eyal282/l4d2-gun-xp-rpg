@@ -24,6 +24,7 @@ ConVar g_hRPGKitDuration;
 
 ConVar g_hReviveDuration;
 ConVar g_hRPGReviveDuration;
+ConVar g_hRPGLedgeReviveDuration;
 
 ConVar g_hIncapHealth;
 ConVar g_hRPGIncapHealth;
@@ -39,6 +40,8 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnGetRPGKitHealPercent;
+
 GlobalForward g_fwOnGetRPGKitDuration;
 GlobalForward g_fwOnGetRPGReviveDuration;
 
@@ -50,6 +53,7 @@ GlobalForward g_fwOnGetRPGLimpHealth;
 
 GlobalForward g_fwOnCalculateDamage;
 
+int g_iLastTemporaryHealth[MAXPLAYERS+1];
 char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
@@ -67,6 +71,8 @@ public void OnMapStart()
 {
 	CreateTimer(1.0, Timer_CheckLimpSpeedAndHealth, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
+
+
 
 public Action Timer_CheckLimpSpeedAndHealth(Handle hTimer)
 {
@@ -112,19 +118,25 @@ public Action Timer_CheckLimpSpeedAndHealth(Handle hTimer)
 public void OnPluginStart()
 {
 	HookEvent("player_incapacitated_start", Event_PlayerIncapStartPre, EventHookMode_Pre);
+	HookEvent("heal_begin", Event_HealBegin);
+	HookEvent("heal_success", Event_HealSuccess);
 	HookEvent("revive_success", Event_ReviveSuccess, EventHookMode_Post);
 	HookEvent("bot_player_replace", Event_PlayerReplacesABot, EventHookMode_Post);
+	HookEvent("player_bot_replace", Event_BotReplacesAPlayer, EventHookMode_Post);
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Post);
 	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabPre, EventHookMode_Pre);
 	HookEvent("revive_begin", Event_ReviveBeginPre, EventHookMode_Pre);
 
+	g_fwOnGetRPGKitHealPercent = CreateGlobalForward("RPG_Perks_OnGetKitHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
+
 	g_fwOnGetRPGKitDuration = CreateGlobalForward("RPG_Perks_OnGetKitDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
-	g_fwOnGetRPGReviveDuration = CreateGlobalForward("RPG_Perks_OnGetReviveDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
+	g_fwOnGetRPGReviveDuration = CreateGlobalForward("RPG_Perks_OnGetReviveDuration", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef);
+
 	g_fwOnGetRPGIncapHealth = CreateGlobalForward("RPG_Perks_OnGetIncapHealth", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGIncapWeapon = CreateGlobalForward("RPG_Perks_OnGetIncapWeapon", ET_Ignore, Param_Cell, Param_CellByRef);
 
 	g_fwOnGetRPGLimpSpeed = CreateGlobalForward("RPG_Perks_OnGetLimpSpeed", ET_Ignore, Param_Cell, Param_FloatByRef);
-	g_fwOnGetRPGLimpHealth = CreateGlobalForward("RPG_Perks_OnGetLimpHealth", ET_Ignore, Param_Cell, Param_Float, Param_CellByRef);
+	g_fwOnGetRPGLimpHealth = CreateGlobalForward("RPG_Perks_OnGetLimpHealth", ET_Ignore, Param_Cell, Param_CellByRef);
 
 	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 
@@ -135,6 +147,7 @@ public void OnPluginStart()
 
 	g_hReviveDuration = FindConVar("survivor_revive_duration");
 	g_hRPGReviveDuration = AutoExecConfig_CreateConVar("rpg_survivor_revive_duration", "5", "Default time for reviving.");
+	g_hRPGLedgeReviveDuration = AutoExecConfig_CreateConVar("rpg_survivor_ledge_revive_duration", "5", "Default time for reviving from a ledge.");
 
 
 	g_hIncapHealth = FindConVar("survivor_incap_health");
@@ -179,6 +192,14 @@ public void OnPluginStart()
 
 		}
 	}
+}
+
+public void GunXP_OnReloadRPGPlugins()
+{
+	#if defined _GunXP_RPG_included
+		GunXP_ReloadPlugin();
+	#endif
+   
 }
 
 public void GunXP_RPGShop_OnResetRPG(int client)
@@ -260,16 +281,23 @@ public void GunXP_RPG_OnPlayerSpawned(int client)
 public Action Event_ReviveBeginPre(Event event, const char[] name, bool dontBroadcast)
 {
 	int reviver = GetClientOfUserId(event.GetInt("userid"));
+	int subject = GetClientOfUserId(event.GetInt("subject"));
 
 	if(reviver == 0)
 		return Plugin_Continue;
 
 	float fDuration = g_hRPGReviveDuration.FloatValue;
 
+	if(L4D_IsPlayerHangingFromLedge(subject))
+	{
+		fDuration = g_hRPGLedgeReviveDuration.FloatValue;
+	}
+
 	Call_StartForward(g_fwOnGetRPGReviveDuration);
 
 	Call_PushCell(reviver);
-	Call_PushCell(GetClientOfUserId(event.GetInt("subject")));
+	Call_PushCell(subject);
+	Call_PushCell(L4D_IsPlayerHangingFromLedge(subject));
 	Call_PushFloatRef(fDuration);
 
 	Call_Finish();
@@ -326,6 +354,15 @@ public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool don
 	return Plugin_Continue;
 }
 
+
+public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool dontBroadcast)
+{
+	int newPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
+
+	g_iLastTemporaryHealth[newPlayer] = 0;
+
+	return Plugin_Continue;
+}
 public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool dontBroadcast)
 {
 	int newPlayer = GetClientOfUserId(GetEventInt(event, "player"));
@@ -334,9 +371,51 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_iLastSecondaryClip[newPlayer] = 0;
 	g_bLastSecondaryDual[newPlayer] = false;
 
+	g_iLastTemporaryHealth[newPlayer] = 0;
+
 	return Plugin_Continue;
 }
 
+public Action Event_HealBegin(Event event, const char[] name, bool dontBroadcast)
+{
+	int healed = GetClientOfUserId(GetEventInt(event, "subject"));
+
+	g_iLastTemporaryHealth[healed] = L4D_GetPlayerTempHealth(healed);
+
+	return Plugin_Continue;
+}
+
+public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	int healed = GetClientOfUserId(GetEventInt(event, "subject"));
+
+	if(client == 0)
+		return Plugin_Continue;
+	
+	int restored = event.GetInt("health_restored");
+
+	int percentToHeal = 0;
+
+	Call_StartForward(g_fwOnGetRPGKitHealPercent);
+
+	Call_PushCell(client);
+	Call_PushCell(healed);
+
+	Call_PushCellRef(percentToHeal);
+
+	Call_Finish();
+
+	if(percentToHeal == 0)
+		return Plugin_Continue;
+	
+	SetEntityHealth(healed, GetEntityHealth(healed) - restored);
+
+	GunXP_GiveClientHealth(healed, RoundToFloor(GetEntityMaxHealth(healed) * (float(percentToHeal) / 100)), g_iLastTemporaryHealth[healed]);
+
+	return Plugin_Continue;
+}
 
 public Action Event_ReviveSuccess(Handle event, const char[] name, bool dontBroadcast)
 {

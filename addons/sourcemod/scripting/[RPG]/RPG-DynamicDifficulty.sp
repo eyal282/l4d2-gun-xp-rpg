@@ -1,3 +1,4 @@
+#tryinclude <GunXP-RPG>
 #include <autoexecconfig>
 #include <sourcemod>
 #include <sdkhooks>
@@ -41,6 +42,13 @@ public void OnPluginStart()
     g_hDifficulty = FindConVar("z_difficulty");
 
     HookConVarChange(g_hDifficulty, cvChange_Difficulty);
+}
+
+public void GunXP_OnReloadRPGPlugins()
+{
+	#if defined _GunXP_RPG_included
+		GunXP_ReloadPlugin();
+	#endif
 }
 
 public void OnAllPluginsLoaded()
@@ -89,6 +97,15 @@ public void LoadConfig()
             ReplaceString(lineBuffer, sizeof(lineBuffer), " ", "");
         }
 
+        while(StrContains(lineBuffer, "\t") != -1)
+        {
+            ReplaceString(lineBuffer, sizeof(lineBuffer), "\t", "");
+        }
+
+        while(StrContains(lineBuffer, "\n") != -1)
+        {
+            ReplaceString(lineBuffer, sizeof(lineBuffer), "\n", "");
+        }
         char cvarName[64], cvarValues[512];
         
         int pos = SplitString(lineBuffer, "=", cvarName, sizeof(cvarName));

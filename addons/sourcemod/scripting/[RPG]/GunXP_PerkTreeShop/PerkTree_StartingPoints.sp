@@ -1,6 +1,7 @@
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
+#include <GunXP-RPG>
 #include <left4dhooks>
 
 #define PLUGIN_VERSION "1.0"
@@ -18,10 +19,6 @@ public Plugin myinfo =
 	version     = PLUGIN_VERSION,
 	url         = ""
 };
-
-// Make identifier as descriptive as possible.
-native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null);
-native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 
 int startingPointsIndex = -1;
 
@@ -43,9 +40,9 @@ public void OnPluginStart()
     RegisterPerkTree();
 }
 
-public void GunXP_RPGShop_OnReloadRPGPlugins()
+public void GunXP_OnReloadRPGPlugins()
 {
-    RegisterPerkTree();
+    GunXP_ReloadPlugin();
 }
 
 public void PointSystemAPI_OnSetStartPoints(int client, L4DTeam team, float &fStartPoints, float fAveragePrice)

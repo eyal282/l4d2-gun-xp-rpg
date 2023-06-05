@@ -45,7 +45,7 @@ native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 forward Action GunXP_RPGShop_OnTryReloadRPGPlugins(char sError[256]);
 
 // At this point, every perk tree and skill were removed.
-forward void GunXP_RPGShop_OnReloadRPGPlugins();
+forward void GunXP_OnReloadRPGPlugins();
 forward void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLevel, bool bAutoRPG);
 forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG);
 
@@ -70,8 +70,9 @@ forward void GunXP_RPG_OnPlayerSpawned(int client);
 // If you want to protect from stagger but allow incendiary ammo, check for damagetype == DMG_BLAST
 forward void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill);
 
+forward void RPG_Perks_OnGetKitHealPercent(int reviver, int victim, int &percent);
 forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration);
-forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, float &fDuration);
+forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, bool bLedge, float &fDuration);
 forward void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health);
 
 //forward void RPG_Perks_OnGetLimpSpeed(int)
@@ -178,4 +179,45 @@ stock int GetEntityMaxHealth(int entity)
 stock int GetEntityHealth(int entity)
 {
 	return GetEntProp(entity, Prop_Send, "m_iHealth");
+}
+
+stock void GunXP_GiveClientHealth(int client, int permanentHP = 0, int temporaryHP = 0)
+{
+	if(GetEntityHealth(client) + permanentHP + L4D_GetPlayerTempHealth(client) > GetEntityMaxHealth(client))
+	{
+		if(GetEntityHealth(client) + permanentHP > GetEntityMaxHealth(client))
+		{
+			SetEntityHealth(client, GetEntityMaxHealth(client));
+		}
+		else
+		{
+			SetEntityHealth(client, GetEntityHealth(client) + permanentHP);
+			L4D_SetPlayerTempHealth(client, GetEntityMaxHealth(client) - GetEntityHealth(client) + 1);
+		}
+	}
+	else
+	{
+		SetEntityHealth(client, GetEntityHealth(client) + permanentHP);
+	}
+
+	if(GetEntityHealth(client) + temporaryHP + L4D_GetPlayerTempHealth(client) > GetEntityMaxHealth(client))
+	{
+		L4D_SetPlayerTempHealth(client, GetEntityMaxHealth(client) - GetEntityHealth(client) + 1);
+	}
+	else
+	{
+		L4D_SetPlayerTempHealth(client, L4D_GetPlayerTempHealth(client) + temporaryHP + 1);
+	}
+}
+/**
+ * @brief Reloads a plugin.
+ *
+ * @param plugin	Plugin Handle (INVALID_HANDLE uses the calling plugin).
+ * @noreturn
+ */
+stock GunXP_ReloadPlugin(Handle plugin = INVALID_HANDLE)
+{
+	char filename[64];
+	GetPluginFilename(plugin, filename, sizeof(filename));
+	ServerCommand("sm plugins reload %s", filename);
 }

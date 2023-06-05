@@ -34,6 +34,7 @@
 
 // https://forums.alliedmods.net/showpost.php?p=1712698&postcount=1
 
+#tryinclude <GunXP-RPG>
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
@@ -66,6 +67,13 @@ public void OnPluginStart()
 	HookEvent("round_start", Event_RoundStartOrEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundStartOrEnd, EventHookMode_PostNoCopy);
 }
+
+public void GunXP_OnReloadRPGPlugins()
+{
+	#if defined 
+    GunXP_ReloadPlugin();
+}
+
 public Action Event_RoundStartOrEnd(Handle hEvent, const char[] sEventName, bool bDontBroadcast)
 {
 	for(int i=0;i < sizeof(g_bTookGogglesOff);i++)

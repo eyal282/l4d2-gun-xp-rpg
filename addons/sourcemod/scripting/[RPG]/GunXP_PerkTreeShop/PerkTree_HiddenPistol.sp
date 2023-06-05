@@ -40,9 +40,9 @@ public void OnPluginStart()
     RegisterPerkTree();
 }
 
-public void GunXP_RPGShop_OnReloadRPGPlugins()
+public void GunXP_OnReloadRPGPlugins()
 {
-    RegisterPerkTree();
+    GunXP_ReloadPlugin();
 }
 
 public void RPG_Perks_OnGetIncapWeapon(int reviver, int &index)

@@ -22,6 +22,8 @@ public Plugin myinfo =
 
 int sleightOfHandIndex = -1;
 
+ConVar g_hRPGMultiplier;
+
 float g_fReloadSpeedsIncrease[] =
 {
     0.2,
@@ -62,15 +64,24 @@ public void OnConfigsExecuted()
     RegisterPerkTree();
 
 }
+
 public void OnPluginStart()
 {
+    AutoExecConfig_SetFile("GunXP-RPGShop.cfg");
+
+    g_hRPGMultiplier = AutoExecConfig_CreateConVar("gun_xp_rpgshop_rpg_reload_multiplier", "2.0", "Sleight of hand reload multiplier for RPG");
+
     RegisterPerkTree();
+
+    AutoExecConfig_ExecuteFile();
+
+    AutoExecConfig_CleanFile();
 }
 
 
-public void GunXP_RPGShop_OnReloadRPGPlugins()
+public void GunXP_OnReloadRPGPlugins()
 {
-    RegisterPerkTree();
+   GunXP_ReloadPlugin();
 }
 
 public void WH_OnReloadModifier(int client, int weapon, int weapontype, float &speedmodifier)
@@ -80,7 +91,14 @@ public void WH_OnReloadModifier(int client, int weapon, int weapontype, float &s
     if(perkLevel == -1)
         return;
 
-    speedmodifier += g_fReloadSpeedsIncrease[perkLevel];
+    if(L4D2_GetWeaponId(weapon) == L4D2WeaponId_GrenadeLauncher)
+    {
+        speedmodifier += g_fReloadSpeedsIncrease[perkLevel] * g_hRPGMultiplier.FloatValue;
+    }
+    else
+    {
+        speedmodifier += g_fReloadSpeedsIncrease[perkLevel];
+    }
 }
 
 public void RegisterPerkTree()
@@ -93,7 +111,12 @@ public void RegisterPerkTree()
     for(int i=0;i < sizeof(g_fReloadSpeedsIncrease);i++)
     {
         char TempFormat[128];
-        FormatEx(TempFormat, sizeof(TempFormat), "+%i{PERCENT} reload speed", RoundFloat(g_fReloadSpeedsIncrease[i] * 100.0));
+
+        if(g_hRPGMultiplier.FloatValue == 1.0)
+            FormatEx(TempFormat, sizeof(TempFormat), "+%i{PERCENT} reload speed", RoundFloat(g_fReloadSpeedsIncrease[i] * 100.0));
+
+        else
+            FormatEx(TempFormat, sizeof(TempFormat), "+%i{PERCENT} reload speed, but RPG has +%i{PERCENT} speed instead.", RoundFloat(g_fReloadSpeedsIncrease[i] * 100.0), RoundFloat(g_fReloadSpeedsIncrease[i] * 100.0 * g_hRPGMultiplier.FloatValue));
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iReloadCosts[i]);

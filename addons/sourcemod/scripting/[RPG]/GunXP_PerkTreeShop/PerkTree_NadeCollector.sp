@@ -93,9 +93,9 @@ public void OnPluginStart()
     HookEvent("infected_death", Event_CommonDeath, EventHookMode_Post);
 }
 
-public void GunXP_RPGShop_OnReloadRPGPlugins()
+public void GunXP_OnReloadRPGPlugins()
 {
-    RegisterPerkTree();
+    GunXP_ReloadPlugin();
 }
 
 public Action Event_CommonDeath(Handle hEvent, const char[] name, bool dontBroadcast)
