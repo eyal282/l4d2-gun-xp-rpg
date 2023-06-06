@@ -59,7 +59,15 @@ ConVar g_hRPGIncapHealth;
 ConVar g_hLedgeHangHealth;
 ConVar g_hRPGLedgeHangHealth;
 
+ConVar g_hAdrenalineDuration;
+ConVar g_hRPGAdrenalineDuration;
 ConVar g_hRPGAdrenalineRunSpeed;
+
+ConVar g_hAdrenalineHealPercent;
+ConVar g_hRPGAdrenalineHealPercent;
+
+ConVar g_hPainPillsHealPercent;
+ConVar g_hRPGPainPillsHealPercent;
 
 ConVar g_hCriticalSpeed;
 ConVar g_hLimpHealth;
@@ -67,6 +75,8 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnGetRPGAdrenalineDuration;
+GlobalForward g_fwOnGetRPGMedsHealPercent;
 GlobalForward g_fwOnGetRPGKitHealPercent;
 GlobalForward g_fwOnGetRPGReviveHealthPercent;
 
@@ -89,6 +99,8 @@ public void OnPluginEnd()
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
 	g_hReviveDuration.FloatValue = g_hRPGReviveDuration.FloatValue;
 	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
+	g_hAdrenalineHealPercent.IntValue = g_hRPGAdrenalineHealPercent.IntValue;
+	g_hPainPillsHealPercent.IntValue = g_hRPGPainPillsHealPercent.IntValue;
 }
 
 public void OnMapStart()
@@ -99,6 +111,9 @@ public void OnMapStart()
 public Action Timer_CheckSpeedModifiers(Handle hTimer)
 {
 	g_hLimpHealth.IntValue = 0;
+	g_hAdrenalineDuration.FloatValue = 0.0;
+	g_hAdrenalineHealPercent.IntValue = 0;
+	g_hPainPillsHealPercent.IntValue = 0;
 	// Prediction error fix.
 	g_hCriticalSpeed.FloatValue = DEFAULT_RUN_SPEED;
 
@@ -156,6 +171,8 @@ public void OnPluginStart()
 	HookEvent("player_incapacitated_start", Event_PlayerIncapStartPre, EventHookMode_Pre);
 	HookEvent("heal_begin", Event_HealBegin);
 	HookEvent("heal_success", Event_HealSuccess);
+	HookEvent("adrenaline_used", Event_AdrenalineUsed);
+	HookEvent("pills_used", Event_PillsUsed);
 	HookEvent("revive_success", Event_ReviveSuccess, EventHookMode_Post);
 	HookEvent("bot_player_replace", Event_PlayerReplacesABot, EventHookMode_Post);
 	HookEvent("player_bot_replace", Event_BotReplacesAPlayer, EventHookMode_Post);
@@ -163,6 +180,8 @@ public void OnPluginStart()
 	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabPre, EventHookMode_Pre);
 	HookEvent("revive_begin", Event_ReviveBeginPre, EventHookMode_Pre);
 
+	g_fwOnGetRPGAdrenalineDuration = CreateGlobalForward("RPG_Perks_OnGetAdrenalineDuration", ET_Ignore, Param_Cell, Param_FloatByRef);
+	g_fwOnGetRPGMedsHealPercent = CreateGlobalForward("RPG_Perks_OnGetMedsHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGKitHealPercent = CreateGlobalForward("RPG_Perks_OnGetKitHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGReviveHealthPercent = CreateGlobalForward("RPG_Perks_OnGetReviveHealthPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 
@@ -194,6 +213,15 @@ public void OnPluginStart()
 	g_hCriticalSpeed = FindConVar("survivor_limp_walk_speed");
 	g_hLimpHealth = FindConVar("survivor_limp_health");
 	g_hRPGLimpHealth = AutoExecConfig_CreateConVar("rpg_survivor_limp_health", "40", "Default HP under which you start limping");
+
+	g_hRPGAdrenalineHealPercent = AutoExecConfig_CreateConVar("rpg_adrenaline_health_buffer", "25", "Default percent of max HP adrenaline heals for");
+	g_hAdrenalineHealPercent = FindConVar("adrenaline_health_buffer");
+
+	g_hRPGPainPillsHealPercent = AutoExecConfig_CreateConVar("rpg_pain_pills_health_value", "50", "Default percent of max HP pain pills heal for");
+	g_hPainPillsHealPercent = FindConVar("pain_pills_health_value");
+
+	g_hRPGAdrenalineDuration = AutoExecConfig_CreateConVar("rpg_adrenaline_duration", "15.0", "Default time adrenaline lasts for.");
+	g_hAdrenalineDuration = FindConVar("adrenaline_duration");
 
 	g_hRPGAdrenalineRunSpeed = AutoExecConfig_CreateConVar("rpg_adrenaline_run_speed", "260", "Default HP for ledge hanging");
 
@@ -448,6 +476,70 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 	SetEntityHealth(healed, GetEntityHealth(healed) - restored);
 
 	GunXP_GiveClientHealth(healed, RoundToFloor(GetEntityMaxHealth(healed) * (float(percentToHeal) / 100)), g_iLastTemporaryHealth[healed]);
+
+	return Plugin_Continue;
+}
+
+public Action Event_AdrenalineUsed(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	int percentToHeal = g_hRPGAdrenalineHealPercent.IntValue;
+
+	Call_StartForward(g_fwOnGetRPGMedsHealPercent);
+
+	Call_PushCell(client);
+	Call_PushCell(true);
+	Call_PushCellRef(percentToHeal);
+
+	Call_Finish();
+
+	PrintToChat(client, "%i", percentToHeal);
+	
+	if(percentToHeal > 0)
+	{
+		GunXP_GiveClientHealth(client, 0, RoundToFloor(GetEntityMaxHealth(client) * (float(percentToHeal) / 100)));
+	}
+
+	float fDuration = g_hRPGAdrenalineDuration.FloatValue;
+
+	Call_StartForward(g_fwOnGetRPGAdrenalineDuration);
+
+	Call_PushCell(client);
+	Call_PushFloatRef(fDuration);
+
+	Call_Finish();
+
+	L4D2_UseAdrenaline(client, fDuration, false);
+
+	return Plugin_Continue;
+}
+
+
+public Action Event_PillsUsed(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	int percentToHeal = g_hRPGPainPillsHealPercent.IntValue;
+
+	Call_StartForward(g_fwOnGetRPGMedsHealPercent);
+
+	Call_PushCell(client);
+	Call_PushCell(false);
+	Call_PushCellRef(percentToHeal);
+
+	Call_Finish();
+
+	if(percentToHeal > 0)
+	{
+		GunXP_GiveClientHealth(client, 0, RoundToFloor(GetEntityMaxHealth(client) * (float(percentToHeal) / 100)));
+	}
 
 	return Plugin_Continue;
 }
