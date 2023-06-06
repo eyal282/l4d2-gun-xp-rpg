@@ -497,8 +497,6 @@ public Action Event_AdrenalineUsed(Event event, const char[] name, bool dontBroa
 
 	Call_Finish();
 
-	PrintToChat(client, "%i", percentToHeal);
-	
 	if(percentToHeal > 0)
 	{
 		GunXP_GiveClientHealth(client, 0, RoundToFloor(GetEntityMaxHealth(client) * (float(percentToHeal) / 100)));
@@ -513,7 +511,7 @@ public Action Event_AdrenalineUsed(Event event, const char[] name, bool dontBroa
 
 	Call_Finish();
 
-	L4D2_UseAdrenaline(client, fDuration, false);
+	Terror_SetAdrenalineTime(client, fDuration);
 
 	return Plugin_Continue;
 }
