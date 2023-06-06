@@ -21,13 +21,14 @@ public Plugin myinfo =
 
 int cowardiceIndex;
 
-public void RPG_Perks_OnGetLimpSpeed(int client, float &fSpeed)
+public void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &overrideSpeedState, int &iLimpHealth, float &fRunSpeed, float &fWalkSpeed, float &fCrouchSpeed, float &fLimpSpeed, float &fCriticalSpeed, float &fWaterSpeed, float &fAdrenalineSpeed, float &fScopeSpeed, float &fCustomSpeed)
 {
+	if(priority != 0)
+		return;
 
 	if(L4D2_IsTankInPlay() && GunXP_RPGShop_IsSkillUnlocked(client, cowardiceIndex))
 	{
-        if(fSpeed < 220)
-		    fSpeed = 220.0;
+        iLimpHealth = 0;
 	}
 }
 public void OnLibraryAdded(const char[] name)

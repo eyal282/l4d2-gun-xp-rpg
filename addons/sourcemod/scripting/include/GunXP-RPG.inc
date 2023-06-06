@@ -8,6 +8,22 @@
 
 #define FPERM_ULTIMATE (FPERM_U_READ | FPERM_U_WRITE | FPERM_U_EXEC | FPERM_G_READ | FPERM_G_WRITE | FPERM_G_EXEC | FPERM_O_READ | FPERM_O_WRITE | FPERM_O_EXEC)
 
+#define SPEEDSTATE_NULL -1	// This is to return an invalid speeds and stop attempting to change player movement speed
+
+enum
+{
+    SPEEDSTATE_RUN,              // Min 110.0
+    SPEEDSTATE_WALK,             // Min 65.0
+    SPEEDSTATE_CROUCH,           // Min 65.0
+    SPEEDSTATE_LIMP,             // Min 65.0
+    SPEEDSTATE_CRITICAL,         // Min 65.0
+    SPEEDSTATE_WATER,            // Min 65.0
+    SPEEDSTATE_ADRENALINE,       // Min 110.0
+    SPEEDSTATE_SCOPE,             // Min 65.0
+	SPEEDSTATE_CUSTOM,
+	SIZEOF_SPEEDSTATES
+};
+
 char Colors[][] = 
 {
 	"{NORMAL}", "{RED}", "{GREEN}", "{LIGHTGREEN}", "{OLIVE}", "{LIGHTRED}", "{GRAY}", "{YELLOW}", "{ORANGE}", "{BLUE}", "{PINK}"
@@ -54,21 +70,33 @@ forward void GunXP_RPGShop_OnResetRPG(int client);
 forward void GunXP_RPG_OnPlayerSpawned(int client);
 
 
-// WARNING! THIS FORWARD FIRES 10 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// WARNING! THIS FORWARD FIRES 20 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
 // If you don't care whatsoever how damage is interacted and just want to multiply the damage, use "if(priority != 0) return;"
-// If you're altering on a negative priority, the closer it is to -5 it will run FIRST.
-// If you're altering on a positive priority, the closer it is to 5 it will run LAST.
-// Check for priority closer to -5 if you want to SET the damage to a certain value.
-// Check for priority closer to 5 if you want to go after another plugin to fix something they did.
-// Do not hog -5 and 5, this may have severe consequences when a programmer cannot naturally go before / after you.
+// If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 10 it will run LAST.
+// Check for priority closer to -10 if you want to SET the damage to a certain value.
+// Check for priority closer to 10 if you want to go after another plugin to fix something they did.
+// Do not hog -10 and 10, this may have severe consequences when a programmer cannot naturally go before / after you.
 // bDontInterruptActions protects a Survivor from having a timer reset for picking incapacitated players and pouring gas cans.
-// bDontStagger protects a Special Infected or a Tank from explosive ammo stagger, RPG stagger, incendiary ammo burn, all instant kills.
+// bDontStagger protects a Special Infected or a Tank from explosive ammo stagger, RPG stagger, incendiary ammo burn, all instant kills, and can also seriously mess with damage output.
 // bDontInstakill can seriously mess with damage output, and breaks explosive ammo stagger. Use with care.
 
 // If you want to distinguish what actions to protect, make an incap check or check if victim has a gascan like item held.
 // If you want to protect from stagger but allow incendiary ammo, check for damagetype == DMG_BLAST
 forward void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill);
+
+// WARNING! THIS FORWARD FIRES 20 TIMES PER CALCULATION, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
+// If you don't care whatsoever how speed is interacted and just want to multiply the speed, use "if(priority != 0) return;"
+// If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 10 it will run LAST.
+// Check for priority closer to -10 if you want to SET the speed to a certain value.
+// Check for priority closer to 10 if you want to go after another plugin to fix something they did.
+// Do not hog -10 and 10, this may have severe consequences when a programmer cannot naturally go before / after you.
+// overrideSpeedState ignores what the speed of the player should be and instead overrides it to something else.
+// fCustomSpeed will only work if overrideSpeedState is set to custom.
+forward void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &overrideSpeedState, int &iLimpHealth, float &fRunSpeed, float &fWalkSpeed, float &fCrouchSpeed, float &fLimpSpeed, float &fCriticalSpeed, float &fWaterSpeed, float &fAdrenalineSpeed, float &fScopeSpeed, float &fCustomSpeed);
 
 forward void RPG_Perks_OnGetKitHealPercent(int reviver, int victim, int &percent);
 forward void RPG_Perks_OnGetReviveHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);

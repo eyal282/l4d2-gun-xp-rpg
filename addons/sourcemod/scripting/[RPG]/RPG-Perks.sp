@@ -19,6 +19,33 @@ public Plugin myinfo =
 	url         = ""
 };
 
+// Those are the default speeds
+#define DEFAULT_RUN_SPEED		220.0
+#define DEFAULT_WATER_SPEED 	115.0
+#define DEFAULT_LIMP_SPEED		150.0
+#define DEFAULT_WALK_SPEED		85.0
+#define DEFAULT_CRITICAL_SPEED	85.0
+#define DEFAULT_CROUCH_SPEED	75.0
+#define DEFAULT_SCOPE_SPEED	85.0
+
+// Max and minimum speeds are applied for legacy kernel, because it works terrible on extreme values
+#define MAX_SPEED				650.0
+#define MIN_SPEED				65.0	
+
+// Player Absolute Speeds
+float g_fAbsRunSpeed[MAXPLAYERS+1];			// Normal player speed (default = 220.0)
+float g_fAbsWalkSpeed[MAXPLAYERS+1];		// Player speed while walking (default = 85.0)
+float g_fAbsCrouchSpeed[MAXPLAYERS+1];		// Player speed while crouching (default = 75.0)
+float g_fAbsLimpSpeed[MAXPLAYERS+1];		// Player speed while limping (default = 150.0)
+float g_fAbsCriticalSpeed[MAXPLAYERS+1];		// Player speed when 1 HP after 1 incapacitation (default = 85.0)
+float g_fAbsWaterSpeed[MAXPLAYERS+1];		// Player speed on water (default = 115.0)
+float g_fAbsAdrenalineSpeed[MAXPLAYERS+1];		// Player speed when running under adrenaline effect
+float g_fAbsScopeSpeed[MAXPLAYERS+1];		// Player speed while looking through a sniper scope
+float g_fAbsCustomSpeed[MAXPLAYERS+1];		// Player speed while under custom condition.
+
+int g_iAbsLimpHealth[MAXPLAYERS+1];
+int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
+
 ConVar g_hKitDuration;
 ConVar g_hRPGKitDuration;
 
@@ -32,9 +59,9 @@ ConVar g_hRPGIncapHealth;
 ConVar g_hLedgeHangHealth;
 ConVar g_hRPGLedgeHangHealth;
 
-ConVar g_hLimpSpeed;
-ConVar g_hRPGLimpSpeed;
+ConVar g_hRPGAdrenalineRunSpeed;
 
+ConVar g_hCriticalSpeed;
 ConVar g_hLimpHealth;
 ConVar g_hRPGLimpHealth;
 
@@ -49,9 +76,7 @@ GlobalForward g_fwOnGetRPGReviveDuration;
 GlobalForward g_fwOnGetRPGIncapWeapon;
 GlobalForward g_fwOnGetRPGIncapHealth;
 
-GlobalForward g_fwOnGetRPGLimpSpeed;
-GlobalForward g_fwOnGetRPGLimpHealth;
-
+GlobalForward g_fwOnGetRPGSpeedModifiers;
 GlobalForward g_fwOnCalculateDamage;
 
 int g_iLastTemporaryHealth[MAXPLAYERS+1];
@@ -59,26 +84,23 @@ char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
 
-int g_iLimpHealthDecrease[MAXPLAYERS+1];
-float g_fLimpSpeedIncrease[MAXPLAYERS+1];
-
 public void OnPluginEnd()
 {
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
 	g_hReviveDuration.FloatValue = g_hRPGReviveDuration.FloatValue;
+	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
 }
 
 public void OnMapStart()
 {
-	CreateTimer(1.0, Timer_CheckLimpSpeedAndHealth, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+	TriggerTimer(CreateTimer(1.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
-
-
-public Action Timer_CheckLimpSpeedAndHealth(Handle hTimer)
+public Action Timer_CheckSpeedModifiers(Handle hTimer)
 {
-	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
-	g_hLimpSpeed.FloatValue = g_hRPGLimpSpeed.FloatValue;
+	g_hLimpHealth.IntValue = 0;
+	// Prediction error fix.
+	g_hCriticalSpeed.FloatValue = DEFAULT_RUN_SPEED;
 
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -91,31 +113,44 @@ public Action Timer_CheckLimpSpeedAndHealth(Handle hTimer)
 		else if(!IsPlayerAlive(i))
 			continue;
 
-		float fSpeedIncrease = 0.0;
+		g_iOverrideSpeedState[i] = SPEEDSTATE_NULL;
+		g_iAbsLimpHealth[i] = g_hRPGLimpHealth.IntValue;
+		g_fAbsRunSpeed[i] = DEFAULT_RUN_SPEED;
+		g_fAbsWalkSpeed[i] = DEFAULT_WALK_SPEED;
+		g_fAbsCrouchSpeed[i] = DEFAULT_CROUCH_SPEED;
+		g_fAbsLimpSpeed[i] = DEFAULT_LIMP_SPEED;
+		g_fAbsCriticalSpeed[i] = DEFAULT_CRITICAL_SPEED;
+		g_fAbsWaterSpeed[i] = DEFAULT_WATER_SPEED;
+		g_fAbsAdrenalineSpeed[i] = g_hRPGAdrenalineRunSpeed.FloatValue;
+		g_fAbsScopeSpeed[i] = DEFAULT_SCOPE_SPEED;
+		g_fAbsCustomSpeed[i] = 0.0;
 
-		Call_StartForward(g_fwOnGetRPGLimpSpeed);
 
-		Call_PushCell(i);
-		Call_PushFloatRef(fSpeedIncrease);
+		for(int a=-10;a <= 10;a++)
+		{
+			Call_StartForward(g_fwOnGetRPGSpeedModifiers);
 
-		Call_Finish();
+			Call_PushCell(a);
+			Call_PushCell(i);
+			Call_PushCellRef(g_iOverrideSpeedState[i]);
+			Call_PushCellRef(g_iAbsLimpHealth[i]);
+			Call_PushFloatRef(g_fAbsRunSpeed[i]);
+			Call_PushFloatRef(g_fAbsWalkSpeed[i]);
+			Call_PushFloatRef(g_fAbsCrouchSpeed[i]);
+			Call_PushFloatRef(g_fAbsLimpSpeed[i]);
+			Call_PushFloatRef(g_fAbsCriticalSpeed[i]);
+			Call_PushFloatRef(g_fAbsWaterSpeed[i]);
+			Call_PushFloatRef(g_fAbsAdrenalineSpeed[i]);
+			Call_PushFloatRef(g_fAbsScopeSpeed[i]);
+			Call_PushFloatRef(g_fAbsCustomSpeed[i]);
 
-		g_fLimpSpeedIncrease[i] = fSpeedIncrease;
-
-		int healthDecrease = 0;
-
-		Call_StartForward(g_fwOnGetRPGLimpHealth);
-
-		Call_PushCell(i);
-		Call_PushCellRef(healthDecrease);
-
-		Call_Finish();
-
-		g_iLimpHealthDecrease[i] = healthDecrease;
+			Call_Finish();
+		}
 	}
 
 	return Plugin_Continue;
 }
+
 public void OnPluginStart()
 {
 	HookEvent("player_incapacitated_start", Event_PlayerIncapStartPre, EventHookMode_Pre);
@@ -137,9 +172,7 @@ public void OnPluginStart()
 	g_fwOnGetRPGIncapHealth = CreateGlobalForward("RPG_Perks_OnGetIncapHealth", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGIncapWeapon = CreateGlobalForward("RPG_Perks_OnGetIncapWeapon", ET_Ignore, Param_Cell, Param_CellByRef);
 
-	g_fwOnGetRPGLimpSpeed = CreateGlobalForward("RPG_Perks_OnGetLimpSpeed", ET_Ignore, Param_Cell, Param_FloatByRef);
-	g_fwOnGetRPGLimpHealth = CreateGlobalForward("RPG_Perks_OnGetLimpHealth", ET_Ignore, Param_Cell, Param_CellByRef);
-
+	g_fwOnGetRPGSpeedModifiers = CreateGlobalForward("RPG_Perks_OnGetRPGSpeedModifiers", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef);
 	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 
 	AutoExecConfig_SetFile("RPG-Perks");
@@ -158,11 +191,11 @@ public void OnPluginStart()
 	g_hLedgeHangHealth = FindConVar("survivor_ledge_grab_health");
 	g_hRPGLedgeHangHealth = AutoExecConfig_CreateConVar("rpg_survivor_ledge_grab_health", "300", "Default HP for ledge hanging");
 
+	g_hCriticalSpeed = FindConVar("survivor_limp_walk_speed");
 	g_hLimpHealth = FindConVar("survivor_limp_health");
-	g_hRPGLimpHealth = AutoExecConfig_CreateConVar("rpg_survivor_limp_health", "40", "Default HP before you start limping");
+	g_hRPGLimpHealth = AutoExecConfig_CreateConVar("rpg_survivor_limp_health", "40", "Default HP under which you start limping");
 
-	g_hLimpSpeed = FindConVar("survivor_limp_walk_speed");
-	g_hRPGLimpSpeed = AutoExecConfig_CreateConVar("rpg_survivor_limp_walk_speed", "85", "Default speed after you start limping");
+	g_hRPGAdrenalineRunSpeed = AutoExecConfig_CreateConVar("rpg_adrenaline_run_speed", "260", "Default HP for ledge hanging");
 
 	g_hStartIncapWeapon = AutoExecConfig_CreateConVar("rpg_start_incap_weapon", "0", "0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum");
 
@@ -206,7 +239,7 @@ public void GunXP_OnReloadRPGPlugins()
 
 public void GunXP_RPGShop_OnResetRPG(int client)
 {
-	g_fLimpSpeedIncrease[client] = 0.0;
+	TriggerTimer(CreateTimer(0.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE));
 }
 
 // Must add natives for after a player spawns for incap hidden pistol.
@@ -592,31 +625,7 @@ public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
 	SDKHook(client, SDKHook_OnTakeDamage, Event_TakeDamage);
-	SDKHook(client, SDKHook_PreThinkPost, Event_PreThinkPost);
-	
 }
-
-public Action Event_PreThinkPost(int client)
-{
-	/*if( L4D_GetClientTeam(client) == L4DTeam_Survivor && IsPlayerAlive(client) )
-	{
-		if(!GetEntProp(client, Prop_Send, "m_bAdrenalineActive"))
-		{
-			int iHealth = GetClientHealth(client);
-
-			float fSpeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
-
-			if (iHealth < g_iLimpHealth[client] || )
-			{
-				//SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", 1.0);
-
-				SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", g_fLimpSpeed[client]);
-			}
-		}
-	}
-	*/
-	return Plugin_Continue;
-} 
 
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {
@@ -651,7 +660,7 @@ public Action RPG_OnTraceAttack(int victim, int& attacker, int& inflictor, float
 	bool bDontStagger;
 	bool bDontInstakill;
 
-	for(int i=-5;i <= 5;i++)
+	for(int i=-10;i <= 10;i++)
 	{
 		Call_StartForward(g_fwOnCalculateDamage);
 
@@ -819,6 +828,215 @@ public void L4D2_BackpackItem_StartAction_Post(int client, int entity)
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
 }
 
+
+public Action L4D_OnGetRunTopSpeed(int client, float &retVal)
+{
+	if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Survivor) return Plugin_Continue;
+	
+	switch(GetMostRestrictiveSpeed(client, SPEEDSTATE_RUN))
+	{
+		case SPEEDSTATE_NULL: return Plugin_Continue;
+		case SPEEDSTATE_RUN: retVal = g_fAbsRunSpeed[client];
+		case SPEEDSTATE_WALK: retVal = g_fAbsWalkSpeed[client];
+		case SPEEDSTATE_CROUCH: retVal = g_fAbsCrouchSpeed[client];
+		case SPEEDSTATE_LIMP: retVal = g_fAbsLimpSpeed[client];
+		case SPEEDSTATE_CRITICAL: retVal = g_fAbsCriticalSpeed[client];
+		case SPEEDSTATE_WATER: retVal = g_fAbsWaterSpeed[client];
+		case SPEEDSTATE_ADRENALINE: retVal = g_fAbsAdrenalineSpeed[client];
+		case SPEEDSTATE_SCOPE: retVal = g_fAbsScopeSpeed[client];
+	}
+
+	if(retVal > MAX_SPEED)
+		retVal = MAX_SPEED;
+
+	else if(retVal < MIN_SPEED)
+		retVal = MIN_SPEED;
+
+
+	return Plugin_Handled;
+}
+
+public Action L4D_OnGetWalkTopSpeed(int client, float &retVal)
+{
+	if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Survivor) return Plugin_Continue;
+		
+	switch(GetMostRestrictiveSpeed(client, SPEEDSTATE_WALK))
+	{
+		case SPEEDSTATE_NULL: return Plugin_Continue;
+		case SPEEDSTATE_RUN: retVal = g_fAbsRunSpeed[client];
+		case SPEEDSTATE_WALK: retVal = g_fAbsWalkSpeed[client];
+		case SPEEDSTATE_CROUCH: retVal = g_fAbsCrouchSpeed[client];
+		case SPEEDSTATE_LIMP: retVal = g_fAbsLimpSpeed[client];
+		case SPEEDSTATE_CRITICAL: retVal = g_fAbsCriticalSpeed[client];
+		case SPEEDSTATE_WATER: retVal = g_fAbsWaterSpeed[client];
+		case SPEEDSTATE_SCOPE: retVal = g_fAbsScopeSpeed[client];
+		case SPEEDSTATE_CUSTOM: retVal = g_fAbsCustomSpeed[client];
+	}	
+
+	// Let the client walk instead of zooming forward while walking.
+	if(retVal > g_fAbsWalkSpeed[client])
+		retVal = g_fAbsWalkSpeed[client];
+		
+	if(retVal > MAX_SPEED)
+		retVal = MAX_SPEED;
+
+	else if(retVal < MIN_SPEED)
+		retVal = MIN_SPEED;
+
+	return Plugin_Handled;
+}	
+
+public Action L4D_OnGetCrouchTopSpeed(int client, float &retVal)
+{
+	if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Survivor) return Plugin_Continue;
+	
+	switch(GetMostRestrictiveSpeed(client, SPEEDSTATE_CROUCH))
+	{
+		case SPEEDSTATE_NULL: return Plugin_Continue;
+		case SPEEDSTATE_RUN: retVal = g_fAbsRunSpeed[client];
+		case SPEEDSTATE_WALK: retVal = g_fAbsWalkSpeed[client];
+		case SPEEDSTATE_CROUCH: retVal = g_fAbsCrouchSpeed[client];
+		case SPEEDSTATE_LIMP: retVal = g_fAbsLimpSpeed[client];
+		case SPEEDSTATE_CRITICAL: retVal = g_fAbsCriticalSpeed[client];
+		case SPEEDSTATE_WATER: retVal = g_fAbsWaterSpeed[client];
+		case SPEEDSTATE_SCOPE: retVal = g_fAbsScopeSpeed[client];
+		case SPEEDSTATE_CUSTOM: retVal = g_fAbsCustomSpeed[client];
+	}
+
+	// Let the client crouch instead of zooming forward while crouching.
+	if(retVal > g_fAbsCrouchSpeed[client])
+		retVal = g_fAbsCrouchSpeed[client];
+
+	if(retVal > MAX_SPEED)
+		retVal = MAX_SPEED;
+
+	else if(retVal < MIN_SPEED)
+		retVal = MIN_SPEED;
+
+	return Plugin_Handled;
+}
+
+
+/**
+ * Checks all the status of the client to decide what condition is the most restrictive to apply to the survivor
+ * in the case is under adrenaline effect it will do the oposite and will apply the fastest speed possible based on logic
+ * it works assuming that injuries, water or exhaustion will only decrease movement speed, if they are set faster than normal speeds they won't boost players
+ */
+int GetMostRestrictiveSpeed(int client, int speedType)	// speedType -> speed of the survivor that depends of what the player is doing
+{
+	// Ignore dead or incap players to avoid innecesary function calls
+	if( GetEntProp(client, Prop_Send, "m_isIncapacitated") )
+		return SPEEDSTATE_NULL;
+
+	if(g_iOverrideSpeedState[client] != SPEEDSTATE_NULL)
+	{
+		return g_iOverrideSpeedState[client];
+	}
+	bool bAdrenaline = view_as<bool>(GetEntProp(client, Prop_Send, "m_bAdrenalineActive"));
+	bool bScoped = GetEntPropEnt(client, Prop_Send, "m_hZoomOwner") != -1;
+	int result;
+	float fSpeed;
+	switch( speedType )
+	{
+		case SPEEDSTATE_RUN:
+		{
+			// if the client is scoping, first of all try to check if scoping is slower than running (it should...)
+			if( bScoped && g_fAbsScopeSpeed[client] < g_fAbsRunSpeed[client] )
+			{
+				fSpeed = g_fAbsScopeSpeed[client];
+				result = SPEEDSTATE_SCOPE;
+			}
+			else
+			{
+				fSpeed = g_fAbsRunSpeed[client];
+				result = SPEEDSTATE_RUN;
+			}
+			/** 
+			 * In case the adrenaline is on, it will try to get the fastest available speed (should be adrenaline)
+			 * unless survivor is using sniper scope, where it will use the slower option (scope or the adrenaline speed)
+			 * in other words overrides water/exhaustion/injuries speed penalty
+			 */
+			if( bAdrenaline )
+			{
+				// Survivor is running so it should apply adrenaline if faster
+				if( result == SPEEDSTATE_RUN && g_fAbsAdrenalineSpeed[client] >= fSpeed )
+				{
+					// No need to check anything more
+					return SPEEDSTATE_ADRENALINE;
+				}
+				return result;
+			}
+		}
+		
+		case SPEEDSTATE_WALK:
+		{
+			if( bScoped && g_fAbsScopeSpeed[client] < g_fAbsWalkSpeed[client] )
+			{
+				fSpeed = g_fAbsScopeSpeed[client];
+				result = SPEEDSTATE_SCOPE;
+			}
+			else
+			{
+				fSpeed = g_fAbsWalkSpeed[client];
+				result = SPEEDSTATE_WALK;
+			}
+			// On walking/crouching adrenaline speed won't be applied, only ignore everything after this
+			if( bAdrenaline )
+				return result;
+		}
+		
+		case SPEEDSTATE_CROUCH:
+		{
+			fSpeed = g_fAbsCrouchSpeed[client];
+			if( bScoped && g_fAbsScopeSpeed[client] < fSpeed )
+			{
+				fSpeed = g_fAbsScopeSpeed[client];
+				result = SPEEDSTATE_SCOPE;
+			}
+			else
+			{
+				fSpeed = g_fAbsCrouchSpeed[client];
+				result = SPEEDSTATE_CROUCH;
+			}
+			if( bAdrenaline )
+				return result;
+		}
+	}
+	
+	// Start restrictions 
+	if( GetEntityFlags(client) & FL_INWATER && g_fAbsWaterSpeed[client] < fSpeed ) // Survivor is on water
+	{
+		fSpeed = g_fAbsWaterSpeed[client];
+		result = SPEEDSTATE_WATER;
+	}
+	int limping = GetLimping(client);
+
+	if( limping == SPEEDSTATE_CRITICAL && g_fAbsCriticalSpeed[client] < fSpeed )
+		return SPEEDSTATE_CRITICAL;
+		
+	if( limping == SPEEDSTATE_LIMP && g_fAbsLimpSpeed[client] < fSpeed )
+		return SPEEDSTATE_LIMP;
+		
+	return result;
+}
+
+/**
+ * This determines if the survivor has reached the limp situation (by default absolute health is under 40)
+ * This function never must be called under adrenaline because it doesn't check this situation
+ * Avoid calls under adrenaline or you will get false results
+ */
+int GetLimping(int client)
+{
+	int iAbsHealth = GetEntityHealth(client) + L4D_GetPlayerTempHealth(client);
+
+	if(iAbsHealth >= 1 && iAbsHealth < g_iAbsLimpHealth[client])
+	{
+		if( iAbsHealth == 1 && GetEntProp(client, Prop_Send, "m_currentReviveCount") > 0) return SPEEDSTATE_CRITICAL;
+			
+		else return SPEEDSTATE_LIMP;
+	}
+	else return SPEEDSTATE_RUN;
+}
 
 stock int GetClosestPlayerToAim(int client)
 {
