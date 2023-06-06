@@ -58,7 +58,7 @@ public void OnAllPluginsLoaded()
     char newValue[16];
     g_hDifficulty.GetString(newValue, sizeof(newValue));
 
-    cvChange_Difficulty(g_hDifficulty, newValue, newValue);
+    Func_DifficultyChanged(newValue);
 }
 
 public void LoadConfig()
@@ -143,6 +143,11 @@ public void LoadConfig()
 
 public void cvChange_Difficulty(ConVar convar, const char[] oldValue, const char[] newValue)
 {
+    Func_DifficultyChanged(newValue);
+}
+
+public void Func_DifficultyChanged(const char[] newValue)
+{
     for(int i=0;i < g_aCvars.Length;i++)
     {
         enDifficultyCvar diffCvar;
@@ -182,7 +187,7 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
     char newValue[16];
     g_hDifficulty.GetString(newValue, sizeof(newValue));
 
-    cvChange_Difficulty(g_hDifficulty, newValue, newValue);
+    Func_DifficultyChanged(newValue);
 }
 
 stock Handle CreateFile(const char[] path, const char[] mode = "w+")
