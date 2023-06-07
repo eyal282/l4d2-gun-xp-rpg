@@ -80,6 +80,8 @@ bool g_bLate = false;
 
 bool SaveLastGuns[MAXPLAYERS+1];
 
+ConVar hcv_priorityGiveGuns;
+
 ConVar hcv_xpDifficultyMultiplier;
 ConVar hcv_xpVIPMultiplier;
 
@@ -98,10 +100,6 @@ ConVar hcv_xpHeal;
 ConVar hcv_xpDefib;
 ConVar hcv_xpRevive;
 ConVar hcv_xpLedge;
-
-float g_fRoundStartTime;
-
-float g_fSpawnPoint[3];
 
 int KillStreak[MAXPLAYERS+1];
 
@@ -183,7 +181,6 @@ GlobalForward g_fwOnReloadRPGPlugins;
 GlobalForward g_fwOnResetRPG;
 GlobalForward g_fwOnSkillBuy;
 GlobalForward g_fwOnPerkTreeBuy;
-GlobalForward g_fwOnSpawned;
 
 /*
 new const String:FORBIDDEN_WEAPONS[][] =
@@ -362,7 +359,7 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 	"NULL",
 	"NULL"
 };
-
+/*
 public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 {
 	for(int i=1;i <= MaxClients;i++)
@@ -375,6 +372,7 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 		Call_StartForward(g_fwOnSpawned);
 
 		Call_PushCell(i);
+		Call_PushCell(true);
 
 		Call_Finish();
 
@@ -386,7 +384,35 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 			ShowChoiceMenu(i);
 	}
 }
+*/
+public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
+{
+	if(priority != hcv_priorityGiveGuns.IntValue)
+		return;
 
+	StripPlayerWeapons(client);
+
+	if(IsFakeClient(client))
+	{
+		GiveGuns(client);
+		return;
+	}
+
+	GivePlayerItem(client, "weapon_pistol");
+	
+	CalculateStats(client);	
+	
+	g_bTookWeapons[client] = false;
+	KillStreak[client] = 0;
+	
+	if(SaveLastGuns[client])
+	{
+		PrintToChat(client, "\x04[Gun-XP] \x01Type\x05 !guns\x01 to disable\x05 auto gun save\x01.");
+		GiveGuns(client);
+	}
+	else
+		ShowChoiceMenu(client);
+}
 public Action PointSystemAPI_OnGetParametersProduct(int buyer, const char[] sAliases, char[] sInfo, char[] sName, char[] sDescription, int target, float& fCost, float& fDelay, float& fCooldown)
 {
 	if(strncmp(sInfo, "give ", 5) != 0)
@@ -444,7 +470,7 @@ public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, cons
 				FormatEx(sClassname, sizeof(sClassname), "weapon_%s", sClass);	
 
 				StripWeaponFromPlayer(target, sClassname);
-				
+
 				int weapon = GivePlayerItem(target, sClass);
 
 				if(!L4D_IsInFirstCheckpoint(target) && !StrEqual(sClass, "chainsaw") && HasEntProp(weapon, Prop_Data, "m_iClip1"))
@@ -805,7 +831,6 @@ public void OnPluginStart()
 	g_fwOnResetRPG = CreateGlobalForward("GunXP_RPGShop_OnResetRPG", ET_Ignore, Param_Cell);
 	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
-	g_fwOnSpawned = CreateGlobalForward("GunXP_RPG_OnPlayerSpawned", ET_Ignore, Param_Cell);
 
 	//g_aUnlockItems = CreateArray(sizeof(enProduct));
 	g_aSkills = CreateArray(sizeof(enSkill));
@@ -839,13 +864,11 @@ public void OnPluginStart()
 	HookEvent("heal_success", Event_HealSuccess);
 	HookEvent("defibrillator_used", Event_DefibSuccess);
 	HookEvent("revive_success", Event_ReviveSuccess);
-	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Post);
-
-	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	
 	SetConVarString(UC_CreateConVar("gun_xp_rpg_version", PLUGIN_VERSION), PLUGIN_VERSION);
 
+	hcv_priorityGiveGuns = UC_CreateConVar("gun_xp_priority_for_guns", "-2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a player their guns.\nWhen making a plugin, feel free to track this cvar's value for reference.");
 	hcv_xpDifficultyMultiplier = UC_CreateConVar("gun_xp_difficulty_multiplier", "1.0", "XP multiplier for current difficulty. To be modified with cfg/server_dynamic_difficulties.cfg");
 	hcv_xpVIPMultiplier = UC_CreateConVar("gun_xp_vip_multiplier", "1.0", "How much to mulitply rewards for VIP players. 1 to disable.");
 
@@ -888,7 +911,12 @@ public void OnPluginStart()
 		g_bTookWeapons[i] = true;
 	}
 
+	RegPluginLibrary("GunXP-RPG");
 	RegPluginLibrary("GunXPMod");
+
+	// Literally unplayable. Valve, pls fix.
+	RegPluginLibrary("Gun XP - RPG");
+
 	RegPluginLibrary("GunXP_PerkTreeShop");
 	RegPluginLibrary("GunXP_SkillShop");
 
@@ -947,8 +975,6 @@ public void OnClientConnected(int client)
 
 public void OnMapStart()
 {
-	g_fRoundStartTime = 0.0;
-
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 	CreateTimer(5.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
@@ -1044,7 +1070,29 @@ public Action Timer_AutoRPG(Handle hTimer)
 	return Plugin_Continue;
 }
 public Action Timer_HudMessageXP(Handle hTimer)
-{
+{	
+	int bestTank = 0;
+
+	if(L4D2_IsTankInPlay())
+	{
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(L4D_GetClientTeam(i) != L4DTeam_Infected)
+				continue;
+
+			else if(L4D2_GetPlayerZombieClass(i) != L4D2ZombieClass_Tank)
+				continue;
+
+			if(bestTank == 0 || RPG_Perks_GetClientHealth(i) > RPG_Perks_GetClientHealth(bestTank))
+				bestTank = i;
+		}
+	}
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -1052,17 +1100,38 @@ public Action Timer_HudMessageXP(Handle hTimer)
 			
 		
 		char adrenalineFormat[64];
+		char tankFormat[64];
+		char extraFormat[128];
 
 		if(IsPlayerAlive(i) && GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) > 0.0)
 		{
-			FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "\n[Adrenaline : %i sec]", RoundFloat(Terror_GetAdrenalineTime(i)));
+			FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "[Adrenaline : %i sec]", RoundFloat(Terror_GetAdrenalineTime(i)));
 		}
 
+		if(bestTank != 0)
+		{	
+			FormatEx(tankFormat, sizeof(tankFormat), "[Tank : %i HP]", RPG_Perks_GetClientHealth(bestTank));
+		}
+
+		if(adrenalineFormat[0] != EOS && tankFormat[0] == EOS)
+		{
+			FormatEx(extraFormat, sizeof(extraFormat), "\n%s", adrenalineFormat);
+		}
+		else if(adrenalineFormat[0] == EOS && tankFormat[0] != EOS)
+		{
+			FormatEx(extraFormat, sizeof(extraFormat), "\n%s", tankFormat);
+		}
+		else if(adrenalineFormat[0] != EOS && tankFormat[0] != EOS)
+		{
+			FormatEx(extraFormat, sizeof(extraFormat), "\n%s | %s", adrenalineFormat, tankFormat);
+		}
+
+
 		if(LEVELS[g_iLevel[i]] != 2147483647)
-			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], LEVELS[g_iLevel[i]], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], adrenalineFormat);
+			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], LEVELS[g_iLevel[i]], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], extraFormat);
 			
 		else 
-			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], adrenalineFormat);
+			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], extraFormat);
 	}
 
 	return Plugin_Continue;
@@ -2093,102 +2162,6 @@ public Action Event_DefibSuccess(Handle hEvent, const char[] name, bool dontBroa
 }
 
 
-public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-
-	if(client == 0)
-		return Plugin_Continue;
-
-	else if(!IsPlayerAlive(client))
-		return Plugin_Continue;
-
-	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
-		return Plugin_Continue;
-
-	int UserId = GetEventInt(hEvent, "userid");
-	
-	RequestFrame(Event_PlayerSpawnFrame, UserId);
-
-	return Plugin_Continue;
-}
-
-public void Event_PlayerSpawnFrame(int UserId)
-{
-	int client = GetClientOfUserId(UserId);
-
-	if(client == 0)
-		return;
-	
-	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
-		return;
-
-	else if(!IsPlayerAlive(client))
-	{
-		if(GetGameTime() < g_fRoundStartTime + 25.0)
-			L4D_RespawnPlayer(client);
-
-		else
-			return;
-	}
-
-	SetEntityMaxHealth(client, 100);
-
-	StripPlayerWeapons(client);
-	
-	Call_StartForward(g_fwOnSpawned);
-
-	Call_PushCell(client);
-
-	Call_Finish();
-
-	if(GetGameTime() < g_fRoundStartTime + 25.0 || !L4D_HasAnySurvivorLeftSafeArea())
-	{
-
-		if(IsPlayerStuck(client))
-		{
-			if(UC_IsNullVector(g_fSpawnPoint))
-			{
-				int spawn = FindEntityByClassname(-1, "info_survivor_position");
-
-				if(spawn != -1)
-				{	
-					GetEntPropVector(spawn, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
-				}
-			}
-
-			if(!UC_IsNullVector(g_fSpawnPoint))
-			{
-				TeleportEntity(client, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
-			}
-		}
-
-		PSAPI_FullHeal(client);
-
-		L4D_SetPlayerTempHealth(client, 0);
-	}
-	if(IsFakeClient(client))
-	{
-		GiveGuns(client);
-		return;
-	}
-
-	GivePlayerItem(client, "weapon_pistol");
-	
-	CalculateStats(client);	
-	
-	g_bTookWeapons[client] = false;
-	KillStreak[client] = 0;
-	
-	if(SaveLastGuns[client])
-	{
-		PrintToChat(client, "\x04[Gun-XP] \x01Type\x05 !guns\x01 to disable\x05 auto gun save\x01.");
-		GiveGuns(client);
-	}
-	else
-		ShowChoiceMenu(client);
-}
-
 
 public Action Event_PlayerDisconnect(Handle hEvent, char[] Name, bool dontBroadcast)
 {
@@ -2196,13 +2169,6 @@ public Action Event_PlayerDisconnect(Handle hEvent, char[] Name, bool dontBroadc
 
 	for(int i=0;i < MAX_ITEMS;i++)
 		g_bUnlockedProducts[client][i] = false;
-
-	return Plugin_Continue;
-}
-
-public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
-{
-	g_fRoundStartTime = GetGameTime();
 
 	return Plugin_Continue;
 }
@@ -2234,16 +2200,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 			SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
 		}
 	}
-
-	if(StrEqual(classname, "info_survivor_position"))
-	{
-		SDKHook(entity, SDKHook_SpawnPost, Event_OnSpawnpointSpawnPost);
-	}
-}
-
-public void Event_OnSpawnpointSpawnPost(int entity)
-{
-	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
 }
 
 public Action OnShouldSpawn_NeverSpawn(int entity)
@@ -2416,7 +2372,33 @@ stock int GetClientXPCurrency(int client)
 
 stock int GetClientLevel(int client)
 {	
-	return g_iLevel[client];
+	if(!IsFakeClient(client))
+		return g_iLevel[client];
+
+	// Get average level divided by 2, rounded down.
+	else
+	{
+
+		int averageLevel = 0;
+		int count = 0;
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(IsFakeClient(i))
+				continue;
+
+			count++;
+
+			averageLevel += g_iLevel[i];
+		}
+
+		if(count == 0)
+			return 0;
+
+		return RoundToCeil((float(averageLevel) / float(count)) / 2.0) - 1;
+	}
 }
 
 stock void ResetPerkTreesAndSkills(int client)

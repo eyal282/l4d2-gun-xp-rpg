@@ -35,6 +35,8 @@ char ColorEquivalents[][] =
 };
 
 
+native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
+native int GunXP_RPG_GetClientLevel(int client);
 
 // Make identifier as descriptive as possible.
 // Use {PERCENT} to denote percentages in descriptions.
@@ -44,9 +46,6 @@ char ColorEquivalents[][] =
 native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
 native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 
-native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
-native int GunXP_RPG_GetClientLevel(int client);
-
 // Make identifier as descriptive as possible.
 // Use {PERCENT} to denote percentages in descriptions.
 // reqIdentifiers is unimplemented at the moment, and is the list of required perk trees or skills for each perk tree level.
@@ -55,7 +54,34 @@ native int GunXP_RPG_GetClientLevel(int client);
 native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
+// Sets a client's health allowing over 65535 HP. Only set for tanks please.
+native void RPG_Perks_SetClientHealth(int client, int amount);
 
+// Gets a client's health getting if they have over 65535 HP. Feel free to check for non-tanks.
+native int RPG_Perks_GetClientHealth(int client);
+
+public SharedPlugin __pl_gun_xp_rpg = 
+{
+    name = "Gun XP - RPG",
+    file = "GunXP-RPG.smx",
+#if defined REQUIRE_PLUGIN
+    required = 1,
+#else
+    required = 0,
+#endif
+};
+ 
+#if !defined REQUIRE_PLUGIN
+public void __pl_gun_xp_rpg_SetNTVOptional()
+{
+    MarkNativeAsOptional("GunXP_RPG_AddClientXP");
+    MarkNativeAsOptional("GunXP_RPG_GetClientLevel");
+    MarkNativeAsOptional("GunXP_RPGShop_RegisterPerkTree");
+    MarkNativeAsOptional("GunXP_RPGShop_IsPerkTreeUnlocked");
+    MarkNativeAsOptional("GunXP_RPGShop_RegisterSkill");
+    MarkNativeAsOptional("GunXP_RPGShop_IsSkillUnlocked");
+}
+#endif
 
 // return Plugin_Handled and edit sError to prevent reloading.
 forward Action GunXP_RPGShop_OnTryReloadRPGPlugins(char sError[256]);
@@ -67,7 +93,7 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 
 // This is called while the player still has their current perk tree and skills.
 forward void GunXP_RPGShop_OnResetRPG(int client);
-forward void GunXP_RPG_OnPlayerSpawned(int client);
+forward void GunXP_RPG_OnPlayerSpawned(int client, bool bFirstSpawn);
 
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES

@@ -1,4 +1,6 @@
+#undef REQUIRE_PLUGIN
 #tryinclude <GunXP-RPG>
+#define REQUIRE_PLUGIN
 #include <autoexecconfig>
 #include <sourcemod>
 #include <sdkhooks>

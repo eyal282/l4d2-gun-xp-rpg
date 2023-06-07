@@ -1,4 +1,7 @@
+#undef REQUIRE_PLUGIN
 #include <GunXP-RPG>
+#include <ps_api>
+#define REQUIRE_PLUGIN
 #include <autoexecconfig>
 #include <sourcemod>
 #include <sdkhooks>
@@ -46,6 +49,13 @@ float g_fAbsCustomSpeed[MAXPLAYERS+1];		// Player speed while under custom condi
 int g_iAbsLimpHealth[MAXPLAYERS+1];
 int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 
+float g_fRoundStartTime;
+float g_fSpawnPoint[3];
+
+ConVar g_hRPGIncapPistolPriority;
+
+ConVar g_hRPGTankHealth;
+
 ConVar g_hKitDuration;
 ConVar g_hRPGKitDuration;
 
@@ -75,6 +85,10 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnGetRPGMaxHP;
+GlobalForward g_fwOnRPGPlayerSpawned;
+GlobalForward g_fwOnRPGZombiePlayerSpawned;
+
 GlobalForward g_fwOnGetRPGAdrenalineDuration;
 GlobalForward g_fwOnGetRPGMedsHealPercent;
 GlobalForward g_fwOnGetRPGKitHealPercent;
@@ -89,6 +103,7 @@ GlobalForward g_fwOnGetRPGIncapHealth;
 GlobalForward g_fwOnGetRPGSpeedModifiers;
 GlobalForward g_fwOnCalculateDamage;
 
+int g_iHealth[MAXPLAYERS+1];
 int g_iLastTemporaryHealth[MAXPLAYERS+1];
 char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
@@ -103,8 +118,62 @@ public void OnPluginEnd()
 	g_hPainPillsHealPercent.IntValue = g_hRPGPainPillsHealPercent.IntValue;
 }
 
+
+
+public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
+{	
+	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
+	CreateNative("RPG_Perks_GetClientHealth", Native_GetClientHealth);
+	return APLRes_Success;
+}
+
+
+public int Native_GetClientHealth(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if(g_iHealth[client] <= 65535)
+	{
+		// An incapped tank is dead.
+		if(L4D_IsPlayerIncapacitated(client) && L4D_GetClientTeam(client) == L4DTeam_Infected && L4D2_GetPlayerZombieClass(client) == L4D2ZombieClass_Tank)
+		{
+			return 0;
+		}
+
+		return GetEntityHealth(client);
+	}
+
+	return g_iHealth[client];
+}
+
+public int Native_SetClientHealth(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+	
+	int hp = GetNativeCell(2);
+
+	if(hp <= 65535)
+		hp = -1;
+	
+	g_iHealth[client] = hp;
+
+	if(g_iHealth[client] <= 65535)
+	{
+		SetEntityHealth(client, g_iHealth[client]);
+		g_iHealth[client] = -1;
+	}
+	else
+	{
+		SetEntityHealth(client, 65535);
+	}
+
+	return 0;
+}
+
 public void OnMapStart()
 {
+	g_fRoundStartTime = 0.0;
+
 	TriggerTimer(CreateTimer(1.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
@@ -168,6 +237,9 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 public void OnPluginStart()
 {
+	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
+	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("player_hurt", Event_PlayerHurt);
 	HookEvent("player_incapacitated_start", Event_PlayerIncapStartPre, EventHookMode_Pre);
 	HookEvent("heal_begin", Event_HealBegin);
 	HookEvent("heal_success", Event_HealSuccess);
@@ -179,6 +251,10 @@ public void OnPluginStart()
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Post);
 	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabPre, EventHookMode_Pre);
 	HookEvent("revive_begin", Event_ReviveBeginPre, EventHookMode_Pre);
+
+	g_fwOnGetRPGMaxHP = CreateGlobalForward("RPG_Perks_OnGetMaxHP", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
+	g_fwOnRPGPlayerSpawned = CreateGlobalForward("RPG_Perks_OnPlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell);
 
 	g_fwOnGetRPGAdrenalineDuration = CreateGlobalForward("RPG_Perks_OnGetAdrenalineDuration", ET_Ignore, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGMedsHealPercent = CreateGlobalForward("RPG_Perks_OnGetMedsHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
@@ -195,6 +271,10 @@ public void OnPluginStart()
 	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 
 	AutoExecConfig_SetFile("RPG-Perks");
+
+	g_hRPGIncapPistolPriority = AutoExecConfig_CreateConVar("rpg_incap_pistol_priority", "0", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
+
+	g_hRPGTankHealth = AutoExecConfig_CreateConVar("rpg_z_tank_health", "4000", "Default health of the Tank");
 
 	g_hKitDuration = FindConVar("first_aid_kit_use_duration");
 	g_hRPGKitDuration = AutoExecConfig_CreateConVar("rpg_first_aid_kit_use_duration", "5", "Default time for use with first aid kit.");
@@ -255,6 +335,8 @@ public void OnPluginStart()
 
 		}
 	}
+
+	RegPluginLibrary("RPG_Perks");
 }
 
 public void GunXP_OnReloadRPGPlugins()
@@ -270,11 +352,25 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 	TriggerTimer(CreateTimer(0.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE));
 }
 
-// Must add natives for after a player spawns for incap hidden pistol.
-public void GunXP_RPG_OnPlayerSpawned(int client)
+public void OnEntityCreated(int entity, const char[] classname)
 {
-	// Fastest reviver in the west
-	if(!L4D_IsPlayerIncapacitated(client))
+	if(StrEqual(classname, "info_survivor_position"))
+	{
+		SDKHook(entity, SDKHook_SpawnPost, Event_OnSpawnpointSpawnPost);
+	}
+}
+
+public void Event_OnSpawnpointSpawnPost(int entity)
+{
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
+}
+// Must add natives for after a player spawns for incap hidden pistol.
+public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
+{
+	if(priority != g_hRPGIncapPistolPriority.IntValue)
+		return;
+
+	else if(!L4D_IsPlayerIncapacitated(client))
 		return;
 
 	else if(L4D_IsPlayerHangingFromLedge(client))
@@ -368,6 +464,179 @@ public Action Event_ReviveBeginPre(Event event, const char[] name, bool dontBroa
 	g_hReviveDuration.FloatValue = fDuration;
 
 	return Plugin_Continue;
+}
+
+public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	g_fRoundStartTime = GetGameTime();
+
+	return Plugin_Continue;
+}
+
+public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	else if(!IsPlayerAlive(client))
+		return Plugin_Continue;
+
+	int UserId = GetEventInt(hEvent, "userid");
+	
+	RequestFrame(Event_PlayerSpawnFrame, UserId);
+
+	return Plugin_Continue;
+}
+
+public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	else if(!IsPlayerAlive(client))
+		return Plugin_Continue;
+
+	else if(GetEntityHealth(client) <= 0)
+		return Plugin_Continue;
+
+	else if(g_iHealth[client] <= 65535)
+		return Plugin_Continue;
+
+	else if(L4D_GetClientTeam(client) != L4DTeam_Infected)
+		return Plugin_Continue;
+
+	int hpLost = 65535 - GetEntityHealth(client);
+
+	g_iHealth[client] -= hpLost;
+
+	if(g_iHealth[client] <= 65535)
+	{
+		SetEntityHealth(client, g_iHealth[client]);
+		g_iHealth[client] = -1;
+	}
+	else
+	{
+		SetEntityHealth(client, 65535);
+	}
+
+	return Plugin_Continue;
+}
+public void Event_PlayerSpawnFrame(int UserId)
+{
+	int client = GetClientOfUserId(UserId);
+
+	g_iHealth[client] = -1;
+
+	if(client == 0)
+		return;
+	
+	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
+	{
+		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected)
+			return;
+
+		
+		if(L4D2_GetPlayerZombieClass(client) == L4D2ZombieClass_Tank)
+		{
+			int hp = g_hRPGTankHealth.IntValue;
+
+			if(hp > 65535)
+			{
+				g_iHealth[client] = hp;
+
+				SetEntityMaxHealth(client, 65535);
+				SetEntityHealth(client, 65535);
+			}
+			else
+			{
+				SetEntityMaxHealth(client, hp);
+				SetEntityHealth(client, hp);
+			}
+		}
+
+
+		Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
+
+		Call_PushCell(client);
+
+		Call_Finish();
+
+		return;
+	}
+
+	else if(!IsPlayerAlive(client))
+	{
+		if(GetGameTime() < g_fRoundStartTime + 25.0)
+			L4D_RespawnPlayer(client);
+
+		else
+			return;
+	}
+
+	int maxHP = 100;
+	
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetRPGMaxHP);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+		
+		Call_PushCellRef(maxHP);
+
+		Call_Finish();	
+	}
+
+	if(maxHP <= 0)
+		maxHP = 100;
+
+	SetEntityMaxHealth(client, maxHP);
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnRPGPlayerSpawned);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+
+		if(GetGameTime() < g_fRoundStartTime + 25.0 || !L4D_HasAnySurvivorLeftSafeArea())
+			Call_PushCell(true);
+
+		else
+			Call_PushCell(false);
+
+		Call_Finish();	
+	}
+
+	if(GetGameTime() < g_fRoundStartTime + 25.0 || !L4D_HasAnySurvivorLeftSafeArea())
+	{
+
+		if(IsPlayerStuck(client))
+		{
+			if(UC_IsNullVector(g_fSpawnPoint))
+			{
+				int spawn = FindEntityByClassname(-1, "info_survivor_position");
+
+				if(spawn != -1)
+				{	
+					GetEntPropVector(spawn, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
+				}
+			}
+
+			if(!UC_IsNullVector(g_fSpawnPoint))
+			{
+				TeleportEntity(client, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
+			}
+		}
+
+		PSAPI_FullHeal(client);
+
+		L4D_SetPlayerTempHealth(client, 0);
+	}
 }
 
 public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool dontBroadcast)
@@ -726,7 +995,13 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 	else if(IsPlayer(attacker))
 		return Plugin_Continue;
 
-	return RPG_OnTraceAttack(victim, attacker, inflictor, damage, damagetype, 0, 0);
+	float fFinalDamage = damage;
+	
+	Action rtn = RPG_OnTraceAttack(victim, attacker, inflictor, fFinalDamage, damagetype, 0, 0);
+
+	damage = fFinalDamage;
+
+	return rtn;
 }
 public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {	
@@ -741,10 +1016,20 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	else if(!IsPlayer(attacker))
 		return Plugin_Continue;
 
-	return RPG_OnTraceAttack(victim, attacker, inflictor, damage, damagetype, hitbox, hitgroup);
+	float fFinalDamage = damage;
+	
+	Action rtn = RPG_OnTraceAttack(victim, attacker, inflictor, fFinalDamage, damagetype, hitbox, hitgroup);
+
+	damage = fFinalDamage;
+
+	// Only on trace attack
+	if(rtn == Plugin_Continue)
+		rtn = Plugin_Changed;
+
+	return rtn;
 }
 
-public Action RPG_OnTraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int hitbox, int hitgroup)
+public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& damage, int damagetype, int hitbox, int hitgroup)
 {
 	bool bDontInterruptActions;
 	bool bDontStagger;
@@ -1201,4 +1486,35 @@ stock bool ArePlayersInLOS(int client1, int client2)
 public bool TraceRayDontHitPlayers(int entityhit, int mask)
 {
 	return (entityhit > MaxClients || entityhit == 0);
-}	
+}
+
+
+
+stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
+{
+	float vecMin[3], vecMax[3], vecOrigin[3];
+
+	GetClientMins(client, vecMin);
+	GetClientMaxs(client, vecMax);
+
+	if (UC_IsNullVector(Origin))
+	{
+		GetClientAbsOrigin(client, vecOrigin);
+
+		vecOrigin[2] += HeightOffset;
+	}
+	else
+	{
+		vecOrigin = Origin;
+
+		vecOrigin[2] += HeightOffset;
+	}
+
+	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
+	return TR_DidHit();
+}
+
+stock bool UC_IsNullVector(const float Vector[3])
+{
+	return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
+}
