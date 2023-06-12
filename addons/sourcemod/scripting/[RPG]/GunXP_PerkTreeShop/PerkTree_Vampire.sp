@@ -150,12 +150,8 @@ stock void CalculateVampireGain(int attacker)
     {
         g_iCommonKills[attacker] -= g_iCommonRequirements[perkLevel];
 
-        int hpToAdd = g_iPermanentHealthReward[perkLevel];
-
         if(GetEntityHealth(attacker) + L4D_GetPlayerTempHealth(attacker) > GetEntityMaxHealth(attacker))
             break;
-
-        hpToAdd = g_iTemporaryHealthReward[perkLevel];
         
         GunXP_GiveClientHealth(attacker, g_iPermanentHealthReward[perkLevel], g_iTemporaryHealthReward[perkLevel]);
     }

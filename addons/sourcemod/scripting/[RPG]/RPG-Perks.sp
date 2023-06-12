@@ -122,12 +122,40 @@ public void OnPluginEnd()
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
 	CreateNative("RPG_Perks_GetClientHealth", Native_GetClientHealth);
 	return APLRes_Success;
 }
 
+public int Native_RecalculateMaxHP(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
 
+	int maxHP = 100;
+	
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetRPGMaxHP);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+		
+		Call_PushCellRef(maxHP);
+
+		Call_Finish();	
+	}
+
+	if(maxHP <= 0)
+		maxHP = 100;
+
+	SetEntityMaxHealth(client, maxHP);
+
+	// Fixes all violations of max HP.
+	GunXP_GiveClientHealth(client, 0, 0);
+
+	return 0;
+}
 public int Native_GetClientHealth(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -332,7 +360,6 @@ public void OnPluginStart()
 		{
 			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
 			SDKHook(i, SDKHook_OnTakeDamage, Event_TakeDamage);
-
 		}
 	}
 
@@ -358,6 +385,16 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, Event_OnSpawnpointSpawnPost);
 	}
+	if(StrEqual(classname, "infected") || StrEqual(classname, "witch"))
+	{
+		SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
+	}	
+}
+
+public void Event_ZombieSpawnPost(int entity)
+{
+	SDKHook(entity, SDKHook_TraceAttack, Event_TraceAttack);
+	SDKHook(entity, SDKHook_OnTakeDamage, Event_TakeDamage);
 }
 
 public void Event_OnSpawnpointSpawnPost(int entity)
@@ -992,7 +1029,7 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 		return Plugin_Continue;
 
 	// Avoid double reduction of damage in both Event_TraceAttack and Event_TakeDamage
-	else if(IsPlayer(attacker))
+	else if(IsPlayer(victim))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -1013,7 +1050,8 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 		return Plugin_Continue;
 
 	// Commons don't trigger this event, maybe they will in the future?
-	else if(!IsPlayer(attacker))
+	// Edit: I think commons do trigger this but I made some programming errors. Oh well.
+	else if(!IsPlayer(victim))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -1060,6 +1098,16 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 	if(IsPlayer(attacker) && IsPlayer(victim) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
 		bDontInterruptActions = false;
 	
+
+	// This is because witch for some reason absorbs damage modifiers.
+	if(!IsPlayer(victim))
+	{
+		char sClassname[64];
+		GetEdictClassname(victim, sClassname, sizeof(sClassname));
+
+		if(StrEqual(sClassname, "witch"))
+			bDontInstakill = true;
+	}
 	if(damage == 0.0)
 		return Plugin_Stop;
 

@@ -3,6 +3,7 @@
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
+#include <left4dhooks>
 
 #pragma semicolon 1
 #pragma newdecls required

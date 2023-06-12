@@ -134,7 +134,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     if(priority != g_hDamagePriority.IntValue)
         return;
 
-    else if(IsPlayer(victim) && IsPlayer(attacker) &&  L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
+    else if(IsPlayer(victim) && IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
         return;
 
     else if(!IsPlayer(attacker) || L4D_GetClientTeam(attacker) != L4DTeam_Survivor)

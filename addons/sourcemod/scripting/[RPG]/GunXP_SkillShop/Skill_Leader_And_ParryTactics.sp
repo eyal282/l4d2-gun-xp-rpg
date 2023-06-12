@@ -43,7 +43,7 @@ public void OnPluginStart()
 
 public void GunXP_OnReloadRPGPlugins()
 {
-    GunXP_ReloadPlugin();
+	GunXP_ReloadPlugin();
 }
 
 public void RegisterSkill()
@@ -55,24 +55,27 @@ public void RegisterSkill()
 
 public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 {
-    if(skillIndex != leaderIndex)
-        return;
+	if(skillIndex != leaderIndex)
+		return;
 
-    SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 3 * GunXP_RPG_GetClientLevel(client));
+	RPG_Perks_RecalculateMaxHP(client);
 }
 
-public void GunXP_RPG_OnPlayerSpawned(int client)
+public void RPG_Perks_OnGetMaxHP(int priority, int client, int &maxHP)
 {
-    if(!GunXP_RPGShop_IsSkillUnlocked(client, leaderIndex))
-        return;
+	if(priority != 0)
+		return;
 
-    SetEntityMaxHealth(client, GetEntityMaxHealth(client) + 3 * GunXP_RPG_GetClientLevel(client));
+	else if(!GunXP_RPGShop_IsSkillUnlocked(client, leaderIndex))
+		return;
+
+	maxHP += 3 * GunXP_RPG_GetClientLevel(client);
 }
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill)
 {   
 	if(priority != 0)
-        return;
+		return;
 
 	else if(!IsPlayer(victim))
 		return;
@@ -104,9 +107,9 @@ public void RPG_Perks_OnGetReviveDuration(int reviver, int victim, bool bLedge, 
 
 public void RPG_Perks_OnGetReviveHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent)
 {
-    if(!GunXP_RPGShop_IsSkillUnlocked(reviver, leaderIndex))
-        return;
+	if(!GunXP_RPGShop_IsSkillUnlocked(reviver, leaderIndex))
+		return;
 
-    permanentHealthPercent += 20;
+	permanentHealthPercent += 20;
 
 }

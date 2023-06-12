@@ -54,6 +54,9 @@ native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
+// If something that requires recalculating what's the max HP of a client, use this.
+native void RPG_Perks_RecalculateMaxHP(int client);
+
 // Sets a client's health allowing over 65535 HP. Only set for tanks please.
 native void RPG_Perks_SetClientHealth(int client, int amount);
 
@@ -93,7 +96,27 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 
 // This is called while the player still has their current perk tree and skills.
 forward void GunXP_RPGShop_OnResetRPG(int client);
-forward void GunXP_RPG_OnPlayerSpawned(int client, bool bFirstSpawn);
+
+// WARNING! THIS FORWARD FIRES 20 TIMES PER SPAWN, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
+// If you don't care whatsoever how health is interacted and just want to add a value to the max hp, use "if(priority != 0) return;"
+// If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 10 it will run LAST.
+// I can't think of a reason to use a priority closer to -10.
+// Check for priority closer to 10 if you want to multiply max health to make all added max HP make you gain more HP.
+forward void RPG_Perks_OnGetMaxHP(int priority, int client, int &maxHP);
+
+// WARNING! THIS FORWARD FIRES 20 TIMES PER SPAWN, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
+// If you don't care whatsoever how health is interacted and just want to add a value to the max hp, use "if(priority != 0) return;"
+// If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 10 it will run LAST.
+// I can't think of a reason to use a priority closer to -10.
+// Check for priority closer to 10 if you want to multiply max health to make all added max HP make you gain more HP.
+// Gun XP - RPG gives guns on priority -2 by default, with a cvar named "gun_xp_priority_for_guns" to alter it.
+// RPG-Perks gives hidden incap pistol on priority 0 by default, with a cvar named "rpg_incap_pistol_priority" to alter it.
+forward void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn);
+
 
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
@@ -238,7 +261,7 @@ stock int GetEntityMaxHealth(int entity)
 
 stock int GetEntityHealth(int entity)
 {
-	return GetEntProp(entity, Prop_Send, "m_iHealth");
+	return GetEntProp(entity, Prop_Data, "m_iHealth");
 }
 
 stock void GunXP_GiveClientHealth(int client, int permanentHP = 0, int temporaryHP = 0)

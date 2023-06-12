@@ -500,6 +500,9 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("GunXP_RPGShop_RegisterPerkTree", Native_RegisterPerkTree);
 	CreateNative("GunXP_RPGShop_IsPerkTreeUnlocked", Native_IsPerkTreeUnlocked);
 
+
+	// Do not check for this library!!!
+	RegPluginLibrary("Gun XP - RPG");
 //	CreateNative("GunXP_UnlockShop_RegisterProduct", Native_RegisterProduct);
 //	CreateNative("GunXP_UnlockShop_ReplenishProducts", Native_ReplenishProducts);
 //	CreateNative("GunXP_UnlockShop_IsProductUnlocked", Native_IsProductUnlocked);
@@ -914,9 +917,6 @@ public void OnPluginStart()
 	RegPluginLibrary("GunXP-RPG");
 	RegPluginLibrary("GunXPMod");
 
-	// Literally unplayable. Valve, pls fix.
-	RegPluginLibrary("Gun XP - RPG");
-
 	RegPluginLibrary("GunXP_PerkTreeShop");
 	RegPluginLibrary("GunXP_SkillShop");
 
@@ -1020,7 +1020,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 			PurchasePerkTreeLevel(i, iPosPerkTree, perkTree, true, transaction);
 
-			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
+			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree\x04 %s\x03 level\x04 %i\x03!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
 
 			Call_StartForward(g_fwOnPerkTreeBuy);
 
@@ -1045,7 +1045,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 			PurchaseSkill(i, iPosSkill, skill, true, transaction);
 
-			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked the Skill %s!", skill.name);
+			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked the Skill\x04 %s\x03!", skill.name);
 
 			Call_StartForward(g_fwOnSkillBuy);
 
@@ -1593,7 +1593,7 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 		{
 			PurchasePerkTreeLevel(client, perkIndex, perkTree, false);
 
-			PrintToChat(client, "\x04[Gun-XP] Successfully unlocked Perk Tree %s level %i!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
+			PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree\x04 %s\x03 level\x04 %i\x03!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
 
 			Call_StartForward(g_fwOnPerkTreeBuy);
 
@@ -1721,7 +1721,7 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 		{
 			PurchaseSkill(client, skillIndex, skill, false);
 
-			PrintToChat(client, "\x04[Gun-XP] Successfully unlocked the Skill %s!", skill.name);
+			PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked the Skill\x04 %s\x03!", skill.name);
 
 			Call_StartForward(g_fwOnSkillBuy);
 
