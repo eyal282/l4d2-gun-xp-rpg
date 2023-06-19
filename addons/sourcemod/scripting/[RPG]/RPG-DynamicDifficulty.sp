@@ -53,14 +53,21 @@ public void GunXP_OnReloadRPGPlugins()
 	#endif
 }
 
-public void OnAllPluginsLoaded()
+public void OnConfigsExecuted()
 {
     LoadConfig();
 
+    CreateTimer(0.5, Timer_ConfigsExecuted, _, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_ConfigsExecuted(Handle hTimer)
+{
     char newValue[16];
     g_hDifficulty.GetString(newValue, sizeof(newValue));
 
     Func_DifficultyChanged(newValue);
+
+    return Plugin_Continue;
 }
 
 public void LoadConfig()

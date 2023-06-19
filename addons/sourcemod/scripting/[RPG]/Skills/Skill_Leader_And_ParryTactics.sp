@@ -72,7 +72,7 @@ public void RPG_Perks_OnGetMaxHP(int priority, int client, int &maxHP)
 	maxHP += 3 * GunXP_RPG_GetClientLevel(client);
 }
 
-public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill)
+public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
 	if(priority != 0)
 		return;
@@ -90,6 +90,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 		if(GunXP_RPGShop_IsSkillUnlocked(victim, parryTacticsIndex) || (reviver != -1 && GunXP_RPGShop_IsSkillUnlocked(reviver, leaderIndex)))
 		{
+			
 			bDontInterruptActions = true;
 		}
 	}

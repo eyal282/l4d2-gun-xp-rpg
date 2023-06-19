@@ -95,12 +95,12 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill)
+public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
     if(priority != g_hDamagePriority.IntValue)
         return;
 
-    else if(IsPlayer(victim) && IsPlayer(attacker) &&  L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
+    else if(IsPlayer(victim) && IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
         return;
 
     else if(L4D2_GetWeaponId(inflictor) != L4D2WeaponId_Melee)
@@ -114,7 +114,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
     damage = float(g_iMeleeDamages[perkLevel]);
 
-    if(L4D2_GetPlayerZombieClass(victim) == L4D2ZombieClass_Tank)
+    if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
     {
         damage *= g_hTankDamageMultiplier.FloatValue;
     }

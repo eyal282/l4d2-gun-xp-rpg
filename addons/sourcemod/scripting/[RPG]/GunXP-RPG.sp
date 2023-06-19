@@ -359,7 +359,7 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 	"NULL",
 	"NULL"
 };
-/*
+
 public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 {
 	for(int i=1;i <= MaxClients;i++)
@@ -367,24 +367,18 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 		if(!IsClientInGame(i))
 			continue;
 
-		SetEntityMaxHealth(i, 100);
+		else if(!IsFakeClient(i))
+			continue;
 
-		Call_StartForward(g_fwOnSpawned);
-
-		Call_PushCell(i);
-		Call_PushCell(true);
-
-		Call_Finish();
-
-		PSAPI_FullHeal(i);
-
-		L4D_SetPlayerTempHealth(i, 0);
-
-		if(IsFakeClient(i))
-			ShowChoiceMenu(i);
+		ShowChoiceMenu(i);
 	}
 }
-*/
+
+
+public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
+{
+	AddClientXP(attacker, XPReward);
+}
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
 {
 	if(priority != hcv_priorityGiveGuns.IntValue)
@@ -1110,7 +1104,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 
 		if(bestTank != 0)
 		{	
-			FormatEx(tankFormat, sizeof(tankFormat), "[Tank : %i HP]", RPG_Perks_GetClientHealth(bestTank));
+			FormatEx(tankFormat, sizeof(tankFormat), "[%N: %i HP]", bestTank, RPG_Perks_GetClientHealth(bestTank));
 		}
 
 		if(adrenalineFormat[0] != EOS && tankFormat[0] == EOS)
@@ -2797,26 +2791,6 @@ stock bool StripWeaponFromPlayer(int client, const char[] Classname)
 	}
 	
 	return false;
-}
-
-stock void PrintToChatEyal(const char[] format, any ...)
-{
-	char buffer[291];
-	VFormat(buffer, sizeof(buffer), format, 2);
-	for(int i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
-		
-		else if(IsFakeClient(i))
-			continue;
-
-		char steamid[64];
-		GetClientAuthId(i, AuthId_Engine, steamid, sizeof(steamid));
-		
-		if(StrEqual(steamid, "STEAM_1:0:49508144") || StrEqual(steamid, "STEAM_1:0:28746258") || StrEqual(steamid, "STEAM_1:1:463683348"))
-			PrintToChat(i, buffer);
-	}
 }
 
 /**

@@ -52,6 +52,8 @@ int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 float g_fRoundStartTime;
 float g_fSpawnPoint[3];
 
+ConVar g_hRPGTriggerHurtMultiplier;
+
 ConVar g_hRPGIncapPistolPriority;
 
 ConVar g_hRPGTankHealth;
@@ -85,7 +87,11 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnGetRPGSpecialInfectedClass;
+
 GlobalForward g_fwOnGetRPGMaxHP;
+GlobalForward g_fwOnGetRPGZombieMaxHP;
+
 GlobalForward g_fwOnRPGPlayerSpawned;
 GlobalForward g_fwOnRPGZombiePlayerSpawned;
 
@@ -125,6 +131,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
 	CreateNative("RPG_Perks_GetClientHealth", Native_GetClientHealth);
+
 	return APLRes_Success;
 }
 
@@ -280,7 +287,11 @@ public void OnPluginStart()
 	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabPre, EventHookMode_Pre);
 	HookEvent("revive_begin", Event_ReviveBeginPre, EventHookMode_Pre);
 
+	g_fwOnGetRPGSpecialInfectedClass = CreateGlobalForward("RPG_Perks_OnGetSpecialInfectedClass", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
+
 	g_fwOnGetRPGMaxHP = CreateGlobalForward("RPG_Perks_OnGetMaxHP", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
+	g_fwOnGetRPGZombieMaxHP = CreateGlobalForward("RPG_Perks_OnGetZombieMaxHP", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
+
 	g_fwOnRPGPlayerSpawned = CreateGlobalForward("RPG_Perks_OnPlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell);
 
@@ -296,11 +307,13 @@ public void OnPluginStart()
 	g_fwOnGetRPGIncapWeapon = CreateGlobalForward("RPG_Perks_OnGetIncapWeapon", ET_Ignore, Param_Cell, Param_CellByRef);
 
 	g_fwOnGetRPGSpeedModifiers = CreateGlobalForward("RPG_Perks_OnGetRPGSpeedModifiers", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef, Param_FloatByRef);
-	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
+	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 
 	AutoExecConfig_SetFile("RPG-Perks");
 
 	g_hRPGIncapPistolPriority = AutoExecConfig_CreateConVar("rpg_incap_pistol_priority", "0", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
+
+	g_hRPGTriggerHurtMultiplier = AutoExecConfig_CreateConVar("rpg_trigger_hurt_multiplier", "10.0", "Multiplier of damage inflicted to ZOMBIES by trigger_hurt that has greater than 600 damage.\nOn rooftop finale if a charger doesn't instantly die from the trigger_hurt, bugs can easily occur.");
 
 	g_hRPGTankHealth = AutoExecConfig_CreateConVar("rpg_z_tank_health", "4000", "Default health of the Tank");
 
@@ -393,6 +406,25 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public void Event_ZombieSpawnPost(int entity)
 {
+	int maxHP = GetEntityMaxHealth(entity);
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetRPGZombieMaxHP);
+
+		Call_PushCell(a);
+		Call_PushCell(entity);
+		
+		Call_PushCellRef(maxHP);
+
+		Call_Finish();	
+	}
+
+	SetEntityMaxHealth(entity, maxHP);
+
+	// SetEntityHealth is broken in SM against Common Infected.
+	SetEntProp(entity, Prop_Data, "m_iHealth", maxHP);
+
 	SDKHook(entity, SDKHook_TraceAttack, Event_TraceAttack);
 	SDKHook(entity, SDKHook_OnTakeDamage, Event_TakeDamage);
 }
@@ -577,24 +609,79 @@ public void Event_PlayerSpawnFrame(int UserId)
 			return;
 
 		
+		L4D2ZombieClassType zclass = L4D2_GetPlayerZombieClass(client);
+
+		L4D2ZombieClassType originalZClass = zclass;
+
+		for(int a=-10;a <= 10;a++)
+		{
+			Call_StartForward(g_fwOnGetRPGSpecialInfectedClass);
+
+			Call_PushCell(a);
+			Call_PushCell(client);
+			
+			Call_PushCellRef(zclass);
+
+			Call_Finish();	
+		}
+
+		if(originalZClass != zclass)
+		{
+			int weapon;
+			while ((weapon = GetPlayerWeaponSlot(client, 0)) != -1)
+			{
+				RemovePlayerItem(client, weapon);
+				RemoveEdict(weapon);
+			}
+
+			L4D_SetClass(client, view_as<int>(zclass));
+		}
+
+		int maxHP = RPG_Perks_GetClientHealth(client);
+
 		if(L4D2_GetPlayerZombieClass(client) == L4D2ZombieClass_Tank)
 		{
-			int hp = g_hRPGTankHealth.IntValue;
+			maxHP = g_hRPGTankHealth.IntValue;
 
-			if(hp > 65535)
+			if(maxHP > 65535)
 			{
-				g_iHealth[client] = hp;
+				g_iHealth[client] = maxHP;
 
 				SetEntityMaxHealth(client, 65535);
 				SetEntityHealth(client, 65535);
 			}
 			else
 			{
-				SetEntityMaxHealth(client, hp);
-				SetEntityHealth(client, hp);
+				SetEntityMaxHealth(client, maxHP);
+				SetEntityHealth(client, maxHP);
 			}
 		}
 
+
+		for(int a=-10;a <= 10;a++)
+		{
+			Call_StartForward(g_fwOnGetRPGZombieMaxHP);
+
+			Call_PushCell(a);
+			Call_PushCell(client);
+			
+			Call_PushCellRef(maxHP);
+
+			Call_Finish();	
+		}
+
+		if(maxHP > 65535)
+		{
+			g_iHealth[client] = maxHP;
+
+			SetEntityMaxHealth(client, 65535);
+			SetEntityHealth(client, 65535);
+		}
+		else
+		{
+			SetEntityMaxHealth(client, maxHP);
+			SetEntityHealth(client, maxHP);
+		}
 
 		Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
 
@@ -1029,7 +1116,7 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 		return Plugin_Continue;
 
 	// Avoid double reduction of damage in both Event_TraceAttack and Event_TakeDamage
-	else if(IsPlayer(victim))
+	else if((IsPlayer(victim) && IsPlayer(attacker)) && !(damagetype & DMG_FALL || damagetype & DMG_BURN))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -1051,7 +1138,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 
 	// Commons don't trigger this event, maybe they will in the future?
 	// Edit: I think commons do trigger this but I made some programming errors. Oh well.
-	else if(!IsPlayer(victim))
+	else if(!IsPlayer(victim) || !IsPlayer(attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -1072,7 +1159,14 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 	bool bDontInterruptActions;
 	bool bDontStagger;
 	bool bDontInstakill;
+	bool bImmune;
 
+	if(IsPlayer(victim) && damage >= 600.0 && (damagetype & DMG_DROWN || damagetype & DMG_FALL))
+	{
+		damage = damage * g_hRPGTriggerHurtMultiplier.FloatValue;
+	}
+
+	
 	for(int i=-10;i <= 10;i++)
 	{
 		Call_StartForward(g_fwOnCalculateDamage);
@@ -1088,11 +1182,24 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 		Call_PushCellRef(bDontInterruptActions);
 		Call_PushCellRef(bDontStagger);
 		Call_PushCellRef(bDontInstakill);
+		Call_PushCellRef(bImmune);
 
 		Call_Finish();
 	}
 
-	if(IsPlayer(attacker) && L4D_GetClientTeam(attacker) == L4DTeam_Infected && L4D2_GetPlayerZombieClass(attacker) == L4D2ZombieClass_Tank)
+	if(bImmune)
+	{
+		damage = 0.0;
+		return Plugin_Stop;
+	}
+	if(IsPlayer(victim) && damage >= 600.0 && (damagetype & DMG_DROWN || damagetype & DMG_FALL))
+	{
+		// trigger_hurt is capped to 5000...
+		bDontInstakill = true;
+	}
+
+	// If a player is standing, let the tank interrupt actions or the tank punch fling animation won't play.
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_NotInfected && RPG_Perks_GetZombieType(attacker) == ZombieType_Tank && !L4D_IsPlayerIncapacitated(victim))
 		bDontInterruptActions = false;
 
 	if(IsPlayer(attacker) && IsPlayer(victim) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
