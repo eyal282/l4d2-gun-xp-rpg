@@ -17,12 +17,14 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/GunXP-RPG.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/RPG-DynamicDifficulty.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/RPG-Perks.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/RPG-Tanks.smx"
     
     
     
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_AdrenalineRun.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_CombatMedic.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Empathy.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Endurance.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Friendly.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_HardToKill.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_HelpingHand.smx"
@@ -40,4 +42,6 @@
  	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_BileGoggles.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Cowardice.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Leader_And_ParryTactics.smx"
+
+	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier1_JockeyTank.smx"
 }
