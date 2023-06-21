@@ -52,7 +52,7 @@ public void RPG_Perks_OnGetIncapHealth(int reviver, bool bLedge, int &health)
     if(perkLevel == -1)
         return;
 
-    int percent = (25 * (perkLevel + 1));
+    int percent = (100 * (perkLevel + 1));
 
     health += (percent * health) / (percent + 100);
 }
@@ -64,35 +64,35 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+25%% incap HP");
+    descriptions.PushString("+100%% incap HP");
     costs.Push(100);
     xpReqs.Push(0);
 
-    descriptions.PushString("+50%% incap HP.");
+    descriptions.PushString("+200%% incap HP.");
     costs.Push(300);
     xpReqs.Push(0);
 
-    descriptions.PushString("+75%% incap HP.");
+    descriptions.PushString("+300%% incap HP.");
     costs.Push(700);
     xpReqs.Push(0);
 
-    descriptions.PushString("+100%% incap HP.");
+    descriptions.PushString("+400%% incap HP.");
     costs.Push(1000);
     xpReqs.Push(0);
 
-    descriptions.PushString("+125%% incap HP.");
+    descriptions.PushString("+500%% incap HP.");
     costs.Push(1500);
     xpReqs.Push(0);
 
-    descriptions.PushString("+150%% incap HP.");
+    descriptions.PushString("+600%% incap HP.");
     costs.Push(2500);
     xpReqs.Push(0);
 
-    descriptions.PushString("+175%% incap HP.");
+    descriptions.PushString("+700%% incap HP.");
     costs.Push(3500);
     xpReqs.Push(0);
 
-    descriptions.PushString("+200%% incap HP.");
+    descriptions.PushString("+800%% incap HP.");
     costs.Push(5000);
     xpReqs.Push(0);
 

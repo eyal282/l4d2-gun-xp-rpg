@@ -67,12 +67,17 @@ native void RPG_Perks_SetClientHealth(int client, int amount);
 // Gets a client's health getting if they have over 65535 HP. Feel free to check for non-tanks.
 native int RPG_Perks_GetClientHealth(int client);
 
+// Gets a client's max health getting if they have over 65535 HP. Feel free to check for non-tanks.
+native int RPG_Perks_GetClientMaxHealth(int client);
+
 native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], int maxHP, int speed, int XPRewardMin, int XPRewardMax, bool fireDamageImmune, bool meleeDamageImmune);
 
 // Gets a client's tank index. Do not use this before RPG_Perks_OnZombiePlayerSpawned, and do not use this on non-tank clients.
 // Use RPG_Perks_GetZombieType(client) to compare with ZombieType_Tank to ensure its a tank before using this.
 // Returns tank index, TANK_TIER_UNTIERED for untiered and TANK_TIER_UNKNOWN on priority -10 of GetZombieMaxHP.
 native int RPG_Tanks_GetClientTank(int client);
+
+native float RPG_Tanks_GetDamagePercent(int client, int tank);
 
 native bool RPG_Tanks_IsTankInPlay(int tankIndex);
 

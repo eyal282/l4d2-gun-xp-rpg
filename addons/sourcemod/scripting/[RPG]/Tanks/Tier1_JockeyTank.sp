@@ -90,8 +90,6 @@ public Action Timer_ForceJockey(Handle hTimer, DataPack DP)
 	int victim = ReadPackCell(DP);
 	int jockey = ReadPackCell(DP);
 
-	delete DP;
-
 	L4D2_ForceJockeyVictim(victim, jockey);
 
 	return Plugin_Continue;

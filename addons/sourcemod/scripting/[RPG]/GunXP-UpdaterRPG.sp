@@ -62,6 +62,10 @@ public void Updater_OnPluginUpdated()
 	}
 }
 
+public void OnLibraryAdded()
+{
+	Func_OnAllPluginsLoaded();
+}
 public void Func_OnAllPluginsLoaded()
 {
 	if (LibraryExists("updater"))
@@ -83,6 +87,8 @@ public void Func_OnAllPluginsLoaded()
 		}
 		else
 		{
+			Updater_RemovePlugin();
+			Updater_AddPlugin(UPDATE_URL);
 			return;
 		}
 

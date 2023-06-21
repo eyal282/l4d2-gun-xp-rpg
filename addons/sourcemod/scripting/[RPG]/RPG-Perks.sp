@@ -52,6 +52,8 @@ int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 float g_fRoundStartTime;
 float g_fSpawnPoint[3];
 
+bool g_bTeleported[MAXPLAYERS+1];
+
 ConVar g_hRPGTriggerHurtMultiplier;
 
 ConVar g_hRPGIncapPistolPriority;
@@ -110,6 +112,8 @@ GlobalForward g_fwOnGetRPGSpeedModifiers;
 GlobalForward g_fwOnCalculateDamage;
 
 int g_iHealth[MAXPLAYERS+1];
+int g_iMaxHealth[MAXPLAYERS+1];
+
 int g_iLastTemporaryHealth[MAXPLAYERS+1];
 char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
@@ -131,6 +135,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
 	CreateNative("RPG_Perks_GetClientHealth", Native_GetClientHealth);
+	CreateNative("RPG_Perks_GetClientMaxHealth", Native_GetClientMaxHealth);
 
 	return APLRes_Success;
 }
@@ -163,23 +168,7 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 
 	return 0;
 }
-public int Native_GetClientHealth(Handle caller, int numParams)
-{
-	int client = GetNativeCell(1);
 
-	if(g_iHealth[client] <= 65535)
-	{
-		// An incapped tank is dead.
-		if(L4D_IsPlayerIncapacitated(client) && L4D_GetClientTeam(client) == L4DTeam_Infected && L4D2_GetPlayerZombieClass(client) == L4D2ZombieClass_Tank)
-		{
-			return 0;
-		}
-
-		return GetEntityHealth(client);
-	}
-
-	return g_iHealth[client];
-}
 
 public int Native_SetClientHealth(Handle caller, int numParams)
 {
@@ -203,6 +192,37 @@ public int Native_SetClientHealth(Handle caller, int numParams)
 	}
 
 	return 0;
+}
+
+
+public int Native_GetClientHealth(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if(g_iHealth[client] <= 65535)
+	{
+		// An incapped tank is dead.
+		if(L4D_IsPlayerIncapacitated(client) && L4D_GetClientTeam(client) == L4DTeam_Infected && L4D2_GetPlayerZombieClass(client) == L4D2ZombieClass_Tank)
+		{
+			return 0;
+		}
+
+		return GetEntityHealth(client);
+	}
+
+	return g_iHealth[client];
+}
+
+public int Native_GetClientMaxHealth(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if(g_iMaxHealth[client] <= 65535)
+	{
+		return GetEntityMaxHealth(client);
+	}
+
+	return g_iMaxHealth[client];
 }
 
 public void OnMapStart()
@@ -232,6 +252,31 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		else if(!IsPlayerAlive(i))
 			continue;
 
+		if(!L4D_HasAnySurvivorLeftSafeArea())
+		{
+			if(IsPlayerStuck(i) && !g_bTeleported[i])
+			{
+				if(UC_IsNullVector(g_fSpawnPoint))
+				{
+					int spawn = FindEntityByClassname(-1, "info_survivor_position");
+
+					if(spawn != -1)
+					{	
+						GetEntPropVector(spawn, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
+					}
+				}
+
+				if(!UC_IsNullVector(g_fSpawnPoint))
+				{
+					TeleportEntity(i, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
+					g_bTeleported[i] = true;
+				}
+			}
+
+			PSAPI_FullHeal(i);
+
+			L4D_SetPlayerTempHealth(i, 0);
+		}
 		g_iOverrideSpeedState[i] = SPEEDSTATE_NULL;
 		g_iAbsLimpHealth[i] = g_hRPGLimpHealth.IntValue;
 		g_fAbsRunSpeed[i] = DEFAULT_RUN_SPEED;
@@ -599,6 +644,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 	int client = GetClientOfUserId(UserId);
 
 	g_iHealth[client] = -1;
+	g_iMaxHealth[client] = -1;
 
 	if(client == 0)
 		return;
@@ -646,6 +692,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 			if(maxHP > 65535)
 			{
 				g_iHealth[client] = maxHP;
+				g_iMaxHealth[client] = maxHP;
 
 				SetEntityMaxHealth(client, 65535);
 				SetEntityHealth(client, 65535);
@@ -673,6 +720,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 		if(maxHP > 65535)
 		{
 			g_iHealth[client] = maxHP;
+			g_iMaxHealth[client] = maxHP;
 
 			SetEntityMaxHealth(client, 65535);
 			SetEntityHealth(client, 65535);
@@ -738,8 +786,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 
 	if(GetGameTime() < g_fRoundStartTime + 25.0 || !L4D_HasAnySurvivorLeftSafeArea())
 	{
-
-		if(IsPlayerStuck(client))
+		if(IsPlayerStuck(client) && !g_bTeleported[client])
 		{
 			if(UC_IsNullVector(g_fSpawnPoint))
 			{
@@ -754,6 +801,8 @@ public void Event_PlayerSpawnFrame(int UserId)
 			if(!UC_IsNullVector(g_fSpawnPoint))
 			{
 				TeleportEntity(client, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
+
+				g_bTeleported[client] = true;
 			}
 		}
 
@@ -971,7 +1020,7 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 		SetEntityHealth(revived, 0);
 		L4D_SetPlayerTempHealth(revived, 0);
 
-		GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100)));
+		GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100.0)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100.0)));
 	}
 	int weapon = GetPlayerWeaponSlot(revived, 1);
 
@@ -1647,6 +1696,9 @@ public bool TraceRayDontHitPlayers(int entityhit, int mask)
 
 stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
 {
+	if(!GameRules_GetProp("m_bInIntro") && ClosestSpawnPointDistance(client) > 256.0)
+		return true;
+
 	float vecMin[3], vecMax[3], vecOrigin[3];
 
 	GetClientMins(client, vecMin);
@@ -1672,4 +1724,17 @@ stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float 
 stock bool UC_IsNullVector(const float Vector[3])
 {
 	return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
+}
+
+stock float ClosestSpawnPointDistance(int client)
+{
+	float winnerDist = 9999999.0;
+
+	float fOrigin[3];
+	GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	if(GetVectorDistance(fOrigin, g_fSpawnPoint) < winnerDist)
+		winnerDist = GetVectorDistance(fOrigin, g_fSpawnPoint);
+
+	return winnerDist;
 }

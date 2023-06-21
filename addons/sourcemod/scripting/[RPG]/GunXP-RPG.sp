@@ -140,6 +140,8 @@ enum struct enSkill
 	// ArrayList of skill / perk tree identifiers required to go into this skill.
 	// A perk tree requires any level unlocked to count.
 	ArrayList reqIdentifiers;
+
+	int skillIndex;
 }
 
 enum struct enPerkTree
@@ -160,6 +162,9 @@ enum struct enPerkTree
 	// ArrayList of skill / perk tree identifiers required to go into this perk tree.
 	// A perk tree requires any level unlocked to count.
 	ArrayList reqIdentifiers;
+
+	// Used for sorting sheneneagans.
+	int perkIndex;
 }
 
 //ArrayList g_aUnlockItems;
@@ -577,9 +582,17 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 		skill.reqIdentifiers = reqIdentifiers.Clone();
 	}
 
+	skill.skillIndex = -1;
+
 	delete reqIdentifiers;
 
-	return g_aSkills.PushArray(skill);
+	int skillIndex = g_aSkills.PushArray(skill);
+
+	skill.skillIndex = skillIndex;
+
+	g_aSkills.SetArray(skillIndex, skill);
+
+	return skillIndex;
 }
 
 
@@ -692,7 +705,15 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 	delete costs;
 	delete levelReqs;
 
-	return g_aPerkTrees.PushArray(perkTree);
+	perkTree.perkIndex = -1;
+
+	int perkIndex = g_aPerkTrees.PushArray(perkTree);
+
+	perkTree.perkIndex = perkIndex;
+
+	g_aPerkTrees.SetArray(perkIndex, perkTree);
+	
+	return perkIndex;
 }
 
 
@@ -1104,7 +1125,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 
 		if(bestTank != 0)
 		{	
-			FormatEx(tankFormat, sizeof(tankFormat), "[%N: %i HP]", bestTank, RPG_Perks_GetClientHealth(bestTank));
+			FormatEx(tankFormat, sizeof(tankFormat), "[%N : %i HP (%.0f%%)]", bestTank, RPG_Perks_GetClientHealth(bestTank), RPG_Tanks_GetDamagePercent(i, bestTank));
 		}
 
 		if(adrenalineFormat[0] != EOS && tankFormat[0] == EOS)
@@ -1446,25 +1467,38 @@ public Action Command_PerkTrees(int client, int args)
 
 	char TempFormat[200];
 
-	for(int i=0;i < g_aPerkTrees.Length;i++)
+	ArrayList aPerkTrees = g_aPerkTrees.Clone();
+
+	SortADTArrayCustom(aPerkTrees, SortADT_PerkTrees);
+
+	for(int a=0;a < aPerkTrees.Length;a++)
 	{
 		enPerkTree perkTree;
-		g_aPerkTrees.GetArray(i, perkTree);
+		aPerkTrees.GetArray(a, perkTree);
+
+		int i = perkTree.perkIndex;
 
 		if(g_iUnlockedPerkTrees[client][i] >= perkTree.costs.Length - 1)
 		{
 			Format(TempFormat, sizeof(TempFormat), "%s (0 XP) - (Lv. MAX)", perkTree.name);
-			AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DEFAULT);
+			char sInfo[11];
+			IntToString(perkTree.perkIndex, sInfo, sizeof(sInfo));
+
+			AddMenuItem(hMenu, sInfo, TempFormat, ITEMDRAW_DEFAULT);
 		}
 		else
 		{
 			int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][i] + 1);
 
 			Format(TempFormat, sizeof(TempFormat), "%s (%i XP) - (Lv. %i)", perkTree.name, cost, g_iUnlockedPerkTrees[client][i] + 1);
-			AddMenuItem(hMenu, "", TempFormat, ITEMDRAW_DEFAULT);
+			char sInfo[11];
+			IntToString(perkTree.perkIndex, sInfo, sizeof(sInfo));
+
+			AddMenuItem(hMenu, sInfo, TempFormat, ITEMDRAW_DEFAULT);
 		}
 	}
 
+	delete aPerkTrees;
 
 	FormatEx(TempFormat, sizeof(TempFormat), "Choose your Perk Trees:\nLevel : %i | XP : %i | XP Curency : %i", GetClientLevel(client), GetClientXP(client), GetClientXPCurrency(client));
 	SetMenuTitle(hMenu, TempFormat);
@@ -1489,7 +1523,12 @@ public int PerkTreesShop_MenuHandler(Handle hMenu, MenuAction action, int client
 	}
 	else if(action == MenuAction_Select)
 	{		
-		ShowPerkTreeInfo(client, item);
+		char sInfo[11];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		int perkIndex = StringToInt(sInfo);
+
+		ShowPerkTreeInfo(client, perkIndex);
 	}	
 
 	return 0;
@@ -1611,15 +1650,26 @@ public Action Command_Skills(int client, int args)
 
 	char TempFormat[200];
 
-	for(int i=0;i < g_aSkills.Length;i++)
+	ArrayList aSkills = g_aSkills.Clone();
+
+	SortADTArrayCustom(aSkills, SortADT_Skills);
+
+	for(int a=0;a < aSkills.Length;a++)
 	{
 		enSkill skill;
-		g_aSkills.GetArray(i, skill);
+		aSkills.GetArray(a, skill);
+
+		int i = skill.skillIndex;
 
 		Format(TempFormat, sizeof(TempFormat), "%s (%i XP) - (%s)", skill.name, skill.cost, g_bUnlockedSkills[client][i] ? "Bought" : "Not Bought");
-		AddMenuItem(hMenu, "", TempFormat);
+
+		char sInfo[11];
+		IntToString(skill.skillIndex, sInfo, sizeof(sInfo));
+
+		AddMenuItem(hMenu, sInfo, TempFormat);
 	}
 
+	delete aSkills;
 
 
 	FormatEx(TempFormat, sizeof(TempFormat), "Choose your skills:\nYou have %i XP and %i XP Currency.", GetClientXP(client), GetClientXPCurrency(client));
@@ -1645,7 +1695,12 @@ public int SkillShop_MenuHandler(Handle hMenu, MenuAction action, int client, in
 	}
 	else if(action == MenuAction_Select)
 	{	
-		ShowSkillInfo(client, item);
+		char sInfo[11];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		int skillIndex = StringToInt(sInfo);
+
+		ShowSkillInfo(client, skillIndex);
 	}	
 
 	return 0;
@@ -2612,7 +2667,34 @@ public void SQLCB_ErrorIgnore(Handle owner, DBResultSet hndl, const char[] Error
 {
 }
 
+public int SortADT_PerkTrees(int index1, int index2, Handle array, Handle hndl)
+{
+	enPerkTree perkTree1;
+	enPerkTree perkTree2;
 
+	GetArrayArray(array, index1, perkTree1);
+	GetArrayArray(array, index2, perkTree2);
+	
+	return SortADT_SkillOrPerkTree(perkTree1.name, perkTree2.name, hndl);
+}
+
+public int SortADT_Skills(int index1, int index2, Handle array, Handle hndl)
+{
+	enSkill skill1;
+	enSkill skill2;
+
+	GetArrayArray(array, index1, skill1);
+	GetArrayArray(array, index2, skill2);
+
+	return SortADT_SkillOrPerkTree(skill1.name, skill2.name, hndl);
+	
+	
+}
+
+public int SortADT_SkillOrPerkTree(char[] name1, char[] name2, Handle hndl)
+{
+	return strcmp(name1, name2);
+}
 stock void StripPlayerWeapons(int client)
 {
 	for(int i=0;i < 2;i++)
@@ -3033,38 +3115,4 @@ stock int GetClosestLevelToXP(int xp)
 	}
 
 	return level;
-}
-
-stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
-{
-	float vecMin[3], vecMax[3], vecOrigin[3];
-
-	GetClientMins(client, vecMin);
-	GetClientMaxs(client, vecMax);
-
-	if (UC_IsNullVector(Origin))
-	{
-		GetClientAbsOrigin(client, vecOrigin);
-
-		vecOrigin[2] += HeightOffset;
-	}
-	else
-	{
-		vecOrigin = Origin;
-
-		vecOrigin[2] += HeightOffset;
-	}
-
-	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
-	return TR_DidHit();
-}
-
-public bool TraceRayDontHitPlayers(int entityhit, int mask)
-{
-	return (entityhit > MaxClients || entityhit == 0);
-}
-
-stock bool UC_IsNullVector(const float Vector[3])
-{
-	return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
 }

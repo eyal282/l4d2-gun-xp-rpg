@@ -62,7 +62,7 @@ ArrayList g_aTanks;
 
 GlobalForward g_fwOnRPGTankKilled;
 
-int g_iCurrentTank[MAXPLAYERS+1];
+int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
 
 // [victim][attacker]
 int g_iDamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
@@ -72,6 +72,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 
 	CreateNative("RPG_Tanks_RegisterTank", Native_RegisterTank);
 	CreateNative("RPG_Tanks_GetClientTank", Native_GetClientTank);
+	CreateNative("RPG_Tanks_GetDamagePercent", Native_GetDamagePercent);
 	CreateNative("RPG_Tanks_IsTankInPlay", Native_IsTankInPlay);
 
 
@@ -141,6 +142,14 @@ public any Native_GetClientTank(Handle caller, int numParams)
 	return g_iCurrentTank[client];
 }
 
+public any Native_GetDamagePercent(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+	int tank = GetNativeCell(2);
+
+	return float(g_iDamageTaken[tank][client]) / float(RPG_Perks_GetClientMaxHealth(tank)) * 100.0;
+}
+
 public any Native_IsTankInPlay(Handle caller, int numParams)
 {
 	int tankIndex = GetNativeCell(1);
@@ -198,6 +207,30 @@ public void OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 }
 
+public void OnMapStart()
+{
+	TriggerTimer(CreateTimer(1.0, Timer_ResetFrustration, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+}
+
+public Action Timer_ResetFrustration(Handle hTimer)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(g_iCurrentTank[i] < 0)
+			continue;
+
+		// Not sure if frustration is 100 or 0 as a reset, but 50 will always work.
+		SetEntProp(i, Prop_Send, "m_frustration", 50);
+	}
+
+	return Plugin_Continue;
+}
 public void GunXP_OnReloadRPGPlugins()
 {
 	#if defined _GunXP_RPG_included
@@ -429,16 +462,13 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		else if(IsFakeClient(i))
 			continue;
 
-		else if(!IsPlayerAlive(i))
-			continue;
-
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
 
 		
 		if(LibraryExists("GunXP-RPG"))
 		{
-			PrintToChat(i, "You dealt\x03 %.1f%%\x01 of %N's max HP as damage", float(g_iDamageTaken[victim][i]) / float(tank.maxHP) * 100.0, victim);
+			PrintToChat(i, "You dealt\x03 %.1f%%\x01 of %N's max HP as damage", float(g_iDamageTaken[victim][i]) / float(RPG_Perks_GetClientMaxHealth(victim)) * 100.0, victim);
 		}
 
 		if(LibraryExists("GunXP-RPG") && float(g_iDamageTaken[victim][i]) / float(tank.maxHP) < 0.05)
