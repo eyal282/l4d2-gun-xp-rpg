@@ -1125,7 +1125,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 
 		if(bestTank != 0)
 		{	
-			FormatEx(tankFormat, sizeof(tankFormat), "[%N : %i HP (%.0f%%)]", bestTank, RPG_Perks_GetClientHealth(bestTank), RPG_Tanks_GetDamagePercent(i, bestTank));
+			FormatEx(tankFormat, sizeof(tankFormat), "[%N : %i HP (%.0f{PERCENT})]", bestTank, RPG_Perks_GetClientHealth(bestTank), RPG_Tanks_GetDamagePercent(i, bestTank));
 		}
 
 		if(adrenalineFormat[0] != EOS && tankFormat[0] == EOS)
@@ -1141,6 +1141,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 			FormatEx(extraFormat, sizeof(extraFormat), "\n%s | %s", adrenalineFormat, tankFormat);
 		}
 
+		ReplaceString(extraFormat, sizeof(extraFormat), "{PERCENT}", "%%");
 
 		if(LEVELS[g_iLevel[i]] != 2147483647)
 			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], LEVELS[g_iLevel[i]], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], extraFormat);

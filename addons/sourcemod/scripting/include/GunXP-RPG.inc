@@ -70,6 +70,12 @@ native int RPG_Perks_GetClientHealth(int client);
 // Gets a client's max health getting if they have over 65535 HP. Feel free to check for non-tanks.
 native int RPG_Perks_GetClientMaxHealth(int client);
 
+// Lets you give a player above 200 temp HP.
+native int RPG_Perks_SetClientTempHealth(int client, int hp);
+
+// Please only pass survivors to this function.
+native int RPG_Perks_GetClientTempHealth(int client);
+
 native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], int maxHP, int speed, int XPRewardMin, int XPRewardMax, bool fireDamageImmune, bool meleeDamageImmune);
 
 // Gets a client's tank index. Do not use this before RPG_Perks_OnZombiePlayerSpawned, and do not use this on non-tank clients.
@@ -333,6 +339,17 @@ stock void UC_PrintToChatEyal(const char[] format, any...)
 	}
 }
 
+stock bool IsClientEyal(int client)
+{
+	char steamid[64];
+	GetClientAuthId(client, AuthId_Engine, steamid, sizeof(steamid));
+		
+	if(StrEqual(steamid, "STEAM_1:0:49508144") || StrEqual(steamid, "STEAM_1:0:28746258") || StrEqual(steamid, "STEAM_1:1:463683348"))
+		return true;
+		
+	return false;
+}
+
 stock ConVar UC_CreateConVar(const char[] name, const char[] defaultValue, const char[] description = "", int flags = 0, bool hasMin = false, float min = 0.0, bool hasMax = false, float max = 0.0)
 {
 	ConVar hndl = AutoExecConfig_CreateConVar(name, defaultValue, description, flags, hasMin, min, hasMax, max);
@@ -377,7 +394,7 @@ stock void GunXP_GiveClientHealth(int client, int permanentHP = 0, int temporary
 		else
 		{
 			SetEntityHealth(client, GetEntityHealth(client) + permanentHP);
-			L4D_SetPlayerTempHealth(client, GetEntityMaxHealth(client) - GetEntityHealth(client) + 1);
+			RPG_Perks_SetClientTempHealth(client, GetEntityMaxHealth(client) - GetEntityHealth(client) + 1);
 		}
 	}
 	else
@@ -387,13 +404,70 @@ stock void GunXP_GiveClientHealth(int client, int permanentHP = 0, int temporary
 
 	if(GetEntityHealth(client) + temporaryHP + L4D_GetPlayerTempHealth(client) > GetEntityMaxHealth(client))
 	{
-		L4D_SetPlayerTempHealth(client, GetEntityMaxHealth(client) - GetEntityHealth(client) + 1);
+		RPG_Perks_SetClientTempHealth(client, GetEntityMaxHealth(client) - GetEntityHealth(client) + 1);
+
 	}
 	else
 	{
-		L4D_SetPlayerTempHealth(client, L4D_GetPlayerTempHealth(client) + temporaryHP + 1);
+		RPG_Perks_SetClientTempHealth(client, L4D_GetPlayerTempHealth(client) + temporaryHP + 1);
 	}
 }
+
+stock void ExecuteFullHeal(int client)
+{
+	if (GetClientTeam(client) == view_as<int>(L4DTeam_Survivor))
+	{
+		bool bIncap, bPinned;
+		bIncap  = L4D_IsPlayerIncapacitated(client);
+		bPinned = L4D_IsPlayerPinned(client);
+		if (bIncap && bPinned)
+		{
+			Handle convar = FindConVar("survivor_incap_health");
+
+			SetEntityHealth(client, GetConVarInt(convar));
+		}
+		else if (bIncap)
+		{
+			FullyHealPlayer(client);
+
+			if (L4D_IsPlayerIncapacitated(client))
+				L4D2_VScriptWrapper_ReviveFromIncap(client);
+
+			SetEntityHealthToMax(client);
+		}
+		else
+		{
+			FullyHealPlayer(client);
+
+			if (L4D_IsPlayerIncapacitated(client))
+				L4D2_VScriptWrapper_ReviveFromIncap(client);
+
+			SetEntityHealthToMax(client);
+		}
+	}
+	else
+	{
+		SetEntityHealthToMax(client);
+	}
+
+	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
+}
+
+stock void SetEntityHealthToMax(int entity)
+{
+	SetEntityHealth(entity, GetEntProp(entity, Prop_Send, "m_iMaxHealth"));
+}
+
+stock void FullyHealPlayer(int client)
+{
+	char code[512];
+
+	FormatEx(code, sizeof(code), "ret <- GetPlayerFromUserID(%d).GiveItem(\"health\"); <RETURN>ret</RETURN>", GetClientUserId(client));
+
+	char sOutput[512];
+	L4D2_GetVScriptOutput(code, sOutput, sizeof(sOutput));
+}
+
 /**
  * @brief Reloads a plugin.
  *

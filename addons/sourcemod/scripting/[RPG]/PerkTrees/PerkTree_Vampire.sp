@@ -26,11 +26,11 @@ int g_iCommonKills[MAXPLAYERS+1];
 
 int g_iSIValues[] =
 {
-    3,
-    4,
-    5,
-    5,
-    5
+    10,
+    15,
+    20,
+    25,
+    30
 };
 
 int g_iCommonRequirements[] =
@@ -38,26 +38,26 @@ int g_iCommonRequirements[] =
     5,
     4,
     3,
-    3,
-    4
+    2,
+    1
 };
 
 int g_iTemporaryHealthReward[] =
 {
     1,
-    1,
-    1,
-    0,
-    0
+    2,
+    3,
+    4,
+    5
 };
 
 int g_iPermanentHealthReward[] =
 {
     0,
     0,
-    0,
     1,
-    2
+    2,
+    3
 };
 
 public void OnLibraryAdded(const char[] name)

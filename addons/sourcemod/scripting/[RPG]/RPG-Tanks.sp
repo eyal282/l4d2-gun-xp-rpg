@@ -185,7 +185,7 @@ public void OnPluginStart()
 
 	//RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 
-	g_hPriorityImmunities = UC_CreateConVar("rpg_tanks_priority_immunities", "-2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a tank their immunity from fire or melee.\nWhen making a plugin, feel free to track this cvar's value for reference.");
+	g_hPriorityImmunities = UC_CreateConVar("rpg_tanks_priority_immunities", "2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a tank their immunity from fire or melee.\nWhen making a plugin, feel free to track this cvar's value for reference.");
 	g_hPriorityTankSpawn = UC_CreateConVar("rpg_tanks_priority_finale_tank_spawn", "-5", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 that when a tank spawns, check what tier to give it and give it max HP.");
 
 	g_hEntriesUntiered = UC_CreateConVar("rpg_tanks_entries_untiered", "5", "Entries to spawn an untiered tank.");
@@ -379,6 +379,21 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
+	if(priority == 10 && RPG_Perks_GetZombieType(victim) == ZombieType_Tank && g_iCurrentTank[victim] >= 0)
+	{
+		char sClassname[64];
+		if(attacker != 0)
+			GetEdictClassname(attacker, sClassname, sizeof(sClassname));
+
+		if(IsPlayer(victim) && damage >= 600.0 && (attacker == victim || attacker == 0 || StrEqual(sClassname, "trigger_hurt") || StrEqual(sClassname, "point_hurt")))
+		{
+			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
+
+			SetClientName(victim, "Tank");
+
+			g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
+		}
+	}
 	if(priority != g_hPriorityImmunities.IntValue)
 		return;
 
@@ -387,13 +402,6 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 	else if(g_iCurrentTank[victim] < 0)
 		return;
-
-	if(IsPlayer(victim) && damage >= 600.0 && (damagetype & DMG_DROWN || damagetype & DMG_FALL))
-	{
-		PrintToChatAll("\x01%N took lethal damage from the world. It will be converted to a normal Tank now.", victim);
-
-		g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
-	}
 
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[victim], tank);

@@ -1,3 +1,9 @@
+/* List of things this plugins changes in how L4D2 works:
+
+1. Getting up from ledge hang inflicts damage to you 
+
+*/
+
 #undef REQUIRE_PLUGIN
 #include <GunXP-RPG>
 #include <ps_api>
@@ -60,6 +66,10 @@ ConVar g_hRPGIncapPistolPriority;
 
 ConVar g_hRPGTankHealth;
 
+ConVar g_hPillsDecayRate;
+
+ConVar g_hKitMaxHeal;
+
 ConVar g_hKitDuration;
 ConVar g_hRPGKitDuration;
 
@@ -112,6 +122,7 @@ GlobalForward g_fwOnGetRPGSpeedModifiers;
 GlobalForward g_fwOnCalculateDamage;
 
 int g_iHealth[MAXPLAYERS+1];
+int g_iTemporaryHealth[MAXPLAYERS+1];
 int g_iMaxHealth[MAXPLAYERS+1];
 
 int g_iLastTemporaryHealth[MAXPLAYERS+1];
@@ -136,6 +147,8 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
 	CreateNative("RPG_Perks_GetClientHealth", Native_GetClientHealth);
 	CreateNative("RPG_Perks_GetClientMaxHealth", Native_GetClientMaxHealth);
+	CreateNative("RPG_Perks_SetClientTempHealth", Native_SetClientTempHealth);
+	CreateNative("RPG_Perks_GetClientTempHealth", Native_GetClientTempHealth);
 
 	return APLRes_Success;
 }
@@ -225,6 +238,29 @@ public int Native_GetClientMaxHealth(Handle caller, int numParams)
 	return g_iMaxHealth[client];
 }
 
+public int Native_SetClientTempHealth(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+	int hp = GetNativeCell(2);
+
+	SetClientTemporaryHP(client, hp);
+
+	return 0;
+}
+
+
+public int Native_GetClientTempHealth(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if(g_iTemporaryHealth[client] <= 200)
+	{
+		return L4D_GetPlayerTempHealth(client);
+	}
+
+	return g_iTemporaryHealth[client];
+}
+
 public void OnMapStart()
 {
 	g_fRoundStartTime = 0.0;
@@ -238,6 +274,8 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	g_hAdrenalineDuration.FloatValue = 0.0;
 	g_hAdrenalineHealPercent.IntValue = 0;
 	g_hPainPillsHealPercent.IntValue = 0;
+
+	g_hKitMaxHeal.IntValue = 65535;
 	// Prediction error fix.
 	g_hCriticalSpeed.FloatValue = DEFAULT_RUN_SPEED;
 
@@ -273,9 +311,10 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 				}
 			}
 
-			PSAPI_FullHeal(i);
+			ExecuteFullHeal(i);
 
 			L4D_SetPlayerTempHealth(i, 0);
+			g_iTemporaryHealth[i] = 0;
 		}
 		g_iOverrideSpeedState[i] = SPEEDSTATE_NULL;
 		g_iAbsLimpHealth[i] = g_hRPGLimpHealth.IntValue;
@@ -332,6 +371,12 @@ public void OnPluginStart()
 	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabPre, EventHookMode_Pre);
 	HookEvent("revive_begin", Event_ReviveBeginPre, EventHookMode_Pre);
 
+	HookEvent("pounce_end", Event_VictimFreeFromPin, EventHookMode_Post);
+	HookEvent("tongue_release", Event_VictimFreeFromPin, EventHookMode_Post);
+	HookEvent("jockey_ride_end", Event_VictimFreeFromPin, EventHookMode_Post);
+	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
+	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
+
 	g_fwOnGetRPGSpecialInfectedClass = CreateGlobalForward("RPG_Perks_OnGetSpecialInfectedClass", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 
 	g_fwOnGetRPGMaxHP = CreateGlobalForward("RPG_Perks_OnGetMaxHP", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
@@ -361,6 +406,10 @@ public void OnPluginStart()
 	g_hRPGTriggerHurtMultiplier = AutoExecConfig_CreateConVar("rpg_trigger_hurt_multiplier", "10.0", "Multiplier of damage inflicted to ZOMBIES by trigger_hurt that has greater than 600 damage.\nOn rooftop finale if a charger doesn't instantly die from the trigger_hurt, bugs can easily occur.");
 
 	g_hRPGTankHealth = AutoExecConfig_CreateConVar("rpg_z_tank_health", "4000", "Default health of the Tank");
+
+	g_hPillsDecayRate = FindConVar("pain_pills_decay_rate");
+
+	g_hKitMaxHeal = FindConVar("first_aid_kit_max_heal");
 
 	g_hKitDuration = FindConVar("first_aid_kit_use_duration");
 	g_hRPGKitDuration = AutoExecConfig_CreateConVar("rpg_first_aid_kit_use_duration", "5", "Default time for use with first aid kit.");
@@ -417,7 +466,7 @@ public void OnPluginStart()
 		if(StrEqual(sClassname, "infected") || StrEqual(sClassname, "witch"))
 		{
 			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
-			SDKHook(i, SDKHook_OnTakeDamage, Event_TakeDamage);
+			SDKHook(i, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 		}
 	}
 
@@ -471,7 +520,7 @@ public void Event_ZombieSpawnPost(int entity)
 	SetEntProp(entity, Prop_Data, "m_iHealth", maxHP);
 
 	SDKHook(entity, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(entity, SDKHook_OnTakeDamage, Event_TakeDamage);
+	SDKHook(entity, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 }
 
 public void Event_OnSpawnpointSpawnPost(int entity)
@@ -580,6 +629,81 @@ public Action Event_ReviveBeginPre(Event event, const char[] name, bool dontBroa
 	return Plugin_Continue;
 }
 
+public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(event, "victim"));
+
+	if (client == 0)
+		return Plugin_Continue;
+
+	else if(!L4D_IsPlayerIncapacitated(client))
+		return Plugin_Continue;
+
+	else if(L4D_IsPlayerHangingFromLedge(client))
+		return Plugin_Continue;
+
+	int index = g_hStartIncapWeapon.IntValue;
+
+	Call_StartForward(g_fwOnGetRPGIncapWeapon);
+
+	Call_PushCell(client);
+	Call_PushCellRef(index);
+
+	Call_Finish();
+	
+	switch(index)
+	{
+		case 0:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+		}
+		case 1:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			weapon = GivePlayerItem(client, "weapon_pistol");
+
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
+			SDKHooks_DropWeapon(client, weapon);
+
+			EquipPlayerWeapon(client, weapon);
+		}
+		case 2:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			weapon = GivePlayerItem(client, "weapon_pistol");
+			
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 0);
+			SDKHooks_DropWeapon(client, weapon);
+			SetEntProp(weapon, Prop_Send, "m_isDualWielding", 1);
+
+			EquipPlayerWeapon(client, weapon);
+
+			SetEntProp(weapon, Prop_Send, "m_iClip1", GetEntProp(weapon, Prop_Send, "m_iClip1") * 2);
+		}
+		default:
+		{
+			int weapon = GetPlayerWeaponSlot(client, 1);
+
+			if(weapon != -1)
+				RemovePlayerItem(client, weapon);
+
+			GivePlayerItem(client, "weapon_pistol_magnum");
+		}
+	}
+
+	return Plugin_Continue;	
+}
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	g_fRoundStartTime = GetGameTime();
@@ -614,6 +738,29 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 	else if(!IsPlayerAlive(client))
 		return Plugin_Continue;
 
+	else if(L4D_GetClientTeam(client) == L4DTeam_Survivor)
+	{
+		if(L4D_IsPlayerIncapacitated(client))
+		{
+			if(!L4D_IsPlayerHangingFromLedge(client))
+			{
+				g_iTemporaryHealth[client] = 0;
+			}
+			
+			return Plugin_Continue;
+		}
+		if(g_iTemporaryHealth[client] <= 200)
+			return Plugin_Continue;
+
+		else if(GetEntityHealth(client) != 1)
+			return Plugin_Continue;
+
+		int hpLost = GetEventInt(hEvent, "dmg_health");
+		
+		SetClientTemporaryHP(client, g_iTemporaryHealth[client] - hpLost);
+
+		return Plugin_Continue;
+	}
 	else if(GetEntityHealth(client) <= 0)
 		return Plugin_Continue;
 
@@ -651,7 +798,8 @@ public void Event_PlayerSpawnFrame(int UserId)
 	
 	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
 	{
-		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected)
+		// Fake Client because humans spawn as ghosts.
+		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected || !IsFakeClient(client))
 			return;
 
 		
@@ -681,6 +829,9 @@ public void Event_PlayerSpawnFrame(int UserId)
 			}
 
 			L4D_SetClass(client, view_as<int>(zclass));
+
+			if(IsFakeClient(client))	
+				SetClientName(client, g_sBossNames[view_as<int>(zclass)]);
 		}
 
 		int maxHP = RPG_Perks_GetClientHealth(client);
@@ -806,7 +957,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 			}
 		}
 
-		PSAPI_FullHeal(client);
+		ExecuteFullHeal(client);
 
 		L4D_SetPlayerTempHealth(client, 0);
 	}
@@ -834,6 +985,9 @@ public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool don
 	Call_Finish();
 
 	g_hIncapHealth.IntValue = health;
+
+	if(g_hRPGIncapPistolPriority.IntValue > 10 || g_hRPGIncapPistolPriority.IntValue < -10)
+		return Plugin_Continue;
 
 	int weapon = GetPlayerWeaponSlot(client, 1);
 	
@@ -1019,6 +1173,7 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 
 		SetEntityHealth(revived, 0);
 		L4D_SetPlayerTempHealth(revived, 0);
+		g_iTemporaryHealth[revived] = 0;
 
 		GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100.0)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100.0)));
 	}
@@ -1033,18 +1188,21 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 
 		int newWeapon = GivePlayerItem(revived, g_sLastSecondaryClassname[revived]);
 
-		SetEntProp(newWeapon, Prop_Send, "m_iClip1", g_iLastSecondaryClip[revived]);
-
-		if(g_bLastSecondaryDual[revived])
+		if(newWeapon != -1)
 		{
-			SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 0);
-			SDKHooks_DropWeapon(revived, newWeapon);
-			SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 1);
+			SetEntProp(newWeapon, Prop_Send, "m_iClip1", g_iLastSecondaryClip[revived]);
 
-			EquipPlayerWeapon(revived, newWeapon);
+			if(g_bLastSecondaryDual[revived])
+			{
+				SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 0);
+				SDKHooks_DropWeapon(revived, newWeapon);
+				SetEntProp(newWeapon, Prop_Send, "m_isDualWielding", 1);
 
-			// We already restore ammo.
-			//SetEntProp(newWeapon, Prop_Send, "m_iClip1", GetEntProp(newWeapon, Prop_Send, "m_iClip1") * 2);
+				EquipPlayerWeapon(revived, newWeapon);
+
+				// We already restore ammo.
+				//SetEntProp(newWeapon, Prop_Send, "m_iClip1", GetEntProp(newWeapon, Prop_Send, "m_iClip1") * 2);
+			}
 		}
 	}
 
@@ -1066,6 +1224,9 @@ public Action Event_PlayerIncap(Event event, const char[] name, bool dontBroadca
 
 	// Tanks get incapacitated on death.
 	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
+		return Plugin_Continue;
+
+	else if(g_hRPGIncapPistolPriority.IntValue > 10 || g_hRPGIncapPistolPriority.IntValue < -10)
 		return Plugin_Continue;
 
 	int index = g_hStartIncapWeapon.IntValue;
@@ -1156,7 +1317,7 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(client, SDKHook_OnTakeDamage, Event_TakeDamage);
+	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 }
 
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
@@ -1236,6 +1397,12 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 		Call_Finish();
 	}
 
+	if(IsPlayer(attacker) && !IsPlayer(victim))
+	{
+		// Commons are allergic to logic. At least bDontInstaKill doesn't break explosive ammo nor does it break hit animations.
+		bDontInstakill = true;
+
+	}
 	if(bImmune)
 	{
 		damage = 0.0;
@@ -1402,6 +1569,105 @@ public Action L4D2_BackpackItem_StartAction(int client, int entity)
 	return Plugin_Continue;
 }
 
+public void L4D_OnEnterGhostState(int client)
+{
+	if(IsFakeClient(client))
+		return;
+
+	RequestFrame(Frame_GhostState, GetClientUserId(client));
+}
+
+public void Frame_GhostState(int userid)
+{
+	int client = GetClientOfUserId(userid);
+
+	if(client == 0)
+		return;
+
+L4D2ZombieClassType zclass = L4D2_GetPlayerZombieClass(client);
+
+	L4D2ZombieClassType originalZClass = zclass;
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetRPGSpecialInfectedClass);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+		
+		Call_PushCellRef(zclass);
+
+		Call_Finish();	
+	}
+
+	if(originalZClass != zclass)
+	{
+		int weapon;
+		while ((weapon = GetPlayerWeaponSlot(client, 0)) != -1)
+		{
+			RemovePlayerItem(client, weapon);
+			RemoveEdict(weapon);
+		}
+
+		L4D_SetClass(client, view_as<int>(zclass));
+	}
+
+	int maxHP = RPG_Perks_GetClientHealth(client);
+
+	if(L4D2_GetPlayerZombieClass(client) == L4D2ZombieClass_Tank)
+	{
+		maxHP = g_hRPGTankHealth.IntValue;
+
+		if(maxHP > 65535)
+		{
+			g_iHealth[client] = maxHP;
+			g_iMaxHealth[client] = maxHP;
+
+			SetEntityMaxHealth(client, 65535);
+			SetEntityHealth(client, 65535);
+		}
+		else
+		{
+			SetEntityMaxHealth(client, maxHP);
+			SetEntityHealth(client, maxHP);
+		}
+	}
+
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetRPGZombieMaxHP);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+		
+		Call_PushCellRef(maxHP);
+
+		Call_Finish();	
+	}
+
+	if(maxHP > 65535)
+	{
+		g_iHealth[client] = maxHP;
+		g_iMaxHealth[client] = maxHP;
+
+		SetEntityMaxHealth(client, 65535);
+		SetEntityHealth(client, 65535);
+	}
+	else
+	{
+		SetEntityMaxHealth(client, maxHP);
+		SetEntityHealth(client, maxHP);
+	}
+
+	Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
+	return;
+}
 public void L4D2_BackpackItem_StartAction_Post(int client, int entity)
 {
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
@@ -1696,6 +1962,8 @@ public bool TraceRayDontHitPlayers(int entityhit, int mask)
 
 stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
 {
+	return false;
+
 	if(!GameRules_GetProp("m_bInIntro") && ClosestSpawnPointDistance(client) > 256.0)
 		return true;
 
@@ -1737,4 +2005,20 @@ stock float ClosestSpawnPointDistance(int client)
 		winnerDist = GetVectorDistance(fOrigin, g_fSpawnPoint);
 
 	return winnerDist;
+}
+
+stock void SetClientTemporaryHP(int client, int hp)
+{
+	g_iTemporaryHealth[client] = hp;
+
+	if(hp <= 200)
+	{
+		L4D_SetPlayerTempHealth(client, hp);
+	}
+	else
+	{
+		L4D_SetPlayerTempHealth(client, 200);
+
+		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime() + (float(hp - 200)) / g_hPillsDecayRate.FloatValue + 1.0 / g_hPillsDecayRate.FloatValue);
+	}
 }
