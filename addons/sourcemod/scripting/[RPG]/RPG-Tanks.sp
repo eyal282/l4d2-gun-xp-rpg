@@ -26,6 +26,8 @@ public Plugin myinfo = {
 	url = "NULL"
 };
 
+ConVar g_hDifficulty;
+
 ConVar g_hPriorityImmunities;
 ConVar g_hPriorityTankSpawn;
 
@@ -205,6 +207,34 @@ public void OnPluginStart()
 
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
+
+	g_hDifficulty = FindConVar("z_difficulty");
+
+	HookConVarChange(g_hDifficulty, cvChange_Difficulty);
+}
+
+
+public void cvChange_Difficulty(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+    Func_DifficultyChanged(newValue);
+}
+
+public void Func_DifficultyChanged(const char[] newValue)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		PrintToChatAll(" \x03%N\x01 will be converted to a normal Tank for the difficulty change.", i);
+
+		SetClientName(i, "Tank");
+
+		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+	}
 }
 
 public void OnMapStart()
@@ -385,6 +415,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		if(attacker != 0)
 			GetEdictClassname(attacker, sClassname, sizeof(sClassname));
 
+		PrintToChatEyal(sClassname);
+		
 		if(IsPlayer(victim) && damage >= 600.0 && (attacker == victim || attacker == 0 || StrEqual(sClassname, "trigger_hurt") || StrEqual(sClassname, "point_hurt")))
 		{
 			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);

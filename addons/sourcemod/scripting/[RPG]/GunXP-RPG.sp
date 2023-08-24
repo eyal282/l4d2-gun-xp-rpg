@@ -116,7 +116,7 @@ bool g_bTookWeapons[MAXPLAYERS+1];
 
 int StartOfPrimary = 14; // Change to the beginning of rifles in the levels, remember to count [0]
 
-#define MAX_LEVEL 52
+#define MAX_LEVEL 65
 
 #define PERK_TREE_NOT_UNLOCKED -1
 
@@ -248,6 +248,19 @@ int LEVELS[MAX_LEVEL+1] =
 	800000,  // needed for level 50
 	900000,  // needed for level 51
 	1000000,  // needed for level 52
+	2000000,  // needed for level 53
+	3000000,  // needed for level 54
+	4000000,  // needed for level 55
+	5000000,  // needed for level 56
+	6000000,  // needed for level 57
+	7000000,  // needed for level 58
+	8000000,  // needed for level 59
+	9000000,  // needed for level 60
+	10000000,  // needed for level 61
+	20000000,  // needed for level 62
+	30000000,  // needed for level 63
+	40000000,  // needed for level 64
+	50000000, // needed for level 65
 	2147483647 // This shall never change, NEVERRRRR
 };
 
@@ -305,6 +318,19 @@ char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
 	"null",
 	"null",
 	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
 	"null"
 };
 
@@ -339,6 +365,19 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 	"SG552",
 	"M-16",
 	"AK-47",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
 	"NULL",
 	"NULL",
 	"NULL",
