@@ -16,6 +16,16 @@
 
 enum
 {
+	COLLISION_RETURN,		// Return means don't apply attribute if one already exists.
+	COLLISION_ADD,
+	COLLISION_SET,
+	COLLISION_SET_IF_LOWER,
+	COLLISION_SET_IF_HIGHER,
+	SIZEOF_COLLISIONS
+}
+
+enum
+{
 	SPEEDSTATE_RUN,              // Min 110.0
 	SPEEDSTATE_WALK,             // Min 65.0
 	SPEEDSTATE_CROUCH,           // Min 65.0
@@ -24,6 +34,8 @@ enum
 	SPEEDSTATE_WATER,            // Min 65.0
 	SPEEDSTATE_ADRENALINE,       // Min 110.0
 	SPEEDSTATE_SCOPE,             // Min 65.0
+	SPEEDSTATE_HANDICAP,          // Min 0.0
+	SPEEDSTATE_STUN,             // Min 0.0
 	SPEEDSTATE_CUSTOM,
 	SIZEOF_SPEEDSTATES
 };
@@ -58,6 +70,12 @@ native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
+native bool RPG_Perks_IsEntityTimedAttribute(int entity, char attributeName[64]);
+
+// See COLLISION_* for list of actions taken on collision.
+// If COLLISION_RETURN, COLLISION_SET_IF_HIGHER, or COLLISION_SET_IF_LOWER are used, returns false if attribute was not set.
+native bool RPG_Perks_ApplyEntityTimedAttribute(int entity, char attributeName[64], float fDuration, int collision);
+
 // If something that requires recalculating what's the max HP of a client, use this.
 native void RPG_Perks_RecalculateMaxHP(int client);
 
@@ -76,7 +94,13 @@ native int RPG_Perks_SetClientTempHealth(int client, int hp);
 // Please only pass survivors to this function.
 native int RPG_Perks_GetClientTempHealth(int client);
 
-native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], int maxHP, int speed, int XPRewardMin, int XPRewardMax, bool fireDamageImmune, bool meleeDamageImmune);
+native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, bool fireDamageImmune, bool meleeDamageImmune);
+
+
+// If cooldown is 0, ability will be described "Check passive abilities for details"
+native int RPG_Tanks_RegisterActiveAbility(int tank, char name[32], char description[256], int minCooldown, int maxCooldown);
+
+native int RPG_Tanks_RegisterPassiveAbility(int tank, char name[32], char description[512]);
 
 // Gets a client's tank index. Do not use this before RPG_Perks_OnZombiePlayerSpawned, and do not use this on non-tank clients.
 // Use RPG_Perks_GetZombieType(client) to compare with ZombieType_Tank to ensure its a tank before using this.
@@ -124,6 +148,13 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 // This is called while the player still has their current perk tree and skills.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 
+
+forward void RPG_Perks_OnTimedAttributeStart(int client, char attributeName[64], float fDuration);
+
+forward void RPG_Perks_OnTimedAttributeExpired(int client, char attributeName[64]);
+
+// if oldClient == newClient, the duration was modified.
+forward void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64]);
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER SPAWN, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
@@ -206,6 +237,7 @@ forward void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &ove
 
 forward void RPG_Perks_OnGetKitHealPercent(int reviver, int victim, int &percent);
 forward void RPG_Perks_OnGetReviveHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);
+forward void RPG_Perks_OnGetDefibHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);
 
 forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration);
 forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, bool bLedge, float &fDuration);
@@ -317,26 +349,6 @@ stock void UC_StringToUpper(char[] buffer)
 	int length = strlen(buffer);
 	for(int i=0;i < length;i++)
 		buffer[i] = CharToUpper(buffer[i]);
-}
-
-stock void UC_PrintToChatEyal(const char[] format, any...)
-{
-	char buffer[291];
-	VFormat(buffer, sizeof(buffer), format, 2);
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		if (!IsClientInGame(i))
-			continue;
-
-		else if (IsFakeClient(i))
-			continue;
-
-		char steamid[64];
-		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
-
-		if (StrEqual(steamid, "STEAM_1:0:49508144"))
-			UC_PrintToChat(i, buffer);
-	}
 }
 
 stock bool IsClientEyal(int client)
@@ -502,6 +514,26 @@ stock void PrintToChatEyal(const char[] format, any ...)
 	}
 }
 
+stock void PrintToConsoleEyal(const char[] format, any...)
+{
+	char buffer[291];
+	VFormat(buffer, sizeof(buffer), format, 2);
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (IsFakeClient(i))
+			continue;
+
+		char steamid[64];
+		GetClientAuthId(i, AuthId_Steam2, steamid, sizeof(steamid));
+
+		if(StrEqual(steamid, "STEAM_1:0:49508144") || StrEqual(steamid, "STEAM_1:0:28746258") || StrEqual(steamid, "STEAM_1:1:463683348"))
+			PrintToConsole(i, buffer);
+	}
+}
+
 stock void PrintToChatIfEyal(int client, const char[] format, any ...)
 {
 	if(!IsPlayer(client))
@@ -515,4 +547,19 @@ stock void PrintToChatIfEyal(int client, const char[] format, any ...)
 	
 	if(StrEqual(steamid, "STEAM_1:0:49508144") || StrEqual(steamid, "STEAM_1:0:28746258") || StrEqual(steamid, "STEAM_1:1:463683348"))
 		PrintToChat(client, buffer);
+}
+
+stock void PrintToConsoleIfEyal(int client, const char[] format, any ...)
+{
+	if(!IsPlayer(client))
+		return;
+
+	char buffer[291];
+	VFormat(buffer, sizeof(buffer), format, 3);
+
+	char steamid[64];
+	GetClientAuthId(client, AuthId_Steam2, steamid, sizeof(steamid));
+	
+	if(StrEqual(steamid, "STEAM_1:0:49508144") || StrEqual(steamid, "STEAM_1:0:28746258") || StrEqual(steamid, "STEAM_1:1:463683348"))
+		PrintToConsole(client, buffer);
 }
