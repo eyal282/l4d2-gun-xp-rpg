@@ -21,6 +21,8 @@ public Plugin myinfo =
 
 int tankIndex;
 
+ConVar g_hDamagePriority;
+
 public void OnLibraryAdded(const char[] name)
 {
 	if (StrEqual(name, "RPG_Tanks"))
@@ -39,6 +41,8 @@ public void OnPluginStart()
 	RegisterTank();
 
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
+
+	g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgtanks_melee_damage_priority", "-10", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin interacts with unbuffed damage, so it must go first");
 }
 
 public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
@@ -101,7 +105,33 @@ public void GunXP_OnReloadRPGPlugins()
 
 public void RegisterTank()
 {
-	tankIndex = RPG_Tanks_RegisterTank(1, 3, "Jockey", "A tank that likes Jockeys\nAll Special Infected spawned will be Jockeys instead\nThis tank shoots jockeys from his arms, and you will be pinned if it hits you.", 200000, 180, 300, 500, true, false);
+	tankIndex = RPG_Tanks_RegisterTank(1, 3, "Jockey", "A tank that likes Jockeys\nAll Special Infected spawned will be Jockeys instead\nThis tank shoots jockeys from his arms, and you will be pinned if it hits you.", 200000, 180, 1.0, 300, 500, true, false);
+
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Fragile Body", "Tank takes 2x damage from melee");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "My Little Friends", "Every Special Infected that spawns is a Jockey.");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Secret Weapon", "Getting hit by the Tank spawns a Jockey that pins you.");
+}
+
+
+public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
+{   
+	if(priority != g_hDamagePriority.IntValue)
+        return;
+
+	else if(IsPlayer(victim) && IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
+        return;
+
+	else if(RPG_Perks_GetZombieType(victim) != ZombieType_Tank)
+        return;
+
+	else if(RPG_Tanks_GetClientTank(victim) != tankIndex)
+		return;
+        
+	else if(L4D2_GetWeaponId(inflictor) != L4D2WeaponId_Melee)
+        return;
+
+
+	damage *= 2.0;
 }
 
 public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2ZombieClassType &zclass)

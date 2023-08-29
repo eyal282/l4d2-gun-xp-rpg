@@ -890,8 +890,11 @@ public void OnPluginStart()
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
 
 	//g_aUnlockItems = CreateArray(sizeof(enProduct));
-	g_aSkills = CreateArray(sizeof(enSkill));
-	g_aPerkTrees = CreateArray(sizeof(enPerkTree));
+	if(g_aSkills == null)
+		g_aSkills = CreateArray(sizeof(enSkill));
+
+	if(g_aPerkTrees == null)
+		g_aPerkTrees = CreateArray(sizeof(enPerkTree));
 
 	#if defined _autoexecconfig_included
 	
@@ -1152,7 +1155,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 		if(!IsClientInGame(i))
 			continue;
 			
-		
+		char weaponFormat[64];
 		char adrenalineFormat[64];
 		char tankFormat[64];
 		char extraFormat[128];
@@ -1180,13 +1183,31 @@ public Action Timer_HudMessageXP(Handle hTimer)
 			FormatEx(extraFormat, sizeof(extraFormat), "\n%s | %s", adrenalineFormat, tankFormat);
 		}
 
+		if(GetClientXP(i) < 100000)
+		{
+			FormatEx(weaponFormat,sizeof(weaponFormat), " | [Weapon : %s]", GUNS_NAMES[g_iLevel[i]]);
+		}
+
 		ReplaceString(extraFormat, sizeof(extraFormat), "{PERCENT}", "%%");
 
 		if(LEVELS[g_iLevel[i]] != 2147483647)
-			PrintHintText(i, "[Level : %i] | [XP : %i/%i]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], LEVELS[g_iLevel[i]], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], extraFormat);
+		{
+			char sXP[16], sNextXP[16], sXPCurrency[16];
 			
+			StringToKMB(GetClientXP(i), sXP, sizeof(sXP));
+			StringToKMB(LEVELS[g_iLevel[i]], sNextXP, sizeof(sNextXP));
+			StringToKMB(GetClientXPCurrency(i), sXPCurrency, sizeof(sXPCurrency));
+			PrintHintText(i, "[Level : %i] | [XP : %s/%s]\n[XP Currency : %s]%s%s", g_iLevel[i], sXP, sNextXP, sXPCurrency, weaponFormat, extraFormat);
+		}
 		else 
-			PrintHintText(i, "[Level : %i] | [XP : %i/∞]\n[XP Currency : %i] | [Weapon : %s]%s", g_iLevel[i], g_iXP[i], g_iXPCurrency[i], GUNS_NAMES[g_iLevel[i]], extraFormat);
+		{
+			char sXP[16], sXPCurrency[16];
+
+			StringToKMB(GetClientXP(i), sXP, sizeof(sXP));
+			StringToKMB(GetClientXPCurrency(i), sXPCurrency, sizeof(sXPCurrency));
+
+			PrintHintText(i, "[Level : %i] | [XP : %s/∞]\n[XP Currency : %s] | [Weapon : %s]%s", g_iLevel[i], sXP, sXPCurrency, GUNS_NAMES[g_iLevel[i]], extraFormat);
+		}
 	}
 
 	return Plugin_Continue;
@@ -1448,11 +1469,49 @@ public Action Command_RPG(int client, int args)
 	AddMenuItem(hMenu, "", "Perk Trees");
 	AddMenuItem(hMenu, "", "Skills");
 
-	FormatEx(TempFormat, sizeof(TempFormat), "Perk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : %i | XP : %i | XP Curency : %i", GetClientLevel(client), GetClientXP(client), GetClientXPCurrency(client));
+	char sXP[16], sXPCurrency[16];
+
+	StringToKMB(GetClientXP(client), sXP, sizeof(sXP));
+	StringToKMB(GetClientXPCurrency(client), sXPCurrency, sizeof(sXPCurrency));
+
+	FormatEx(TempFormat, sizeof(TempFormat), "Perk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : %i | XP : %s | XP Curency : %s", GetClientLevel(client), sXP, sXPCurrency);
 
 	if(GetXPWorthOfPerkTrees(client) + GetXPWorthOfSkills(client) + GetClientXPCurrency(client) < GetClientXP(client))
 	{
 		Format(TempFormat, sizeof(TempFormat), "%s\nYou can claim %i XP Currency from deleted perk trees or skills by resetting your choices.", TempFormat, GetClientXP(client) - (GetXPWorthOfPerkTrees(client) + GetXPWorthOfSkills(client) + GetClientXPCurrency(client)));
+	}
+	else
+	{
+		int iPosPerkTree;
+		int iCostPerkTree;
+		AutoRPG_FindCheapestPerkTree(client, iPosPerkTree, iCostPerkTree, true);
+
+		int iPosSkill;
+		int iCostSkill;
+		AutoRPG_FindCheapestSkill(client, iPosSkill, iCostSkill, true);
+
+		// Only need to check both, as the unfound will have infinite cost.
+
+		if(iCostPerkTree < iCostSkill)
+		{
+			if(iCostPerkTree != 2147483647)
+			{
+				enPerkTree perkTree;
+				g_aPerkTrees.GetArray(iPosPerkTree, perkTree);
+
+				Format(TempFormat, sizeof(TempFormat), "%s\nCheapest Perk Tree: %s [%i XP Currency]", TempFormat, perkTree.name, iCostPerkTree);
+			}
+		}
+		else
+		{
+			if(iCostSkill != 2147483647)
+			{
+				enSkill skill;
+				g_aSkills.GetArray(iPosSkill, skill);
+
+				Format(TempFormat, sizeof(TempFormat), "%s\nCheapest Skill: %s [%i XP Currency]", TempFormat, skill.name, iCostSkill);
+			}
+		}
 	}
 
 	SetMenuTitle(hMenu, TempFormat);
@@ -3027,7 +3086,7 @@ stock int Abs(int value)
 
 // AUTO RPG
 
-stock bool AutoRPG_FindCheapestPerkTree(int client, int &position, int &cost)
+stock bool AutoRPG_FindCheapestPerkTree(int client, int &position, int &cost, bool ignoreAffordability = false)
 {
 	CalculateStats(client);
 
@@ -3049,7 +3108,7 @@ stock bool AutoRPG_FindCheapestPerkTree(int client, int &position, int &cost)
 		else if(GetClientLevel(client) < iPerkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][i] + 1))
 			continue;
 
-		else if(GetClientXPCurrency(client) < iPerkTree.costs.Get(g_iUnlockedPerkTrees[client][i] + 1))
+		else if(GetClientXPCurrency(client) < iPerkTree.costs.Get(g_iUnlockedPerkTrees[client][i] + 1) && !ignoreAffordability)
 			continue;
 
 		if(position == -1 || iPerkTree.costs.Get(g_iUnlockedPerkTrees[client][i] + 1) < cost)
@@ -3068,7 +3127,7 @@ stock bool AutoRPG_FindCheapestPerkTree(int client, int &position, int &cost)
 	return true;
 }
 
-stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost)
+stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost, bool ignoreAffordability = false)
 {
 	CalculateStats(client);
 
@@ -3089,7 +3148,7 @@ stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost)
 		else if(GetClientLevel(client) < iSkill.levelReq)
 			continue;
 
-		else if(GetClientXPCurrency(client) < iSkill.cost)
+		else if(GetClientXPCurrency(client) < iSkill.cost && !ignoreAffordability)
 			continue;
 
 		if(position == -1 || iSkill.cost < cost)
@@ -3155,4 +3214,62 @@ stock int GetClosestLevelToXP(int xp)
 	}
 
 	return level;
+}
+
+stock void StringToKMB(int number, char[] buffer, int length)
+{
+    if(number < 1000)
+	{
+		FormatEx(buffer, length, "%i", number);
+		return;
+	}
+
+    switch(RoundToFloor(Logarithm(float(number))))
+	{
+		case 3, 4, 5:
+			FormatEx(buffer, length, "%i.%iK", RoundToFloor(float(number) / 1000.0), TrueFloatFraction(float(number) / 1000.0));
+		case 6, 7, 8:
+			FormatEx(buffer, length, "%i.%iM", RoundToFloor(float(number) / 1000000.0), TrueFloatFraction(float(number) / 1000000.0));
+		case 9, 10, 11:
+			FormatEx(buffer, length, "%i.%ifB", RoundToFloor(float(number) / 1000000000.0), TrueFloatFraction(float(number) / 1000000000.0));
+	}
+
+
+
+	int lastChar = buffer[strlen(buffer)-1];
+
+	int len = strlen(buffer);
+	
+	if(number % 1000 == 0)
+	{
+		buffer[len - 3] = EOS;
+		Format(buffer, length, "%s%c", buffer, lastChar);
+	}
+	else if(number % 100 == 0)
+	{
+		buffer[len - 2] = EOS;
+		Format(buffer, length, "%s%c", buffer, lastChar);
+	}
+	else if(number % 10 == 0)
+	{
+		buffer[len - 1] = EOS;
+		Format(buffer, length, "%s%c", buffer, lastChar);
+	}
+}
+
+stock int TrueFloatFraction(float value, int precision = 3)
+{
+	float fraction = FloatFraction(value);
+
+	char sFraction[32];
+	FloatToString(fraction, sFraction, sizeof(sFraction));
+
+	if(sFraction[0] == '0')
+	{
+		ReplaceStringEx(sFraction, sizeof(sFraction), "0.", "");
+	}
+
+	sFraction[precision] = EOS;
+
+	return StringToInt(sFraction);
 }

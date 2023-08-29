@@ -60,6 +60,8 @@ float g_fSpawnPoint[3];
 
 bool g_bTeleported[MAXPLAYERS+1];
 
+Handle g_hCheckAttributeExpire;
+
 ConVar g_hRPGTriggerHurtMultiplier;
 
 ConVar g_hRPGIncapPistolPriority;
@@ -99,6 +101,10 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnTimedAttributeStart;
+GlobalForward g_fwOnTimedAttributeExpired;
+GlobalForward g_fwOnTimedAttributeTransfered;
+
 GlobalForward g_fwOnGetRPGSpecialInfectedClass;
 
 GlobalForward g_fwOnGetRPGMaxHP;
@@ -130,6 +136,17 @@ char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
 
+enum struct enTimedAttribute
+{
+	// "Stun"
+	char attributeName[64];
+
+	int entity;
+	float fExpire;
+}
+
+ArrayList g_aTimedAttributes;
+
 public void OnPluginEnd()
 {
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
@@ -149,6 +166,8 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_GetClientMaxHealth", Native_GetClientMaxHealth);
 	CreateNative("RPG_Perks_SetClientTempHealth", Native_SetClientTempHealth);
 	CreateNative("RPG_Perks_GetClientTempHealth", Native_GetClientTempHealth);
+	CreateNative("RPG_Perks_IsEntityTimedAttribute", Native_IsEntityTimedAttribute);
+	CreateNative("RPG_Perks_ApplyEntityTimedAttribute", Native_ApplyEntityTimedAttribute);
 
 	return APLRes_Success;
 }
@@ -261,8 +280,187 @@ public int Native_GetClientTempHealth(Handle caller, int numParams)
 	return g_iTemporaryHealth[client];
 }
 
+public int Native_IsEntityTimedAttribute(Handle caller, int numParams)
+{
+	if(g_aTimedAttributes == null)
+	{
+		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
+
+		return false;
+	}
+
+	int entity = GetNativeCell(1);
+	char attributeName[64];
+	GetNativeString(2, attributeName, sizeof(attributeName));
+
+	int size = g_aTimedAttributes.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enTimedAttribute attribute;
+		g_aTimedAttributes.GetArray(i, attribute);
+
+		if(attribute.entity == entity && StrEqual(attributeName, attribute.attributeName))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
+{
+	if(g_aTimedAttributes == null)
+	{
+		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
+	}
+
+	int entity = GetNativeCell(1);
+	char attributeName[64];
+	GetNativeString(2, attributeName, sizeof(attributeName));
+
+	float duration = GetNativeCell(3);
+
+	if(duration == 0.0)
+		return true;
+
+	int collision = GetNativeCell(4);
+
+	int size = g_aTimedAttributes.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enTimedAttribute attribute;
+		g_aTimedAttributes.GetArray(i, attribute);
+
+		if(attribute.entity == entity && StrEqual(attributeName, attribute.attributeName))
+		{
+			switch(collision)
+			{
+				case COLLISION_RETURN: return false;
+				case COLLISION_ADD: attribute.fExpire += duration;
+				case COLLISION_SET: attribute.fExpire = duration;
+				case COLLISION_SET_IF_LOWER:
+				{
+					if(attribute.fExpire - GetGameTime() < duration)
+					{
+						attribute.fExpire = duration;
+					}
+					else
+					{
+						return false;
+					}
+				}
+
+				case COLLISION_SET_IF_HIGHER:
+				{
+					if(attribute.fExpire - GetGameTime() > duration)
+					{
+						attribute.fExpire = duration;
+					}
+					else
+					{
+						return false;
+					}
+				}
+			}
+			
+			g_aTimedAttributes.SetArray(i, attribute);
+
+			if(attribute.fExpire <= GetGameTime())
+			{
+				Call_StartForward(g_fwOnTimedAttributeTransfered);
+
+				Call_PushCell(entity);
+				Call_PushCell(entity);
+				Call_PushString(attribute.attributeName);
+
+				Call_Finish();
+			}
+
+			TriggerTimer(g_hCheckAttributeExpire);
+
+			return true;
+		}
+	}
+
+	enTimedAttribute attribute;
+	attribute.attributeName = attributeName;
+	attribute.entity = entity;
+	attribute.fExpire = GetGameTime() + duration;
+
+	g_aTimedAttributes.PushArray(attribute);
+
+	Call_StartForward(g_fwOnTimedAttributeStart);
+
+	Call_PushCell(entity);
+	Call_PushString(attribute.attributeName);
+	Call_PushCell(duration);
+
+	Call_Finish();
+
+	if(g_hCheckAttributeExpire == null)
+		g_hCheckAttributeExpire = CreateTimer(duration, Timer_CheckAttributeExpire, _, TIMER_FLAG_NO_MAPCHANGE);
+
+	TriggerTimer(g_hCheckAttributeExpire);
+	
+	return true;
+}
+
+public Action Timer_CheckAttributeExpire(Handle hTimer)
+{
+	delete g_hCheckAttributeExpire;
+
+	float shortestToExpire = 999999999.0;
+
+	int size = g_aTimedAttributes.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enTimedAttribute attribute;
+		g_aTimedAttributes.GetArray(i, attribute);
+
+		if(!IsValidEdict(attribute.entity))
+		{
+			g_aTimedAttributes.Erase(i);
+			i--;
+			continue;
+		}
+
+		else if(attribute.fExpire <= GetGameTime())
+		{
+			Call_StartForward(g_fwOnTimedAttributeExpired);
+
+			Call_PushCell(attribute.entity);
+			Call_PushString(attribute.attributeName);
+
+			Call_Finish();
+
+			g_aTimedAttributes.Erase(i);
+			i--;
+			continue;
+		}
+		else
+		{
+			if(attribute.fExpire < shortestToExpire)
+			{
+				shortestToExpire = attribute.fExpire;
+			}
+		}
+	}
+
+	if(shortestToExpire < 99999999.0)
+	{
+		CreateTimer(shortestToExpire - GetGameTime(), Timer_CheckAttributeExpire, _, TIMER_FLAG_NO_MAPCHANGE);
+	}
+	return Plugin_Stop;
+}
+
 public void OnMapStart()
 {
+	delete g_hCheckAttributeExpire;
+
 	g_fRoundStartTime = 0.0;
 
 	TriggerTimer(CreateTimer(1.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
@@ -356,6 +554,9 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 public void OnPluginStart()
 {
+	if(g_aTimedAttributes == null)
+		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
+
 	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_hurt", Event_PlayerHurt);
@@ -376,6 +577,10 @@ public void OnPluginStart()
 	HookEvent("jockey_ride_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
+
+	g_fwOnTimedAttributeStart = CreateGlobalForward("RPG_Perks_OnTimedAttributeStart", ET_Ignore, Param_Cell, Param_String, Param_Cell);
+	g_fwOnTimedAttributeExpired = CreateGlobalForward("RPG_Perks_OnTimedAttributeExpired", ET_Ignore, Param_Cell, Param_String);
+	g_fwOnTimedAttributeTransfered = CreateGlobalForward("RPG_Perks_OnTimedAttributeTransfered", ET_Ignore, Param_Cell, Param_Cell, Param_String);
 
 	g_fwOnGetRPGSpecialInfectedClass = CreateGlobalForward("RPG_Perks_OnGetSpecialInfectedClass", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 
@@ -527,6 +732,32 @@ public void Event_OnSpawnpointSpawnPost(int entity)
 {
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
 }
+
+public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
+{
+	if(!StrEqual(attributeName, "Stun"))
+		return;
+
+	SetEntityMoveType(entity, MOVETYPE_NONE);
+}
+
+public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
+{
+	if(!StrEqual(attributeName, "Stun"))
+		return;
+
+	SetEntityMoveType(entity, MOVETYPE_WALK);
+}
+
+public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
+{
+	if(!StrEqual(attributeName, "Stun"))
+		return;
+
+	SetEntityMoveType(oldClient, MOVETYPE_WALK);
+	SetEntityMoveType(newClient, MOVETYPE_NONE);
+}
+
 // Must add natives for after a player spawns for incap hidden pistol.
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
 {
@@ -1016,14 +1247,18 @@ public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool don
 
 public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool dontBroadcast)
 {
+	int oldPlayer = GetClientOfUserId(GetEventInt(event, "player"));
 	int newPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
 
 	g_iLastTemporaryHealth[newPlayer] = 0;
+
+	TransferTimedAttributes(oldPlayer, newPlayer); 
 
 	return Plugin_Continue;
 }
 public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool dontBroadcast)
 {
+	int oldPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
 	int newPlayer = GetClientOfUserId(GetEventInt(event, "player"));
 
 	g_sLastSecondaryClassname[newPlayer][0] = EOS;
@@ -1032,7 +1267,34 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 
 	g_iLastTemporaryHealth[newPlayer] = 0;
 
+	TransferTimedAttributes(oldPlayer, newPlayer); 
+
 	return Plugin_Continue;
+}
+
+public void TransferTimedAttributes(int oldPlayer, int newPlayer)
+{
+	int size = g_aTimedAttributes.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enTimedAttribute attribute;
+		g_aTimedAttributes.GetArray(i, attribute);
+
+		if(attribute.entity == oldPlayer)
+		{
+			attribute.entity = newPlayer;
+			g_aTimedAttributes.SetArray(i, attribute);	
+
+			Call_StartForward(g_fwOnTimedAttributeTransfered);
+
+			Call_PushCell(oldPlayer);
+			Call_PushCell(newPlayer);
+			Call_PushString(attribute.attributeName);
+
+			Call_Finish();
+		}
+	}
 }
 
 public Action Event_HealBegin(Event event, const char[] name, bool dontBroadcast)
@@ -1163,20 +1425,24 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 
 	Call_Finish();
 
-	if(temporaryHealthPercent > 0 || permanentHealthPercent > 0)
+	if(temporaryHealthPercent < 0)
+		temporaryHealthPercent = 0;
+
+	if(permanentHealthPercent < 0)
+		permanentHealthPercent = 0;
+
+	SetEntityHealth(revived, 0);
+	L4D_SetPlayerTempHealth(revived, 0);
+	g_iTemporaryHealth[revived] = 0;
+
+	GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100.0)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100.0)));
+
+	if(GetEntityHealth(revived) == 0)
 	{
-		if(temporaryHealthPercent < 0)
-			temporaryHealthPercent = 0;
-
-		if(permanentHealthPercent < 0)
-			permanentHealthPercent = 0;
-
-		SetEntityHealth(revived, 0);
-		L4D_SetPlayerTempHealth(revived, 0);
-		g_iTemporaryHealth[revived] = 0;
-
-		GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100.0)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100.0)));
+		SetEntityHealth(revived, 1);
+		GunXP_GiveClientHealth(revived, 0, -1);
 	}
+	
 	int weapon = GetPlayerWeaponSlot(revived, 1);
 
 	if(g_sLastSecondaryClassname[revived][0] != EOS)
@@ -1205,7 +1471,7 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 			}
 		}
 	}
-
+	
 	return Plugin_Continue;
 }
 
@@ -1584,7 +1850,7 @@ public void Frame_GhostState(int userid)
 	if(client == 0)
 		return;
 
-L4D2ZombieClassType zclass = L4D2_GetPlayerZombieClass(client);
+	L4D2ZombieClassType zclass = L4D2_GetPlayerZombieClass(client);
 
 	L4D2ZombieClassType originalZClass = zclass;
 

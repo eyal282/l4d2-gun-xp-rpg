@@ -36,7 +36,19 @@ ConVar g_hEntriesTierOne;
 ConVar g_hEntriesTierTwo;
 ConVar g_hEntriesTierThree;
 
+enum struct enActiveAbility
+{
+	char name[32];
+	char description[256];
+	int minCooldown;
+	int maxCooldown;
+}
 
+enum struct enPassiveAbility
+{
+	char name[32];
+	char description[512];
+}
 enum struct enTank
 {
 	// Tier of the tank. 
@@ -52,12 +64,17 @@ enum struct enTank
 	int maxHP;
 	int speed;
 
+	float damageMultiplier;
+
 	// reward of XP in Gun XP
 	int XPRewardMin;
 	int XPRewardMax;
 
 	bool fireDamageImmune;
 	bool meleeDamageImmune;
+
+	ArrayList aActiveAbilities;
+	ArrayList aPassiveAbilities;
 }
 
 ArrayList g_aTanks;
@@ -73,6 +90,8 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 {
 
 	CreateNative("RPG_Tanks_RegisterTank", Native_RegisterTank);
+	CreateNative("RPG_Tanks_RegisterActiveAbility", Native_RegisterActiveAbility);
+	CreateNative("RPG_Tanks_RegisterPassiveAbility", Native_RegisterPassiveAbility);
 	CreateNative("RPG_Tanks_GetClientTank", Native_GetClientTank);
 	CreateNative("RPG_Tanks_GetDamagePercent", Native_GetDamagePercent);
 	CreateNative("RPG_Tanks_IsTankInPlay", Native_IsTankInPlay);
@@ -106,21 +125,18 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	int maxHP = GetNativeCell(5);
 
 	int speed = GetNativeCell(6);
+	float damageMultiplier = GetNativeCell(7);
 
-	int XPRewardMin = GetNativeCell(7);
-	int XPRewardMax = GetNativeCell(8);
+	int XPRewardMin = GetNativeCell(8);
+	int XPRewardMax = GetNativeCell(9);
 
-	bool fireDamageImmune = GetNativeCell(9);
-	bool meleeDamageImmune = GetNativeCell(10);
+	bool fireDamageImmune = GetNativeCell(10);
+	bool meleeDamageImmune = GetNativeCell(11);
 
-	for(int i=0;i < g_aTanks.Length;i++)
-	{
-		enTank iTank;
-		g_aTanks.GetArray(i, iTank);
-		
-		if(StrEqual(name, iTank.name))
-			return i;
-	}
+	int foundIndex = TankNameToTankIndex(name);
+
+	if(foundIndex != -1)
+		return foundIndex;
 
 	tank.tier = tier;
 	tank.entries = entries;
@@ -128,14 +144,87 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	tank.description = description;
 	tank.maxHP = maxHP;
 	tank.speed = speed;
+	tank.damageMultiplier = damageMultiplier;
 	tank.XPRewardMin = XPRewardMin;
 	tank.XPRewardMax = XPRewardMax;
 	tank.fireDamageImmune = fireDamageImmune;
 	tank.meleeDamageImmune = meleeDamageImmune;
+	tank.aActiveAbilities = CreateArray(sizeof(enActiveAbility));
+	tank.aPassiveAbilities = CreateArray(sizeof(enPassiveAbility));
 
 	return g_aTanks.PushArray(tank);
 }
 
+public int Native_RegisterActiveAbility(Handle caller, int numParams)
+{
+	if(g_aTanks == null)
+		g_aTanks = CreateArray(sizeof(enTank));
+
+	int pos = GetNativeCell(1);
+
+	enTank tank;
+	g_aTanks.GetArray(pos, tank);
+
+	char name[32];
+	GetNativeString(2, name, sizeof(name));
+
+	char sInfo[64];
+	Format(sInfo, sizeof(sInfo), "[ACTIVATED] %s", name);
+	int foundIndex = AbilityNameToAbilityIndex(sInfo, pos, false);
+
+	if(foundIndex != -1)
+		return foundIndex;
+
+	char description[256];
+	GetNativeString(3, description, sizeof(description));
+
+	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
+
+	int minCooldown = GetNativeCell(4);
+	int maxCooldown = GetNativeCell(5);
+
+	enActiveAbility activeAbility;
+
+	activeAbility.name = name;
+	activeAbility.description = description;
+	activeAbility.minCooldown = minCooldown;
+	activeAbility.maxCooldown = maxCooldown;
+
+	return tank.aActiveAbilities.PushArray(activeAbility);
+}
+
+public int Native_RegisterPassiveAbility(Handle caller, int numParams)
+{
+	if(g_aTanks == null)
+		g_aTanks = CreateArray(sizeof(enTank));
+
+	int pos = GetNativeCell(1);
+
+	enTank tank;
+	g_aTanks.GetArray(pos, tank);
+
+	char name[32];
+	GetNativeString(2, name, sizeof(name));
+
+	char sInfo[64];
+	Format(sInfo, sizeof(sInfo), "[PASSIVE] %s", name);
+	int foundIndex = AbilityNameToAbilityIndex(sInfo, pos, true);
+
+	if(foundIndex != -1)
+		return foundIndex;
+
+	char description[512];
+	GetNativeString(3, description, sizeof(description));
+
+	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
+
+	enPassiveAbility passiveAbility;
+
+	passiveAbility.name = name;
+	passiveAbility.description = description;
+
+	return tank.aPassiveAbilities.PushArray(passiveAbility);
+}
 
 public any Native_GetClientTank(Handle caller, int numParams)
 {
@@ -175,7 +264,8 @@ public void OnPluginStart()
 {
 
 	//g_aUnlockItems = CreateArray(sizeof(enProduct));
-	g_aTanks = CreateArray(sizeof(enTank));
+	if(g_aTanks == null)
+		g_aTanks = CreateArray(sizeof(enTank));
 
 	g_fwOnRPGTankKilled = CreateGlobalForward("RPG_Tanks_OnRPGTankKilled", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 
@@ -185,7 +275,7 @@ public void OnPluginStart()
 	
 	#endif
 
-	//RegConsoleCmd("sm_tankinfo", Command_TankInfo);
+	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 
 	g_hPriorityImmunities = UC_CreateConVar("rpg_tanks_priority_immunities", "2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a tank their immunity from fire or melee.\nWhen making a plugin, feel free to track this cvar's value for reference.");
 	g_hPriorityTankSpawn = UC_CreateConVar("rpg_tanks_priority_finale_tank_spawn", "-5", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 that when a tank spawns, check what tier to give it and give it max HP.");
@@ -299,6 +389,14 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
 		return;
 
+	int door = L4D_GetCheckpointLast();
+
+	if(door != -1)
+	{
+		AcceptEntityInput(door, "Close");
+		AcceptEntityInput(door, "Lock");
+	}
+
 	int client = entity;
 
 	if(priority == -10)
@@ -335,7 +433,7 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 	int winnerTier = 0;
 
-	for(int i=0;i < 3;i++)
+	for(int i=0;i <= 3;i++)
 	{
 		if(RNG > initValue && RNG <= (initValue + entries[i]))
 		{
@@ -379,6 +477,9 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 		enTank tank;
 		g_aTanks.GetArray(i, tank);
 
+		if(tank.tier != winnerTier)
+			continue;
+
 		if(RNG > initValue && RNG <= (initValue + tank.entries))
 		{
 			g_aTanks.GetArray(i, winnerTank);
@@ -404,7 +505,7 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 	SetClientName(client, sName);
 
-	PrintToChatAll("A \x03Tier %i \x05%s Tank\x01 has spawned.", winnerTank.tier, winnerTank.name);
+	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 has spawned.", winnerTank.tier, winnerTank.name);
 }
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
@@ -414,10 +515,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		char sClassname[64];
 		if(attacker != 0)
 			GetEdictClassname(attacker, sClassname, sizeof(sClassname));
-
-		PrintToChatEyal(sClassname);
 		
-		if(IsPlayer(victim) && damage >= 600.0 && (attacker == victim || attacker == 0 || StrEqual(sClassname, "trigger_hurt") || StrEqual(sClassname, "point_hurt")))
+		if(IsPlayer(victim) && (damage >= 100.0 && (attacker == victim || attacker == 0 || StrEqual(sClassname, "trigger_hurt") || StrEqual(sClassname, "point_hurt"))))
 		{
 			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
 
@@ -429,6 +528,21 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	if(priority != g_hPriorityImmunities.IntValue)
 		return;
 
+	if(RPG_Perks_GetZombieType(attacker) == ZombieType_Tank)
+	{
+		char sClassname[64];
+		GetEdictClassname(inflictor, sClassname, sizeof(sClassname));
+
+		if(g_iCurrentTank[attacker] >= 0 && StrEqual(sClassname, "weapon_tank_claw"))
+		{
+			enTank tank;
+			g_aTanks.GetArray(g_iCurrentTank[attacker], tank);
+
+			damage = damage * tank.damageMultiplier;
+		}
+		
+		return;
+	}
 	else if(RPG_Perks_GetZombieType(victim) != ZombieType_Tank)
 		return;
 
@@ -447,6 +561,325 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	{
 		bImmune = true;
 	}
+}
+
+public Action Command_TankInfo(int client, int args)
+{
+	Handle hMenu = CreateMenu(TankInfo_MenuHandler);
+
+	char TempFormat[200];
+
+	bool tiersThatExist[4];
+
+	for(int i=0;i < g_aTanks.Length;i++)
+	{
+		enTank tank;
+		g_aTanks.GetArray(i, tank);
+		
+		tiersThatExist[tank.tier] = true;
+	}	
+
+	for(int i=1;i <= 3;i++)
+	{
+		if(tiersThatExist[i])
+		{
+			Format(TempFormat, sizeof(TempFormat), "Tier %i Tanks", i);
+			char sInfo[11];
+			IntToString(i, sInfo, sizeof(sInfo));
+
+			AddMenuItem(hMenu, sInfo, TempFormat, ITEMDRAW_DEFAULT);
+		}
+	}
+
+	FormatEx(TempFormat, sizeof(TempFormat), "Choose a Tier to learn about its Tanks\nEntries are a Jackpot based system to determine a winner\nEntries for Untiered Tank : %i", g_hEntriesUntiered.IntValue);
+	SetMenuTitle(hMenu, TempFormat);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int TankInfo_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if(action == MenuAction_Select)
+	{		
+		char sInfo[11];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		ShowTankList(client, StringToInt(sInfo));
+	}	
+
+	return 0;
+}
+
+public Action ShowTankList(int client, int tier)
+{
+	Handle hMenu = CreateMenu(TankList_MenuHandler);
+
+	char TempFormat[200];
+
+	ArrayList aTanks = g_aTanks.Clone();
+
+	SortADTArrayCustom(aTanks, SortADT_Tanks);
+
+	for(int i=0;i < aTanks.Length;i++)
+	{
+		enTank tank;
+		aTanks.GetArray(i, tank);
+
+		if(tank.tier != tier)
+			continue;
+
+		Format(TempFormat, sizeof(TempFormat), "%s Tank", tank.name);
+
+		AddMenuItem(hMenu, tank.name, TempFormat, ITEMDRAW_DEFAULT);
+	}
+
+	delete aTanks;
+
+	int entries[4];
+	
+	entries[0] = g_hEntriesUntiered.IntValue;
+	entries[1] = g_hEntriesTierOne.IntValue;
+	entries[2] = g_hEntriesTierTwo.IntValue;
+	entries[3] = g_hEntriesTierThree.IntValue;
+
+	FormatEx(TempFormat, sizeof(TempFormat), "Choose a Tank to view its Info\nEntries for Tier %i Tank : %i", tier, entries[tier]);
+	SetMenuTitle(hMenu, TempFormat);
+
+	SetMenuExitBackButton(hMenu, true);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int TankList_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		Command_TankInfo(client, 0);
+	}
+	else if(action == MenuAction_Select)
+	{		
+		char sInfo[32];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		ShowTargetTankInfo(client, TankNameToTankIndex(sInfo));
+	}	
+
+	return 0;
+
+}
+
+
+public Action ShowTargetTankInfo(int client, int tankIndex)
+{
+	Handle hMenu = CreateMenu(TargetTankInfo_MenuHandler);
+
+	char TempFormat[512];
+
+	enTank tank;
+	g_aTanks.GetArray(tankIndex, tank);
+
+
+	for(int i=0;i < tank.aPassiveAbilities.Length;i++)
+	{
+		enPassiveAbility passiveAbility;
+		tank.aPassiveAbilities.GetArray(i, passiveAbility);
+
+		Format(TempFormat, sizeof(TempFormat), "[PASSIVE] %s", passiveAbility.name);
+
+		AddMenuItem(hMenu, tank.name, TempFormat, ITEMDRAW_DEFAULT);
+	}
+
+	for(int i=0;i < tank.aActiveAbilities.Length;i++)
+	{
+		enActiveAbility activeAbility;
+		tank.aActiveAbilities.GetArray(i, activeAbility);
+
+		Format(TempFormat, sizeof(TempFormat), "[ACTIVATED] %s", activeAbility.name);
+
+		AddMenuItem(hMenu, tank.name, TempFormat, ITEMDRAW_DEFAULT);
+	}
+
+	if(GetMenuItemCount(hMenu) == 0)
+		AddMenuItem(hMenu, tank.name, "No Abilities", ITEMDRAW_DEFAULT);
+
+	char immunityFormat[16];
+	FormatEx(immunityFormat, sizeof(immunityFormat), "Nothing");
+
+	if(tank.meleeDamageImmune && tank.fireDamageImmune)
+	{
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Melee & Fire");
+	}
+	else if(tank.meleeDamageImmune)
+	{
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Melee");
+	}
+	else if(tank.fireDamageImmune)
+	{
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Fire");
+	}
+
+	FormatEx(TempFormat, sizeof(TempFormat), "%s Tank | Choose an Ability for info\nMax HP : %i | Entries : %i\nAverage XP : %i | Immune to : %s\n%s", tank.name, tank.maxHP, tank.entries, (tank.XPRewardMin + tank.XPRewardMax) / 2, immunityFormat, tank.description);
+	SetMenuTitle(hMenu, TempFormat);
+
+	SetMenuExitBackButton(hMenu, true);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int TargetTankInfo_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		char sInfo[32];
+		GetMenuItem(hMenu, 0, sInfo, sizeof(sInfo));
+
+		enTank tank;
+		g_aTanks.GetArray(TankNameToTankIndex(sInfo), tank);
+
+		ShowTankList(client, tank.tier);
+	}
+	else if(action == MenuAction_Select)
+	{		
+		char sName[64], sInfo[32];
+		int dummy_value;
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo), dummy_value, sName, sizeof(sName));
+
+		if(StrEqual(sName, "No Abilities"))
+		{
+			GetMenuItem(hMenu, 0, sInfo, sizeof(sInfo));
+
+			enTank tank;
+			g_aTanks.GetArray(TankNameToTankIndex(sInfo), tank);
+
+			ShowTankList(client, tank.tier);
+
+			return 0;
+		}
+
+		int tankIndex = TankNameToTankIndex(sInfo);
+
+		ShowTargetAbilityInfo(client, tankIndex, sName);
+	}	
+
+	return 0;
+}
+
+public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
+{
+	Handle hMenu = CreateMenu(TargetAbilityInfo_MenuHandler);
+
+	char TempFormat[512];
+
+	enTank tank;
+	g_aTanks.GetArray(tankIndex, tank);
+
+	char description[512];
+
+	if(strncmp(sName, "[PASSIVE] ", 10) == 0)
+	{
+		int abilityIndex = AbilityNameToAbilityIndex(sName, tankIndex, true);
+
+		enPassiveAbility passiveAbility;
+		tank.aPassiveAbilities.GetArray(abilityIndex, passiveAbility);
+
+		strcopy(description, sizeof(description), passiveAbility.description);
+	}
+	else
+	{
+		int abilityIndex = AbilityNameToAbilityIndex(sName, tankIndex, false);
+
+		enActiveAbility activeAbility;
+		tank.aActiveAbilities.GetArray(abilityIndex, activeAbility);
+
+		strcopy(description, sizeof(description), activeAbility.description);
+	}
+	
+	PrintToConsoleIfEyal(client, description);
+	PrintToConsoleIfEyal(client, "Abc");
+	PrintToConsoleIfEyal(client, sName);
+
+	AddMenuItem(hMenu, tank.name, "Back", ITEMDRAW_DEFAULT);
+
+	FormatEx(TempFormat, sizeof(TempFormat), " %s\n%s", sName, description);
+	SetMenuTitle(hMenu, TempFormat);
+
+	SetMenuExitBackButton(hMenu, true);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int TargetAbilityInfo_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		char sInfo[32];
+		GetMenuItem(hMenu, 0, sInfo, sizeof(sInfo));
+
+		int tankIndex = TankNameToTankIndex(sInfo);
+		enTank tank;
+		g_aTanks.GetArray(tankIndex, tank);
+
+		ShowTargetTankInfo(client, tankIndex);
+	}
+	else if(action == MenuAction_Select)
+	{		
+		char sInfo[32];
+		GetMenuItem(hMenu, 0, sInfo, sizeof(sInfo));
+
+		int tankIndex = TankNameToTankIndex(sInfo);
+		enTank tank;
+		g_aTanks.GetArray(tankIndex, tank);
+
+		ShowTargetTankInfo(client, tankIndex);
+	}	
+
+	return 0;
+}
+
+
+public int SortADT_Tanks(int index1, int index2, Handle array, Handle hndl)
+{
+	enTank tank1;
+	enTank tank2;
+
+	GetArrayArray(array, index1, tank1);
+	GetArrayArray(array, index2, tank2);
+
+	if(tank1.maxHP != tank2.maxHP)
+	{
+		return tank1.maxHP - tank2.maxHP;
+	}
+
+	return strcmp(tank1.name, tank2.name);
+	
 }
 
 public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
@@ -538,5 +971,91 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	g_iCurrentTank[victim] = TANK_TIER_UNKNOWN;
 
+	int tankCount = 0;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			return Plugin_Continue;
+
+		else if(L4D_IsPlayerIncapacitated(i))
+			continue;
+
+		tankCount++;
+	}
+
+	if(tankCount == 0)
+	{
+		int door = L4D_GetCheckpointLast();
+
+		if(door != -1)
+		{	
+			AcceptEntityInput(door, "Unlock");
+		}
+	}
+
 	return Plugin_Continue;
+}
+
+stock int TankNameToTankIndex(char name[32])
+{
+	for(int i=0;i < g_aTanks.Length;i++)
+	{
+		enTank iTank;
+		g_aTanks.GetArray(i, iTank);
+		
+		if(StrEqual(name, iTank.name))
+			return i;
+	}
+
+	return -1;
+}
+
+stock int AbilityNameToAbilityIndex(char name[64], int tankIndex, bool passive)
+{
+	enTank tank;
+	g_aTanks.GetArray(tankIndex, tank);
+
+	char abilityName[32];
+	char dummy_value[32];
+
+	int pos = BreakString(name, dummy_value, sizeof(dummy_value));
+
+	FormatEx(abilityName, sizeof(abilityName), name[pos]);
+
+	if(strncmp(name, "[PASSIVE] ", 10) == 0)
+	{
+		for(int i=0;i < tank.aPassiveAbilities.Length;i++)
+		{
+			enPassiveAbility passiveAbility;
+			tank.aPassiveAbilities.GetArray(i, passiveAbility);
+			
+			if(StrEqual(abilityName, passiveAbility.name))
+				return i;
+		}
+	}
+	else
+	{
+		for(int i=0;i < tank.aActiveAbilities.Length;i++)
+		{
+			enActiveAbility activeAbility;
+			tank.aActiveAbilities.GetArray(i, activeAbility);
+			
+			if(StrEqual(abilityName, activeAbility.name))
+				return i;
+		}
+	}
+
+
+
+	return -1;
 }
