@@ -814,10 +814,6 @@ public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
 
 		strcopy(description, sizeof(description), activeAbility.description);
 	}
-	
-	PrintToConsoleIfEyal(client, description);
-	PrintToConsoleIfEyal(client, "Abc");
-	PrintToConsoleIfEyal(client, sName);
 
 	AddMenuItem(hMenu, tank.name, "Back", ITEMDRAW_DEFAULT);
 
