@@ -557,9 +557,8 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 	float shortestToExpire = 999999999.0;
 
-	int size = g_aTimedAttributes.Length;
-
-	for(int i=0;i < size;i++)
+	// Can't declare size because the size changes over time.
+	for(int i=0;i < g_aTimedAttributes.Length;i++)
 	{
 		enTimedAttribute attribute;
 		g_aTimedAttributes.GetArray(i, attribute);
