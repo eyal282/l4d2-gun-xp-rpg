@@ -99,7 +99,7 @@ public void L4D_OnSpawnTank_Post(int client, const float vecPos[3], const float 
         else if(GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) >= float(g_iAdrenalineTimes[perkTree]))
             continue;
 
-        L4D2_UseAdrenaline(i, float(g_iAdrenalineTimes[perkTree]), false);
+        L4D2_UseAdrenaline(i, float(g_iAdrenalineTimes[perkTree]), false, false);
     }
 }
 

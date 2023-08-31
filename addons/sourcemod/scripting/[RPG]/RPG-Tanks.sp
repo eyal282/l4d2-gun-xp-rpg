@@ -28,6 +28,8 @@ public Plugin myinfo = {
 
 ConVar g_hDifficulty;
 
+ConVar g_hMinigunDamageMultiplier;
+
 ConVar g_hPriorityImmunities;
 ConVar g_hPriorityTankSpawn;
 
@@ -277,6 +279,8 @@ public void OnPluginStart()
 
 	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 
+	g_hMinigunDamageMultiplier = UC_CreateConVar("rpg_tanks_minigun_damage_multiplier", "0.1", "Minigun damage multiplier");
+
 	g_hPriorityImmunities = UC_CreateConVar("rpg_tanks_priority_immunities", "2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a tank their immunity from fire or melee.\nWhen making a plugin, feel free to track this cvar's value for reference.");
 	g_hPriorityTankSpawn = UC_CreateConVar("rpg_tanks_priority_finale_tank_spawn", "-5", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 that when a tank spawns, check what tier to give it and give it max HP.");
 
@@ -296,6 +300,7 @@ public void OnPluginStart()
 	RegPluginLibrary("RPG_Tanks");
 
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
+	HookEvent("player_entered_checkpoint", Event_EnterCheckpoint, EventHookMode_Pre);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 
 	g_hDifficulty = FindConVar("z_difficulty");
@@ -303,6 +308,55 @@ public void OnPluginStart()
 	HookConVarChange(g_hDifficulty, cvChange_Difficulty);
 }
 
+public void OnMapStart()
+{
+	TriggerTimer(CreateTimer(0.5, Timer_TanksOpenDoors, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+}
+
+public Action Timer_TanksOpenDoors(Handle hTimer)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(g_iCurrentTank[i] < 0)
+			continue;
+
+		int count = GetEntityCount();
+
+		float fOrigin[3];
+		GetEntPropVector(i, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+		for (int a = MaxClients+1;a < count;a++)
+		{
+			if(!IsValidEdict(a))
+				continue;
+
+			char sClassname[64];
+			GetEdictClassname(a, sClassname, sizeof(sClassname));
+
+			if(strncmp(sClassname, "prop_door_rotating", 18) == 0 || strncmp(sClassname, "func_door", 9) == 0)
+			{
+				float fDoorOrigin[3];
+				GetEntPropVector(a, Prop_Data, "m_vecOrigin", fDoorOrigin);
+
+				if(GetVectorDistance(fOrigin, fDoorOrigin) < 128.0)
+				{
+					AcceptEntityInput(a, "Open");
+				}
+			}
+		}
+	}
+
+	return Plugin_Continue;
+}
 
 public void cvChange_Difficulty(ConVar convar, const char[] oldValue, const char[] newValue)
 {
@@ -323,34 +377,12 @@ public void Func_DifficultyChanged(const char[] newValue)
 
 		SetClientName(i, "Tank");
 
+		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
 }
 
-public void OnMapStart()
-{
-	TriggerTimer(CreateTimer(1.0, Timer_ResetFrustration, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
-}
-
-public Action Timer_ResetFrustration(Handle hTimer)
-{
-	for(int i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
-
-		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-			continue;
-
-		else if(g_iCurrentTank[i] < 0)
-			continue;
-
-		// Not sure if frustration is 100 or 0 as a reset, but 50 will always work.
-		SetEntProp(i, Prop_Send, "m_frustration", 50);
-	}
-
-	return Plugin_Continue;
-}
 public void GunXP_OnReloadRPGPlugins()
 {
 	#if defined _GunXP_RPG_included
@@ -382,20 +414,18 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
 	}
 
 	if(tankCount >= 2)
-		zclass = view_as<L4D2ZombieClassType>(GetRandomInt(1, 6));
+	{
+		if(IsFakeClient(client))
+		{
+			L4D_SetClass(client, view_as<int>(L4D2ZombieClass_Charger));
+			KickClient(client);
+		}
+	}
 }
 public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 {
 	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
 		return;
-
-	int door = L4D_GetCheckpointLast();
-
-	if(door != -1)
-	{
-		AcceptEntityInput(door, "Close");
-		AcceptEntityInput(door, "Lock");
-	}
 
 	int client = entity;
 
@@ -522,6 +552,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 			SetClientName(victim, "Tank");
 
+			RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
 			g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
 		}
 	}
@@ -560,6 +592,11 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	if(tank.meleeDamageImmune && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
 	{
 		bImmune = true;
+	}
+
+	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Machinegun)
+	{
+		damage = damage * g_hMinigunDamageMultiplier.FloatValue;
 	}
 }
 
@@ -902,6 +939,47 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	return Plugin_Continue;
 }
+
+public Action Event_EnterCheckpoint(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	
+	if(client == 0)
+		return Plugin_Continue;
+
+	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor && RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+		return Plugin_Continue;
+
+	int door = GetEventInt(hEvent, "door");
+
+	if(L4D_GetCheckpointLast() == door)
+	{
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+				continue;
+
+			else if(L4D_IsPlayerIncapacitated(i))
+				continue;
+
+			PrintToChatAll(" \x03%N\x01 entered a safe room. %N will be converted to a normal Tank now.", client, i);
+
+			SetClientName(i, "Tank");
+
+			RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+			g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+		}
+	}
+
+	return Plugin_Continue;
+}
 public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -987,16 +1065,6 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			continue;
 
 		tankCount++;
-	}
-
-	if(tankCount == 0)
-	{
-		int door = L4D_GetCheckpointLast();
-
-		if(door != -1)
-		{	
-			AcceptEntityInput(door, "Unlock");
-		}
 	}
 
 	return Plugin_Continue;

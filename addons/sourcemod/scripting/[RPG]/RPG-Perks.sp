@@ -95,12 +95,15 @@ ConVar g_hRPGAdrenalineHealPercent;
 ConVar g_hPainPillsHealPercent;
 ConVar g_hRPGPainPillsHealPercent;
 
+ConVar g_hPainPillsHealThreshold;
+
 ConVar g_hCriticalSpeed;
 ConVar g_hLimpHealth;
 ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnGetMaxLimitedAbility;
 GlobalForward g_fwOnTimedAttributeStart;
 GlobalForward g_fwOnTimedAttributeExpired;
 GlobalForward g_fwOnTimedAttributeTransfered;
@@ -117,6 +120,7 @@ GlobalForward g_fwOnGetRPGAdrenalineDuration;
 GlobalForward g_fwOnGetRPGMedsHealPercent;
 GlobalForward g_fwOnGetRPGKitHealPercent;
 GlobalForward g_fwOnGetRPGReviveHealthPercent;
+GlobalForward g_fwOnGetRPGDefibHealthPercent;
 
 GlobalForward g_fwOnGetRPGKitDuration;
 GlobalForward g_fwOnGetRPGReviveDuration;
@@ -147,6 +151,16 @@ enum struct enTimedAttribute
 
 ArrayList g_aTimedAttributes;
 
+// Per round abilities.
+enum struct enLimitedAbility
+{
+	char identifier[32];
+	char authId[64];
+	int timesUsed;
+}
+
+ArrayList g_aLimitedAbilities;
+
 public void OnPluginEnd()
 {
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
@@ -168,7 +182,8 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_GetClientTempHealth", Native_GetClientTempHealth);
 	CreateNative("RPG_Perks_IsEntityTimedAttribute", Native_IsEntityTimedAttribute);
 	CreateNative("RPG_Perks_ApplyEntityTimedAttribute", Native_ApplyEntityTimedAttribute);
-
+	CreateNative("RPG_Perks_GetClientLimitedAbility", Native_GetClientLimitedAbility);
+	CreateNative("RPG_Perks_UseClientLimitedAbility", Native_UseClientLimitedAbility);
 	return APLRes_Success;
 }
 
@@ -408,6 +423,134 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 	return true;
 }
 
+public int Native_GetClientLimitedAbility(Handle caller, int numParams)
+{
+	if(g_aLimitedAbilities == null)
+	{
+		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
+	}
+
+	int client = GetNativeCell(1);
+	char identifier[32];
+	GetNativeString(2, identifier, sizeof(identifier));
+
+	int size = g_aLimitedAbilities.Length;
+
+	int timesUsed = 0;
+	char sAuthId[64];
+	GetClientAuthId(client, AuthId_Steam2, sAuthId, sizeof(sAuthId));
+
+	for(int i=0;i < size;i++)
+	{
+		enLimitedAbility ability;
+
+		g_aLimitedAbilities.GetArray(i, ability);
+
+
+		if(StrEqual(sAuthId, ability.authId))
+		{
+			timesUsed = ability.timesUsed;
+			break;
+		}
+	}
+
+	int maxUses = 0;
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetMaxLimitedAbility);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+
+		Call_PushString(identifier);
+
+		Call_PushCellRef(maxUses);
+
+		Call_Finish();	
+	}
+
+	SetNativeCellRef(3, timesUsed);
+	SetNativeCellRef(4, maxUses);
+
+	return 0;
+}
+
+public int Native_UseClientLimitedAbility(Handle caller, int numParams)
+{
+	if(g_aLimitedAbilities == null)
+	{
+		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
+
+		return false;
+	}
+
+	int client = GetNativeCell(1);
+	char identifier[32];
+	GetNativeString(2, identifier, sizeof(identifier));
+
+	int size = g_aLimitedAbilities.Length;
+
+	int pos = -1;
+	int timesUsed = 0;
+	char sAuthId[64];
+	GetClientAuthId(client, AuthId_Steam2, sAuthId, sizeof(sAuthId));
+
+	for(int i=0;i < size;i++)
+	{
+		enLimitedAbility ability;
+
+		g_aLimitedAbilities.GetArray(i, ability);
+
+		if(StrEqual(sAuthId, ability.authId))
+		{
+			timesUsed = ability.timesUsed;
+			pos = i;
+			break;
+		}
+	}
+
+	if(pos == -1)
+	{
+		enLimitedAbility ability;
+
+		ability.identifier = identifier;
+		ability.authId = sAuthId;
+		ability.timesUsed = 0;
+
+		pos = g_aLimitedAbilities.PushArray(ability);
+	}
+
+	int maxUses = 0;
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetMaxLimitedAbility);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+
+		Call_PushString(identifier);
+		
+		Call_PushCellRef(maxUses);
+
+		Call_Finish();	
+	}
+
+	if(timesUsed >= maxUses)
+		return false;
+
+
+	enLimitedAbility ability;
+
+	ability.identifier = identifier;
+	ability.authId = sAuthId;
+	ability.timesUsed = timesUsed + 1;
+
+	g_aLimitedAbilities.SetArray(pos, ability);
+	return true;
+}
+
 public Action Timer_CheckAttributeExpire(Handle hTimer)
 {
 	delete g_hCheckAttributeExpire;
@@ -452,7 +595,7 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 	if(shortestToExpire < 99999999.0)
 	{
-		CreateTimer(shortestToExpire - GetGameTime(), Timer_CheckAttributeExpire, _, TIMER_FLAG_NO_MAPCHANGE);
+		g_hCheckAttributeExpire = CreateTimer(shortestToExpire - GetGameTime(), Timer_CheckAttributeExpire, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	return Plugin_Stop;
 }
@@ -472,6 +615,7 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	g_hAdrenalineDuration.FloatValue = 0.0;
 	g_hAdrenalineHealPercent.IntValue = 0;
 	g_hPainPillsHealPercent.IntValue = 0;
+	g_hPainPillsHealThreshold.IntValue = 65535;
 
 	g_hKitMaxHeal.IntValue = 65535;
 	// Prediction error fix.
@@ -556,9 +700,13 @@ public void OnPluginStart()
 {
 	if(g_aTimedAttributes == null)
 		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
+	
+	if(g_aLimitedAbilities == null)
+		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
 
 	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Pre);
 	HookEvent("player_hurt", Event_PlayerHurt);
 	HookEvent("player_incapacitated_start", Event_PlayerIncapStartPre, EventHookMode_Pre);
 	HookEvent("heal_begin", Event_HealBegin);
@@ -566,6 +714,7 @@ public void OnPluginStart()
 	HookEvent("adrenaline_used", Event_AdrenalineUsed);
 	HookEvent("pills_used", Event_PillsUsed);
 	HookEvent("revive_success", Event_ReviveSuccess, EventHookMode_Post);
+	HookEvent("defibrillator_used", Event_DefibUsed, EventHookMode_Post);
 	HookEvent("bot_player_replace", Event_PlayerReplacesABot, EventHookMode_Post);
 	HookEvent("player_bot_replace", Event_BotReplacesAPlayer, EventHookMode_Post);
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Post);
@@ -577,6 +726,11 @@ public void OnPluginStart()
 	HookEvent("jockey_ride_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
+
+	g_fwOnGetMaxLimitedAbility = CreateGlobalForward("RPG_Perks_OnGetMaxLimitedAbility", ET_Ignore, Param_Cell, Param_Cell, Param_String, Param_CellByRef);
+
+	g_fwOnTimedAttributeExpired = CreateGlobalForward("RPG_Perks_OnTimedAttributeExpired", ET_Ignore, Param_Cell, Param_String);
+	g_fwOnTimedAttributeTransfered = CreateGlobalForward("RPG_Perks_OnTimedAttributeTransfered", ET_Ignore, Param_Cell, Param_Cell, Param_String);
 
 	g_fwOnTimedAttributeStart = CreateGlobalForward("RPG_Perks_OnTimedAttributeStart", ET_Ignore, Param_Cell, Param_String, Param_Cell);
 	g_fwOnTimedAttributeExpired = CreateGlobalForward("RPG_Perks_OnTimedAttributeExpired", ET_Ignore, Param_Cell, Param_String);
@@ -594,6 +748,7 @@ public void OnPluginStart()
 	g_fwOnGetRPGMedsHealPercent = CreateGlobalForward("RPG_Perks_OnGetMedsHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGKitHealPercent = CreateGlobalForward("RPG_Perks_OnGetKitHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnGetRPGReviveHealthPercent = CreateGlobalForward("RPG_Perks_OnGetReviveHealthPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
+	g_fwOnGetRPGDefibHealthPercent = CreateGlobalForward("RPG_Perks_OnGetDefibHealthPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 
 	g_fwOnGetRPGKitDuration = CreateGlobalForward("RPG_Perks_OnGetKitDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGReviveDuration = CreateGlobalForward("RPG_Perks_OnGetReviveDuration", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef);
@@ -639,6 +794,8 @@ public void OnPluginStart()
 
 	g_hRPGPainPillsHealPercent = AutoExecConfig_CreateConVar("rpg_pain_pills_health_value", "50", "Default percent of max HP pain pills heal for");
 	g_hPainPillsHealPercent = FindConVar("pain_pills_health_value");
+
+	g_hPainPillsHealThreshold = FindConVar("pain_pills_health_threshold");
 
 	g_hRPGAdrenalineDuration = AutoExecConfig_CreateConVar("rpg_adrenaline_duration", "15.0", "Default time adrenaline lasts for.");
 	g_hAdrenalineDuration = FindConVar("adrenaline_duration");
@@ -939,6 +1096,8 @@ public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	g_fRoundStartTime = GetGameTime();
 
+	g_aLimitedAbilities.Clear();
+
 	return Plugin_Continue;
 }
 
@@ -958,6 +1117,21 @@ public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	return Plugin_Continue;
 }
+
+public Action Event_TankKilled(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	else if(L4D2_GetPlayerZombieClass(client) == L4D2ZombieClass_Tank)
+		return Plugin_Continue;
+
+	dontBroadcast = true;
+	return Plugin_Handled;
+}
+
 
 public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 {
@@ -1017,7 +1191,16 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	return Plugin_Continue;
 }
+
 public void Event_PlayerSpawnFrame(int UserId)
+{
+	RequestFrame(Event_PlayerSpawnTwoFrames, UserId);
+}
+public void Event_PlayerSpawnTwoFrames(int UserId)
+{
+	RequestFrame(Event_PlayerSpawnThreeFrames, UserId);
+}
+public void Event_PlayerSpawnThreeFrames(int UserId)
 {
 	int client = GetClientOfUserId(UserId);
 
@@ -1059,6 +1242,7 @@ public void Event_PlayerSpawnFrame(int UserId)
 				RemoveEdict(weapon);
 			}
 
+			L4D2_SetPlayerZombieClass(client, zclass);
 			L4D_SetClass(client, view_as<int>(zclass));
 
 			if(IsFakeClient(client))	
@@ -1254,6 +1438,8 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
+	RequestFrame(Event_PlayerSpawnFrame, GetClientUserId(newPlayer));
+
 	return Plugin_Continue;
 }
 public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool dontBroadcast)
@@ -1268,6 +1454,8 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_iLastTemporaryHealth[newPlayer] = 0;
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
+
+	RequestFrame(Event_PlayerSpawnFrame, GetClientUserId(newPlayer));
 
 	return Plugin_Continue;
 }
@@ -1470,6 +1658,73 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 				//SetEntProp(newWeapon, Prop_Send, "m_iClip1", GetEntProp(newWeapon, Prop_Send, "m_iClip1") * 2);
 			}
 		}
+	}
+	
+	return Plugin_Continue;
+}
+
+
+public Action Event_DefibUsed(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+
+	int revived = GetClientOfUserId(event.GetInt("subject"));
+
+	if(revived == 0)
+		return Plugin_Continue;
+
+	int temporaryHealthPercent = 0;
+	int permanentHealthPercent = 0;
+
+	Call_StartForward(g_fwOnGetRPGDefibHealthPercent);
+
+	Call_PushCell(client);
+	Call_PushCell(revived);
+
+	Call_PushCellRef(temporaryHealthPercent);
+	Call_PushCellRef(permanentHealthPercent);
+
+	Call_Finish();
+
+	int maxHP = 100;
+	
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetRPGMaxHP);
+
+		Call_PushCell(a);
+		Call_PushCell(revived);
+		
+		Call_PushCellRef(maxHP);
+
+		Call_Finish();	
+	}
+
+	if(maxHP <= 0)
+		maxHP = 100;
+
+	SetEntityMaxHealth(revived, maxHP);
+
+	if(temporaryHealthPercent == 0 && permanentHealthPercent == 0)
+	{
+		permanentHealthPercent = 50;
+	}
+	if(temporaryHealthPercent < 0)
+		temporaryHealthPercent = 0;
+
+	if(permanentHealthPercent < 0)
+		permanentHealthPercent = 0;
+
+	SetEntityHealth(revived, 0);
+	L4D_SetPlayerTempHealth(revived, 0);
+	g_iTemporaryHealth[revived] = 0;
+
+	GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100.0)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100.0)));
+
+	if(GetEntityHealth(revived) == 0)
+	{
+		SetEntityHealth(revived, 1);
+		GunXP_GiveClientHealth(revived, 0, -1);
 	}
 	
 	return Plugin_Continue;
@@ -1874,8 +2129,9 @@ public void Frame_GhostState(int userid)
 			RemovePlayerItem(client, weapon);
 			RemoveEdict(weapon);
 		}
-
+		
 		L4D_SetClass(client, view_as<int>(zclass));
+		L4D2_SetPlayerZombieClass(client, zclass);
 	}
 
 	int maxHP = RPG_Perks_GetClientHealth(client);
