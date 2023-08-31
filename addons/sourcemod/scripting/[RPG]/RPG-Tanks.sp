@@ -300,8 +300,10 @@ public void OnPluginStart()
 	RegPluginLibrary("RPG_Tanks");
 
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
-	HookEvent("player_entered_checkpoint", Event_EnterCheckpoint, EventHookMode_Pre);
+	HookEvent("player_entered_checkpoint", Event_EnterCheckpoint, EventHookMode_Post);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
+
+	HookEntityOutput("trigger_gravity", "OnStartTouch", OnStartTouchTriggerGravity);
 
 	g_hDifficulty = FindConVar("z_difficulty");
 
@@ -321,7 +323,10 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 			continue;
 
 		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+		{
+			//SetEntPropFloat(i, Prop_Send, "m_tugTimer", GetGameTime() - 5.0, 2);
 			continue;
+		}
 
 		else if(!IsPlayerAlive(i))
 			continue;
@@ -918,6 +923,44 @@ public int SortADT_Tanks(int index1, int index2, Handle array, Handle hndl)
 	
 }
 
+
+public void OnStartTouchTriggerGravity(const char[] output, int caller, int activator, float delay)
+{
+	int client = activator;
+	
+	if(!IsPlayer(client))
+		return;
+
+	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor && RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+		return;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(L4D_IsPlayerIncapacitated(i))
+			continue;
+
+		else if(g_iCurrentTank[i] < 0)
+			continue;
+
+		PrintToChatAll(" \x03%N\x01 entered a trigger_gravity. %N will be converted to a normal Tank now.", client, i);
+
+		SetClientName(i, "Tank");
+
+		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+	}
+}
+
 public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -969,6 +1012,9 @@ public Action Event_EnterCheckpoint(Handle hEvent, char[] Name, bool dontBroadca
 				continue;
 
 			else if(L4D_IsPlayerIncapacitated(i))
+				continue;
+
+			else if(g_iCurrentTank[i] < 0)
 				continue;
 
 			PrintToChatAll(" \x03%N\x01 entered a safe room. %N will be converted to a normal Tank now.", client, i);

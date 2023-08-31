@@ -23,6 +23,8 @@ public Plugin myinfo =
     url         = ""
 };
 
+ConVar hcv_Difficulty;
+
 int knifeIndex;
 
 bool g_bSpam[MAXPLAYERS+1];
@@ -42,6 +44,7 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
+    hcv_Difficulty = FindConVar("z_difficulty");
     RegisterSkill();
 }
 
@@ -59,6 +62,22 @@ public void RPG_Perks_OnGetMaxLimitedAbility(int priority, int client, char iden
         return;
 
     maxUses++;
+
+    char sDifficulty[16];
+    hcv_Difficulty.GetString(sDifficulty, sizeof(sDifficulty));
+
+    if(StrEqual(sDifficulty, "Hard", false))
+    {
+        maxUses++;
+    }
+    else if(StrEqual(sDifficulty, "Normal", false))
+    {
+        maxUses += 2;
+    }
+    else if(StrEqual(sDifficulty, "Easy", false))
+    {
+        maxUses += 3;
+    }
 }
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
 {
@@ -96,6 +115,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
             RPG_Perks_GetClientLimitedAbility(client, "Knife", timesUsed, maxUses);
 
             PrintToChat(client, "Successfully used the Knife (%i/%i)", timesUsed, maxUses);
+            
             g_iJumpCount[client] = 0;
 
             g_bSpam[client] = true;
@@ -142,7 +162,7 @@ public Action Timer_SpamOff(Handle Timer, int client)
 
 public void RegisterSkill()
 {
-    knifeIndex = GunXP_RPGShop_RegisterSkill("Knife", "Knife", "Triple click +JUMP to instantly kill a Special Infected that pins you.\nYou only get 1 knife per round.",
+    knifeIndex = GunXP_RPGShop_RegisterSkill("Knife", "Knife", "Triple click +JUMP to instantly kill a Special Infected that pins you.\nYou only get 1 knife per round.\nYou get 1 extra knife per difficulty under Expert.",
     1000, 0);
 }
 

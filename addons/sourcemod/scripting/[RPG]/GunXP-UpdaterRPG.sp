@@ -21,7 +21,7 @@ public Plugin myinfo =
 
 Handle g_Timer;
 
-public void OnMapEnd()
+public void OnPluginEnd()
 {
 	RemoveServerTag2("GunXP");
 	RemoveServerTag2("GunXP-RPG");
@@ -29,7 +29,7 @@ public void OnMapEnd()
 	RemoveServerTag2("RPG");
 }
 
-public void OnMapStart()
+public void OnConfigsExecuted()
 {
 	AddServerTag2("GunXP");
 	AddServerTag2("GunXP-RPG");

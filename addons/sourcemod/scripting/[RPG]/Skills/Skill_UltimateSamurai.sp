@@ -89,7 +89,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		else if(damage == 0.0)
 			return;
 
-		IgniteEntity(victim, 999.0);
+		SDKHooks_TakeDamage(victim, attacker, attacker, 0.0, DMG_BURN);
 	}
 	if(priority != g_hDamagePriority.IntValue)
         return;
