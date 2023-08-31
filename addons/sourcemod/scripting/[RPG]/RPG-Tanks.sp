@@ -594,7 +594,10 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		bImmune = true;
 	}
 
-	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Machinegun)
+	char sClassname[64];
+	GetEdictClassname(inflictor, sClassname, sizeof(sClassname));
+
+	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Machinegun || StrEqual(sClassname, "prop_minigun"))
 	{
 		damage = damage * g_hMinigunDamageMultiplier.FloatValue;
 	}
