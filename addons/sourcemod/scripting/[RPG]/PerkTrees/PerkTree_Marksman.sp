@@ -11,9 +11,9 @@
 
 public Plugin myinfo =
 {
-    name        = "Melee Damage Perk Tree --> Gun XP RPG",
+    name        = "Marksman Perk Tree --> Gun XP RPG",
     author      = "Eyal282",
-    description = "Perk tree to increase base melee damage",
+    description = "Perk tree to multiply ranged weapon damage.",
     version     = PLUGIN_VERSION,
     url         = ""
 };

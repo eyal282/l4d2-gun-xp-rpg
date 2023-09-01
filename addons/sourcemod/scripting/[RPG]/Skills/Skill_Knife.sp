@@ -16,9 +16,9 @@ int g_iJumpCount[MAXPLAYERS+1];
 
 public Plugin myinfo =
 {
-    name        = "Bile Goggles Skill --> Gun XP - RPG",
+    name        = "Knife Skill --> Gun XP - RPG",
     author      = "Eyal282",
-    description = "Skill that gives you a pair of Bile Goggles to remove to be able to see again.",
+    description = "Skill that a knife to free from Special Infected.",
     version     = PLUGIN_VERSION,
     url         = ""
 };
@@ -41,6 +41,16 @@ public void OnConfigsExecuted()
 {
     RegisterSkill();
 
+}
+
+public void OnMapStart()
+{
+    for(int i=0;i < sizeof(g_fNextExpireJump);i++)
+    {
+        g_fNextExpireJump[i] = 0.0;
+
+        g_iJumpCount[i] = 0;
+    }
 }
 public void OnPluginStart()
 {
@@ -115,7 +125,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
             RPG_Perks_GetClientLimitedAbility(client, "Knife", timesUsed, maxUses);
 
             PrintToChat(client, "Successfully used the Knife (%i/%i)", timesUsed, maxUses);
-            
+
             g_iJumpCount[client] = 0;
 
             g_bSpam[client] = true;

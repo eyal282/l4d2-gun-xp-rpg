@@ -12,9 +12,9 @@
 
 public Plugin myinfo =
 {
-    name        = "Hyperactive Skill --> Gun XP - RPG",
+    name        = "Sniper Skill --> Gun XP - RPG",
     author      = "Eyal282",
-    description = "Skill that makes using meds give you faster attack speed with melee.",
+    description = "Skill that gives you near perfect aim while standing and incapped.",
     version     = PLUGIN_VERSION,
     url         = ""
 };
@@ -67,8 +67,8 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 
 public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 {
-	if(skillIndex != sniperIndex)
-		return;
+    if(skillIndex != sniperIndex)
+        return;
 
     SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
     SendConVarValue(client, hcv_IncapCameraShake, "0.0");
@@ -76,8 +76,8 @@ public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
 {
-	if(priority != 0)
-		return;
+    if(priority != 0)
+        return;
 
     else if(!GunXP_RPGShop_IsSkillUnlocked(client, sniperIndex))
         return;

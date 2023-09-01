@@ -378,6 +378,9 @@ public void Func_DifficultyChanged(const char[] newValue)
 		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
 			continue;
 
+		else if(g_iCurrentTank[i] < 0)
+			continue;
+			
 		PrintToChatAll(" \x03%N\x01 will be converted to a normal Tank for the difficulty change.", i);
 
 		SetClientName(i, "Tank");

@@ -11,9 +11,9 @@
 
 public Plugin myinfo =
 {
-    name        = "Vampire Perk Tree --> Gun XP RPG",
+    name        = "Adrenaline Run Perk Tree --> Gun XP RPG",
     author      = "Eyal282",
-    description = "Perk tree to give temporary health when killing commons and SI.",
+    description = "Perk tree to give adrenaline boost when a tank spawns.",
     version     = PLUGIN_VERSION,
     url         = ""
 };

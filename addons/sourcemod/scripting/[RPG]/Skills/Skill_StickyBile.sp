@@ -86,7 +86,10 @@ public Action Event_PlayerNowIt(Handle hEvent, const char[] Name, bool dontBroad
     int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
     int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
     
-    if(!GunXP_RPGShop_IsSkillUnlocked(attacker, bileIndex))
+	if(attacker == 0 || victim == 0)
+		return;
+
+    else if(!GunXP_RPGShop_IsSkillUnlocked(attacker, bileIndex))
 		return;
 
     
