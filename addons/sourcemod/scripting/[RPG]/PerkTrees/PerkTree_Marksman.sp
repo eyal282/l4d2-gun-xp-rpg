@@ -46,12 +46,12 @@ float g_fMarksmanDamageIncrease[] =
     15.0,
     16.0,
     17.0,
+    18.0,
+    19.0,
     20.0,
-    25.0,
-    30.0,
-    35.0,
-    40.0,
-    50.0
+    21.0,
+    23.0,
+    25.0
 };
 
 int g_iMarksmanCosts[] =
