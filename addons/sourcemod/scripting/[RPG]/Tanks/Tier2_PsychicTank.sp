@@ -418,7 +418,7 @@ public void RegisterTank()
 	//RPG_Tanks_RegisterPassiveAbility(tankIndex, "Psychic Rock", "Tank rock will kill a survivor hit by it.", 0, 0);
 
 	weakerTankIndex = RPG_Tanks_RegisterTank(1, 5, "Apprentice Psychic", "A weak Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 30 seconds.",
-	500000, 180, 0.2, 500, 500, true, true);
+	500000, 180, 0.2, 500, 750, true, true);
 
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Bullet Release", "Tank must be under 90{PERCENT} HP to use this ability\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 4 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Psychokinesis", "Closest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 10 seconds before release.", 0, 0);
