@@ -41,14 +41,6 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    AutoExecConfig_SetFile("GunXP-RPGShop.cfg");
-
-    g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_anger_ignition_damage_priority", "0", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
-
-    AutoExecConfig_ExecuteFile();
-
-    AutoExecConfig_CleanFile();
-
     RegisterSkill();
 }
 
@@ -84,6 +76,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 public void CastAngerIgnition(int client)
 {
+    PrintToChat(client, "Anger Ignition was activated!");
+    
     float fTargetOrigin[3];
 
     GetEntPropVector(client, Prop_Data, "m_vecOrigin", fTargetOrigin);
@@ -147,7 +141,7 @@ public void CastAngerIgnition(int client)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Taking damage from Common Infected has a chance to ignite everything around.\nRadius is 512 units.\nChance is %.1f{PERCENT} per %i Levels", RoundFloat(g_fChancePerLevels * 100.0), g_iChanceLevels * 100.0);
+    FormatEx(sDescription, sizeof(sDescription), "Taking damage from Common Infected has a chance to ignite everything around.\nRadius is 512 units.\nChance is %.1f{PERCENT} per %i Levels", g_fChancePerLevels * 100.0, g_iChanceLevels);
     ignitionIndex = GunXP_RPGShop_RegisterSkill("Anger Ignition", "Anger Ignition", sDescription,
     150000, 0);
 }
