@@ -380,7 +380,7 @@ public void Func_DifficultyChanged(const char[] newValue)
 
 		else if(g_iCurrentTank[i] < 0)
 			continue;
-			
+
 		PrintToChatAll(" \x03%N\x01 will be converted to a normal Tank for the difficulty change.", i);
 
 		SetClientName(i, "Tank");
@@ -1070,7 +1070,12 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			PrintToChat(i, "You dealt\x03 %.1f%%\x01 of %N's max HP as damage", float(g_iDamageTaken[victim][i]) / float(RPG_Perks_GetClientMaxHealth(victim)) * 100.0, victim);
 		}
 
-		if(LibraryExists("GunXP-RPG") && float(g_iDamageTaken[victim][i]) / float(tank.maxHP) < 0.05)
+		float fMinDamageRatio = 0.05;
+
+		if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientLevel(i) <= 6)
+			fMinDamageRatio = 0.01;
+
+		if(LibraryExists("GunXP-RPG") && float(g_iDamageTaken[victim][i]) / float(tank.maxHP) < fMinDamageRatio)
 		{
 			PrintToChat(i, "This is not enough to gain XP rewards.", victim);
 

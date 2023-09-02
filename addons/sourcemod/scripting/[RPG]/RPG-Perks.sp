@@ -208,10 +208,28 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 	if(maxHP <= 0)
 		maxHP = 100;
 
+	float fOldPermanentPercent = float(GetEntityHealth(client)) / float(GetEntityMaxHealth(client));
+	float fOldTemporaryPercent = float(L4D_GetPlayerTempHealth(client)) / float(GetEntityMaxHealth(client));
+
 	SetEntityMaxHealth(client, maxHP);
 
-	// Fixes all violations of max HP.
-	GunXP_GiveClientHealth(client, 0, 0);
+	float fPermanentPercent = float(GetEntityHealth(client)) / float(GetEntityMaxHealth(client));
+	float fTemporaryPercent = float(L4D_GetPlayerTempHealth(client)) / float(GetEntityMaxHealth(client));
+
+	int iPermanentHealth = 0;
+	int iTemporaryHealth = 0;
+
+	if(fPermanentPercent != fOldPermanentPercent)
+	{
+		iPermanentHealth = RoundToFloor(fOldPermanentPercent * float(GetEntityMaxHealth(client))) - GetEntityHealth(client);
+	}
+
+	if(fTemporaryPercent != fOldTemporaryPercent)
+	{
+		iTemporaryHealth = RoundToFloor((fOldTemporaryPercent * GetEntityMaxHealth(client))) - L4D_GetPlayerTempHealth(client);
+	}
+
+	GunXP_GiveClientHealth(client, iPermanentHealth, iTemporaryHealth);
 
 	return 0;
 }
@@ -1437,6 +1455,8 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
+	RPG_Perks_RecalculateMaxHP(newPlayer);
+
 	RequestFrame(Event_PlayerSpawnFrame, GetClientUserId(newPlayer));
 
 	return Plugin_Continue;
@@ -1453,6 +1473,8 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_iLastTemporaryHealth[newPlayer] = 0;
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
+
+	RPG_Perks_RecalculateMaxHP(newPlayer);
 
 	RequestFrame(Event_PlayerSpawnFrame, GetClientUserId(newPlayer));
 

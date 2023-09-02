@@ -2565,14 +2565,6 @@ stock void ResetPerkTreesAndSkills(int client)
 
 	g_iXPCurrency[client] = g_iXP[client];
 
-	if(IsPlayerAlive(client))
-	{
-		SetEntityMaxHealth(client, 100);
-
-		if(GetEntityHealth(client) > 100)
-			SetEntityHealth(client, 100);
-	}
-
 	Transaction transaction = SQL_CreateTransaction();
 
 	char AuthId[35];
@@ -2589,6 +2581,12 @@ stock void ResetPerkTreesAndSkills(int client)
 	SQL_AddQuery(transaction, sQuery);
 
 	dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
+
 }
 
 
