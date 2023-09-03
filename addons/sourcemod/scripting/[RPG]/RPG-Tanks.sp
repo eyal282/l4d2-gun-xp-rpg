@@ -613,7 +613,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		damage = damage * g_hMinigunDamageMultiplier.FloatValue;
 	}
 
-	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_GrenadeLauncher || StrEqual(sClassname, "weapon_grenade_launcher"))
+	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_GrenadeLauncher || StrEqual(sClassname, "grenade_launcher_projectile"))
 	{
 		damage = damage * g_hRPGDamageMultiplier.FloatValue;
 	}
