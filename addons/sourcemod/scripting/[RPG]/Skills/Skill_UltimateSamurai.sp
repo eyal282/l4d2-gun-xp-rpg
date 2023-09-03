@@ -59,17 +59,6 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnGetMaxHP(int priority, int client, int &maxHP)
-{
-	if(priority != 0)
-		return;
-
-	else if(!GunXP_RPGShop_IsSkillUnlocked(client, samuraiIndex))
-		return;
-
-	maxHP += 5 * GunXP_RPG_GetClientLevel(client);
-}
-
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
 	if(priority == 10)
@@ -134,7 +123,7 @@ public void WH_OnMeleeSwing(int client, int weapon, float &speedmodifier)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Melee swings gain +%i{PERCENT} speed per %i levels\nDeploy melee instantly.\nMelee sets targets on fire.\n+%i{PERCENT} melee damage per %i levels.\n+5 Max HP per Level", RoundFloat(g_fSwingSpeedPerLevels * 100.0), g_iSwingSpeedLevels, RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels);
+	FormatEx(sDescription, sizeof(sDescription), "Melee swings gain +%i{PERCENT} speed per %i levels\nDeploy melee instantly.\nMelee sets targets on fire.\n+%i{PERCENT} melee damage per %i levels.", RoundFloat(g_fSwingSpeedPerLevels * 100.0), g_iSwingSpeedLevels, RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels);
    	samuraiIndex = GunXP_RPGShop_RegisterSkill("Ultimate Samurai", "Ultimate Samurai", sDescription,
 	80000, 200000);
 }

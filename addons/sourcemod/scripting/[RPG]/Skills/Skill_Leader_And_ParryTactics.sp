@@ -90,7 +90,6 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 		if(GunXP_RPGShop_IsSkillUnlocked(victim, parryTacticsIndex) || (reviver != -1 && GunXP_RPGShop_IsSkillUnlocked(reviver, leaderIndex)))
 		{
-			
 			bDontInterruptActions = true;
 		}
 	}

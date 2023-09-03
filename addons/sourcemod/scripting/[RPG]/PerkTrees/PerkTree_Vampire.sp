@@ -24,22 +24,23 @@ int vampireIndex = -1;
 
 int g_iCommonKills[MAXPLAYERS+1];
 
+
 int g_iSIValues[] =
 {
-    10,
-    15,
-    20,
-    25,
-    30
+    3,
+    6,
+    9,
+    12,
+    15
 };
 
 int g_iCommonRequirements[] =
 {
-    5,
+    10,
+    8,
+    6,
     4,
-    3,
-    2,
-    1
+    2
 };
 
 int g_iTemporaryHealthReward[] =
@@ -57,7 +58,27 @@ int g_iPermanentHealthReward[] =
     0,
     1,
     2,
-    3
+    2
+};
+
+
+int g_iVampireCosts[] =
+{
+    0,
+    1000,
+    10000,
+    25000,
+    50000,
+
+};
+
+int g_iVampireReqs[] =
+{
+    1000,
+    10000,
+    50000,
+    100000,
+    250000,
 };
 
 public void OnLibraryAdded(const char[] name)
@@ -164,25 +185,20 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+1 temporary health per 5 commons killed.\nSI are equal to 3 commons.");
-    costs.Push(1000);
-    xpReqs.Push(0);
+    for(int i=0;i < sizeof(g_iTemporaryHealthReward);i++)
+    {
+        char TempFormat[128];
 
-    descriptions.PushString("+1 temporary health per 4 commons killed.\nSI are equal to 4 commons.");
-    costs.Push(4000);
-    xpReqs.Push(6000);
+        if(g_iPermanentHealthReward[i] > 0)
+            FormatEx(TempFormat, sizeof(TempFormat), "+%i Temp HP & +%i Perm HP per %i commons killed.\nSI are equal to %i commons.", g_iTemporaryHealthReward[i], g_iPermanentHealthReward[i], g_iCommonRequirements[i], g_iSIValues[i]);
 
-    descriptions.PushString("+1 temporary health per 3 commons killed.\nSI are equal to 5 commons.");
-    costs.Push(10000);
-    xpReqs.Push(12500);
+        else
+            FormatEx(TempFormat, sizeof(TempFormat), "+%i Temp HP per %i commons killed.\nSI are equal to %i commons.", g_iPermanentHealthReward[i], g_iCommonRequirements[i], g_iSIValues[i]);
 
-    descriptions.PushString("+1 permanent health per 3 commons killed.\nSI are equal to 5 commons.");
-    costs.Push(10000);
-    xpReqs.Push(12500);
-
-    descriptions.PushString("+2 permanent health per 4 commons killed.\nSI are equal to 5 commons.");
-    costs.Push(50000);
-    xpReqs.Push(100000);
+        descriptions.PushString(TempFormat);
+        costs.Push(g_iVampireCosts[i]);
+        xpReqs.Push(g_iVampireReqs[i]);
+    }
 
     vampireIndex = GunXP_RPGShop_RegisterPerkTree("Vampire", "Vampire", descriptions, costs, xpReqs);
 }

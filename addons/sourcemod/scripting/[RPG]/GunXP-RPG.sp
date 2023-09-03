@@ -1055,7 +1055,13 @@ public Action Timer_AutoRPG(Handle hTimer)
 		else if(!g_bLoadedFromDB[i])
 			continue;
 
-		else if(!IsClientAutoRPG(i))
+		if(GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) > GetClientXP(i))
+		{
+			ResetPerkTreesAndSkills(i);
+
+			PrintToChat(i, "\x04[Gun-XP] \x01Your \x03 Perk Trees and Skills\x01 were reset to compensate for a price change.");
+		}
+		if(!IsClientAutoRPG(i))
 			continue;
 		
 		int iPosPerkTree;
@@ -1278,7 +1284,7 @@ public Action SDKEvent_WeaponEquip(int client, int weapon)
 			break;
 		}
 	}
-    
+	
 	if(g_iLevel[client] < i && Found)
 	{
 		AcceptEntityInput(weapon, "Kill");
@@ -3176,6 +3182,10 @@ stock int GetXPWorthOfPerkTrees(int client)
 
 		for(int a=0;a <= g_iUnlockedPerkTrees[client][i];a++)
 		{
+			if(a >= iPerkTree.costs.Length)
+			{
+				return 500000000;
+			}
 			totalXPWorth += iPerkTree.costs.Get(a);
 		}
 	}
@@ -3216,13 +3226,13 @@ stock int GetClosestLevelToXP(int xp)
 
 stock void StringToKMB(int number, char[] buffer, int length)
 {
-    if(number < 1000)
+	if(number < 1000)
 	{
 		FormatEx(buffer, length, "%i", number);
 		return;
 	}
 
-    switch(RoundToFloor(Logarithm(float(number))))
+	switch(RoundToFloor(Logarithm(float(number))))
 	{
 		case 3, 4, 5:
 			FormatEx(buffer, length, "%i.%iK", RoundToFloor(float(number) / 1000.0), TrueFloatFraction(float(number) / 1000.0));

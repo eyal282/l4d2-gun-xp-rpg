@@ -1081,6 +1081,36 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		return Plugin_Continue;
 	}
 
+	if(L4D_IsFinaleEscapeInProgress())
+	{
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+				continue;
+
+			else if(L4D_IsPlayerIncapacitated(i))
+				continue;
+
+			else if(g_iCurrentTank[i] < 0)
+				continue;
+
+			PrintToChatAll(" The Finale was won. %N will be converted to a normal Tank now.", i);
+
+			SetClientName(i, "Tank");
+
+			RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+			g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+		}
+
+	}
+	
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[victim], tank);
 

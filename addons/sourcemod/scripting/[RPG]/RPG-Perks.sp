@@ -62,6 +62,8 @@ bool g_bTeleported[MAXPLAYERS+1];
 
 Handle g_hCheckAttributeExpire;
 
+ConVar g_hRPGDeathCheckMode;
+
 ConVar g_hRPGTriggerHurtMultiplier;
 
 ConVar g_hRPGIncapPistolPriority;
@@ -168,6 +170,11 @@ public void OnPluginEnd()
 	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
 	g_hAdrenalineHealPercent.IntValue = g_hRPGAdrenalineHealPercent.IntValue;
 	g_hPainPillsHealPercent.IntValue = g_hRPGPainPillsHealPercent.IntValue;
+
+	char sCode[64];
+	FormatEx(sCode, sizeof(sCode), "MutationOptions <- { function EndScriptedMode() { return 1; }");
+
+	L4D2_ExecVScriptCode(sCode);
 }
 
 
@@ -638,6 +645,8 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	// Prediction error fix.
 	g_hCriticalSpeed.FloatValue = DEFAULT_RUN_SPEED;
 
+	bool g_bEndConditionMet = true;
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -648,6 +657,12 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 		else if(!IsPlayerAlive(i))
 			continue;
+
+		if(g_hRPGDeathCheckMode.IntValue == 2)
+			g_bEndConditionMet = false;
+
+		else if(g_hRPGDeathCheckMode.IntValue == 1 && !IsFakeClient(i))
+			g_bEndConditionMet = false;
 
 		if(!L4D_HasAnySurvivorLeftSafeArea())
 		{
@@ -710,6 +725,13 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		}
 	}
 
+	if(g_bEndConditionMet)
+	{
+		char sCode[128];
+		FormatEx(sCode, sizeof(sCode), "g_ModeScript.GetDirectorOptions().EndScriptedMode <- function() { return %i }", g_bEndConditionMet ? 1 : -1);
+
+		L4D2_ExecVScriptCode(sCode);
+	}
 	return Plugin_Continue;
 }
 
@@ -777,6 +799,8 @@ public void OnPluginStart()
 	g_fwOnCalculateDamage = CreateGlobalForward("RPG_Perks_OnCalculateDamage", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 
 	AutoExecConfig_SetFile("RPG-Perks");
+
+	g_hRPGDeathCheckMode = AutoExecConfig_CreateConVar("rpg_death_check_mode", "1", "0: Normal behaviour. 1: Round won't end until humans are dead. 2: Round won't end until survivors are dead.");
 
 	g_hRPGIncapPistolPriority = AutoExecConfig_CreateConVar("rpg_incap_pistol_priority", "0", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
 
@@ -1864,11 +1888,11 @@ public void OnClientPutInServer(int client)
 
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {
+	
 	if(damage == 0.0)
 		return Plugin_Continue;
 
-	// Avoid double reduction of damage in both Event_TraceAttack and Event_TakeDamage
-	else if((IsPlayer(victim) && IsPlayer(attacker)) && !(damagetype & DMG_FALL || damagetype & DMG_BURN))
+	else if(!SurvivorVictimNextBotAttacker(victim, attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -1878,7 +1902,10 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 	damage = fFinalDamage;
 
 	return rtn;
+	
 }
+
+// Trace Attack does not trigger with common on survivor violence. ACCOUNT FOR IT.
 public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {	
 	if(damage == 0.0)
@@ -1888,9 +1915,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	else if(damagetype & DMG_FALL || damagetype & DMG_BURN)
 		return Plugin_Continue;
 
-	// Commons don't trigger this event, maybe they will in the future?
-	// Edit: I think commons do trigger this but I made some programming errors. Oh well.
-	else if(!IsPlayer(victim) || !IsPlayer(attacker))
+	else if(SurvivorVictimNextBotAttacker(victim, attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -1938,7 +1963,7 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 
 		Call_Finish();
 	}
-
+	
 	if(IsPlayer(attacker) && !IsPlayer(victim))
 	{
 		// Commons are allergic to logic. At least bDontInstaKill doesn't break explosive ammo nor does it break hit animations.
@@ -2564,4 +2589,12 @@ stock void SetClientTemporaryHP(int client, int hp)
 
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime() + (float(hp - 200)) / g_hPillsDecayRate.FloatValue + 1.0 / g_hPillsDecayRate.FloatValue);
 	}
+}
+
+stock bool SurvivorVictimNextBotAttacker(int victim, int attacker)
+{
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_NotInfected && (RPG_Perks_GetZombieType(attacker) == ZombieType_CommonInfected || RPG_Perks_GetZombieType(attacker) == ZombieType_Witch))
+		return true;
+
+	return false;
 }
