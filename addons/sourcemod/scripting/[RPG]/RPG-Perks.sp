@@ -725,13 +725,11 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		}
 	}
 
-	if(g_bEndConditionMet)
-	{
-		char sCode[128];
-		FormatEx(sCode, sizeof(sCode), "g_ModeScript.GetDirectorOptions().EndScriptedMode <- function() { return %i }", g_bEndConditionMet ? 1 : -1);
+	char sCode[128];
+	FormatEx(sCode, sizeof(sCode), "g_ModeScript.GetDirectorOptions().EndScriptedMode <- function() { return %i }", g_bEndConditionMet ? 1 : -1);
 
-		L4D2_ExecVScriptCode(sCode);
-	}
+	L4D2_ExecVScriptCode(sCode);
+	
 	return Plugin_Continue;
 }
 

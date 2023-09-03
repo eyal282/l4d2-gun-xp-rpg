@@ -29,6 +29,7 @@ public Plugin myinfo = {
 ConVar g_hDifficulty;
 
 ConVar g_hMinigunDamageMultiplier;
+ConVar g_hRPGDamageMultiplier;
 
 ConVar g_hPriorityImmunities;
 ConVar g_hPriorityTankSpawn;
@@ -280,6 +281,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 
 	g_hMinigunDamageMultiplier = UC_CreateConVar("rpg_tanks_minigun_damage_multiplier", "0.1", "Minigun damage multiplier");
+	g_hRPGDamageMultiplier = UC_CreateConVar("rpg_tanks_rpg_damage_multiplier", "0.25", "RPG damage multiplier");
 
 	g_hPriorityImmunities = UC_CreateConVar("rpg_tanks_priority_immunities", "2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a tank their immunity from fire or melee.\nWhen making a plugin, feel free to track this cvar's value for reference.");
 	g_hPriorityTankSpawn = UC_CreateConVar("rpg_tanks_priority_finale_tank_spawn", "-5", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 that when a tank spawns, check what tier to give it and give it max HP.");
@@ -609,6 +611,11 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Machinegun || StrEqual(sClassname, "prop_minigun"))
 	{
 		damage = damage * g_hMinigunDamageMultiplier.FloatValue;
+	}
+
+	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_GrenadeLauncher || StrEqual(sClassname, "weapon_grenade_launcher"))
+	{
+		damage = damage * g_hRPGDamageMultiplier.FloatValue;
 	}
 }
 
@@ -975,6 +982,17 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 	else if(RPG_Perks_GetZombieType(victim) != ZombieType_Tank)
 		return Plugin_Continue;
 
+	if(g_iCurrentTank[victim] >= 0)
+	{
+		enTank tank;
+		g_aTanks.GetArray(g_iCurrentTank[victim], tank);
+
+		if(tank.fireDamageImmune && L4D_IsPlayerOnFire(victim))
+		{
+			ExtinguishEntity(victim);
+		}
+	}
+	
 	int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
 	
 	if(attacker == 0)
