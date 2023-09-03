@@ -53,10 +53,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 {   
     if(priority == 10)
     {
-        if(IsPlayer(victim) && IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
-            return;
-
-        else if(RPG_Perks_GetZombieType(attacker) != ZombieType_CommonInfected)
+        if(RPG_Perks_GetZombieType(attacker) != ZombieType_CommonInfected || RPG_Perks_GetZombieType(victim) != ZombieType_NotInfected)
             return;
     
         else if(!GunXP_RPGShop_IsSkillUnlocked(victim, ignitionIndex))
@@ -65,9 +62,11 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
         else if(damage == 0.0)
             return;
 
-        float fChance = g_fChancePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(attacker)) / float(g_iChanceLevels)));
+        float fChance = g_fChancePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(victim)) / float(g_iChanceLevels)));
 
-        if(GetRandomFloat(0.0, 100.0) < fChance)
+        float fGamble = GetRandomFloat(0.0, 1.0);
+
+        if(fGamble < fChance)
         {        
             CastAngerIgnition(victim);
         }
@@ -77,10 +76,38 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 public void CastAngerIgnition(int client)
 {
     PrintToChat(client, "Anger Ignition was activated!");
-    
+
     float fTargetOrigin[3];
 
     GetEntPropVector(client, Prop_Data, "m_vecOrigin", fTargetOrigin);
+
+    int pinner = L4D_GetPinnedInfected(client);
+
+    if(pinner != 0)
+    {
+        if(RPG_Perks_GetZombieType(pinner) == ZombieType_Smoker)
+        {
+            float fOrigin[3], fSmokerOrigin[3];
+
+            GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+            GetEntPropVector(pinner, Prop_Data, "m_vecAbsOrigin", fSmokerOrigin);
+
+            L4D_Smoker_ReleaseVictim(client, pinner);
+
+            if(GetVectorDistance(fOrigin, fSmokerOrigin) <= 128.0)
+            {
+                L4D_Smoker_ReleaseVictim(client, pinner);
+            }
+            else
+            {
+                SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN, -1, NULL_VECTOR, NULL_VECTOR, false);
+            }
+        }
+        else
+        {
+            SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN, -1, NULL_VECTOR, NULL_VECTOR, false);
+        }
+    }
 
     for (int i = 1; i <= MaxClients; i++)
     {
@@ -141,7 +168,7 @@ public void CastAngerIgnition(int client)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Taking damage from Common Infected has a chance to ignite everything around.\nRadius is 512 units.\nChance is %.1f{PERCENT} per %i Levels", g_fChancePerLevels * 100.0, g_iChanceLevels);
+    FormatEx(sDescription, sizeof(sDescription), "Taking damage from Common Infected has a chance to ignite everything around.\nRadius is 512 units.\nKills any pinning Special Infected.\nChance is %.1f{PERCENT} per %i Levels", g_fChancePerLevels * 100.0, g_iChanceLevels);
     ignitionIndex = GunXP_RPGShop_RegisterSkill("Anger Ignition", "Anger Ignition", sDescription,
     150000, 0);
 }
