@@ -42,6 +42,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_AngerIgnition.smx"
  	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_BileGoggles.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Cowardice.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_FullAuto.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Hyperactive.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Knife.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Leader_And_ParryTactics.smx"
