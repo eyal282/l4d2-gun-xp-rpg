@@ -246,7 +246,7 @@ public void CastPsychoKinesis(int client)
 
 	TeleportToCeiling(survivor);	
 
-	RPG_Perks_ApplyEntityTimedAttribute(survivor, "Stun", 12.0, COLLISION_SET_IF_HIGHER);
+	RPG_Perks_ApplyEntityTimedAttribute(survivor, "Stun", 12.0, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEGATIVE);
 
 	PrintToChatAll("%N is hit with Psycho Kinesis.", survivor);
 }

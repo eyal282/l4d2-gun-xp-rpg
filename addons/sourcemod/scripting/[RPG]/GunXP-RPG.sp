@@ -78,8 +78,6 @@ char g_sForbiddenMapWeapons[][] =
 
 bool g_bLate = false;
 
-bool SaveLastGuns[MAXPLAYERS+1];
-
 ConVar hcv_priorityGiveGuns;
 
 ConVar hcv_xpDifficultyMultiplier;
@@ -110,7 +108,7 @@ Database dbGunXP;
 
 bool dbFullConnected;
 
-Handle cpLastSecondary, cpLastPrimary, cpAutoRPG;
+Handle cpLastSecondary, cpLastPrimary, cpSaveGuns, cpAutoRPG;
 
 bool g_bTookWeapons[MAXPLAYERS+1];
 
@@ -443,7 +441,7 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 	g_bTookWeapons[client] = false;
 	KillStreak[client] = 0;
 	
-	if(SaveLastGuns[client])
+	if(IsClientSaveGuns(client))
 	{
 		PrintToChat(client, "\x04[Gun-XP] \x01Type\x05 !guns\x01 to disable\x05 auto gun save\x01.");
 		GiveGuns(client);
@@ -949,6 +947,7 @@ public void OnPluginStart()
 	
 	cpLastSecondary = RegClientCookie("GunXP_LastSecondary", "Last Chosen Secondary Weapon", CookieAccess_Private);
 	cpLastPrimary = RegClientCookie("GunXP_LastPrimary", "Last Chosen Primary Weapon", CookieAccess_Private);
+	cpSaveGuns = RegClientCookie("GunXP_SaveGuns", "Save Guns Choice?", CookieAccess_Private);
 	cpAutoRPG = RegClientCookie("GunXP_AutoRPG", "Are we playing auto RPG?", CookieAccess_Private);
 	
 	#if defined _autoexecconfig_included
@@ -1016,7 +1015,9 @@ public void ConnectDatabase()
 			OnClientPutInServer(i);
 			
 			if(IsClientAuthorized(i))
-				FetchStats(i);
+			{
+				RequestFrame(FetchStats, i);
+			}
 		}
 	}
 }
@@ -1024,7 +1025,6 @@ public void ConnectDatabase()
 
 public void OnClientConnected(int client)
 {
-	SaveLastGuns[client] = false;
 	g_bLoadedFromDB[client] = false;
 
 	CalculateStats(client);
@@ -1373,9 +1373,9 @@ public Action Command_Guns(int client, int args)
 {
 	ShowChoiceMenu(client);
 	
-	if(SaveLastGuns[client])
+	if(IsClientSaveGuns(client))
 	{
-		SaveLastGuns[client] = false;
+		SetClientSaveGuns(client, false);
 		PrintToChat(client, "\x05Last guns save\x01 is now disabled.");
 		
 		if(g_bTookWeapons[client])
@@ -1946,7 +1946,7 @@ public int Choice_MenuHandler(Handle hMenu, MenuAction action, int client, int i
 			case 2:
 			{
 				GiveGuns(client);
-				SaveLastGuns[client] = true;
+				SetClientSaveGuns(client, true);
 				PrintToChat(client, "\x04[Gun-XP] \x01Last Guns save is now enabled. Type \x05!guns\x01 to disable it.");
 			}
 		}
@@ -2412,8 +2412,12 @@ public Action Command_XP(int client, int args)
 }
 
 
-stock void FetchStats(int client)
+public void FetchStats(int client)
 {
+	// RequestFrame is used on this function occasionally.
+	if(!IsClientAuthorized(client))
+		return;
+
 	g_iXP[client] = 0;
 	g_iLevel[client] = 0;
 	g_iXPCurrency[client] = 0;
@@ -2499,7 +2503,11 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 		if(g_iXP[client] >= LEVELS[i])
 		{
 			PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
-			SaveLastGuns[client] = false;
+
+			if(!StrEqual(GUNS_CLASSNAMES[i], "null"))
+			{
+				SetClientSaveGuns(client, false);
+			}
 		}
 	}
 
@@ -2702,6 +2710,10 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 		// We just loaded the client, and this is the first query made after authentication. We need to skip any queued queries to increase XP.
 		dbGunXP.Query(SQLCB_Error, sQuery, _, DBPrio_High);	
 
+		if(IsPlayerAlive(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
+		{
+			RPG_Perks_RecalculateMaxHP(client);
+		}
 		return;
 	}
 
@@ -2750,7 +2762,13 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 
 	g_bLoadedFromDB[client] = true;
 
+	// CalculateStats must be before RecalculateMaxHP to account for perks that depend on your level.
 	CalculateStats(client);
+
+	if(IsClientInGame(client) && IsPlayerAlive(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
 }
 
 public void SQLTrans_SetFailState(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
@@ -2848,6 +2866,31 @@ stock void SetClientLastPrimary(int client, int amount)
 	
 }
 
+stock bool IsClientSaveGuns(int client)
+{
+	char strSaveGuns[3];
+	
+	GetClientCookie(client, cpSaveGuns, strSaveGuns, sizeof(strSaveGuns));
+	
+	if(strSaveGuns[0] == EOS)
+	{
+		return true;
+	}
+	bool bSaveGuns = view_as<bool>(StringToInt(strSaveGuns));
+	
+	return bSaveGuns;
+}
+
+stock void SetClientSaveGuns(int client, bool bSaveGuns)
+{
+	char strSaveGuns[3];
+	
+	IntToString(view_as<int>(bSaveGuns), strSaveGuns, sizeof(strSaveGuns));
+	
+	SetClientCookie(client, cpSaveGuns, strSaveGuns);
+	
+}
+
 stock bool IsClientAutoRPG(int client)
 {
 	char strAutoRPG[3];
@@ -2865,7 +2908,7 @@ stock bool IsClientAutoRPG(int client)
 
 stock void SetClientAutoRPG(int client, bool bAutoRPG)
 {
-	char strAutoRPG[30];
+	char strAutoRPG[3];
 	
 	IntToString(view_as<int>(bAutoRPG), strAutoRPG, sizeof(strAutoRPG));
 	

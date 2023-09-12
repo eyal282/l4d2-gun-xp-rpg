@@ -98,7 +98,7 @@ public Action Event_PlayerNowIt(Handle hEvent, const char[] Name, bool dontBroad
     if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
         fDuration = g_fStunTimeTanks;
 
-    RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", fDuration, COLLISION_SET_IF_HIGHER);
+    RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", fDuration, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEGATIVE);
 }
 public void RegisterSkill()
 {

@@ -83,6 +83,7 @@ enum struct enTank
 ArrayList g_aTanks;
 
 GlobalForward g_fwOnRPGTankKilled;
+GlobalForward g_fwOnRPGTankCastActiveAbility;
 
 int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
 
@@ -92,6 +93,8 @@ int g_iDamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {
 
+	CreateNative("RPG_Tanks_CanBeIgnited", Native_CanBeIgnited);
+	CreateNative("RPG_Tanks_CanBeMelee", Native_CanBeMelee);
 	CreateNative("RPG_Tanks_RegisterTank", Native_RegisterTank);
 	CreateNative("RPG_Tanks_RegisterActiveAbility", Native_RegisterActiveAbility);
 	CreateNative("RPG_Tanks_RegisterPassiveAbility", Native_RegisterPassiveAbility);
@@ -106,6 +109,45 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	return APLRes_Success;
 }
 
+
+public int Native_CanBeIgnited(Handle caller, int numParams)
+{
+	if(g_aTanks == null)
+		g_aTanks = CreateArray(sizeof(enTank));
+
+	int client = GetNativeCell(1);
+
+	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+		return true;
+		
+	if(g_iCurrentTank[client] < 0)
+	{
+		return true;
+	}
+
+	enTank tank;
+	g_aTanks.GetArray(g_iCurrentTank[client], tank);
+
+	return tank.fireDamageImmune;
+}
+
+public int Native_CanBeMelee(Handle caller, int numParams)
+{
+	if(g_aTanks == null)
+		g_aTanks = CreateArray(sizeof(enTank));
+
+	int client = GetNativeCell(1);
+
+	if(g_iCurrentTank[client] < 0)
+	{
+		return true;
+	}
+
+	enTank tank;
+	g_aTanks.GetArray(g_iCurrentTank[client], tank);
+
+	return tank.meleeDamageImmune;
+}
 
 public int Native_RegisterTank(Handle caller, int numParams)
 {
@@ -138,9 +180,6 @@ public int Native_RegisterTank(Handle caller, int numParams)
 
 	int foundIndex = TankNameToTankIndex(name);
 
-	if(foundIndex != -1)
-		return foundIndex;
-
 	tank.tier = tier;
 	tank.entries = entries;
 	tank.name = name;
@@ -154,6 +193,14 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	tank.meleeDamageImmune = meleeDamageImmune;
 	tank.aActiveAbilities = CreateArray(sizeof(enActiveAbility));
 	tank.aPassiveAbilities = CreateArray(sizeof(enPassiveAbility));
+
+
+	if(foundIndex != -1)
+	{
+		g_aTanks.SetArray(foundIndex, tank);
+
+		return foundIndex;
+	}
 
 	return g_aTanks.PushArray(tank);
 }
@@ -175,8 +222,7 @@ public int Native_RegisterActiveAbility(Handle caller, int numParams)
 	Format(sInfo, sizeof(sInfo), "[ACTIVATED] %s", name);
 	int foundIndex = AbilityNameToAbilityIndex(sInfo, pos, false);
 
-	if(foundIndex != -1)
-		return foundIndex;
+
 
 	char description[256];
 	GetNativeString(3, description, sizeof(description));
@@ -193,6 +239,12 @@ public int Native_RegisterActiveAbility(Handle caller, int numParams)
 	activeAbility.minCooldown = minCooldown;
 	activeAbility.maxCooldown = maxCooldown;
 
+	if(foundIndex != -1)
+	{
+		tank.aActiveAbilities.SetArray(foundIndex, activeAbility);
+
+		return foundIndex;
+	}
 	return tank.aActiveAbilities.PushArray(activeAbility);
 }
 
@@ -271,6 +323,7 @@ public void OnPluginStart()
 		g_aTanks = CreateArray(sizeof(enTank));
 
 	g_fwOnRPGTankKilled = CreateGlobalForward("RPG_Tanks_OnRPGTankKilled", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnRPGTankCastActiveAbility = CreateGlobalForward("RPG_Tanks_OnRPGTankCastActiveAbility", ET_Ignore, Param_Cell, Param_Cell);
 
 	#if defined _autoexecconfig_included
 	
@@ -304,6 +357,7 @@ public void OnPluginStart()
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
 	HookEvent("player_entered_checkpoint", Event_EnterCheckpoint, EventHookMode_Post);
 	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
 
 	HookEntityOutput("trigger_gravity", "OnStartTouch", OnStartTouchTriggerGravity);
@@ -315,6 +369,11 @@ public void OnPluginStart()
 
 public void OnMapStart()
 {
+	for(int i=0;i < sizeof(g_iCurrentTank);i++)
+	{
+		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+	}
+
 	TriggerTimer(CreateTimer(0.5, Timer_TanksOpenDoors, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
@@ -547,6 +606,57 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 	SetClientName(client, sName);
 
 	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 has spawned.", winnerTank.tier, winnerTank.name);
+
+	int size = winnerTank.aActiveAbilities.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enActiveAbility activeAbility;
+		winnerTank.aActiveAbilities.GetArray(i, activeAbility);
+
+		if(activeAbility.minCooldown == 0 && activeAbility.maxCooldown == 0)
+			continue;
+
+		char TempFormat[64];
+		FormatEx(TempFormat, sizeof(TempFormat), "Cast Active Ability #%i", i);
+
+		RPG_Perks_ApplyEntityTimedAttribute(client, TempFormat, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_POSITIVE);
+	}
+}
+
+public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
+{
+	if(strncmp(attributeName, "Cast Active Ability #", 21) != 0)
+		return;
+
+	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
+		return;
+
+	if(g_iCurrentTank[entity] < 0)
+		return;
+
+	char sAbilityIndex[64];
+	strcopy(sAbilityIndex, sizeof(sAbilityIndex), attributeName);
+	ReplaceStringEx(sAbilityIndex, sizeof(sAbilityIndex), "Cast Active Ability #", "");
+
+	int abilityIndex = StringToInt(sAbilityIndex);
+
+	enTank tank;
+	g_aTanks.GetArray(g_iCurrentTank[entity], tank);
+
+	enActiveAbility activeAbility;
+	tank.aActiveAbilities.GetArray(abilityIndex, activeAbility);
+
+	RPG_Perks_ApplyEntityTimedAttribute(entity, attributeName, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_POSITIVE);
+
+	Call_StartForward(g_fwOnRPGTankCastActiveAbility);
+
+	
+	Call_PushCell(entity);
+	
+	Call_PushCell(abilityIndex);
+
+	Call_Finish();
 }
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
@@ -1073,6 +1183,35 @@ public Action Event_FinaleWin(Handle hEvent, char[] Name, bool dontBroadcast)
 			continue;
 
 		PrintToChatAll(" The Finale was won. %N will be converted to a normal Tank now.", i);
+
+		SetClientName(i, "Tank");
+
+		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+	}
+
+	return Plugin_Continue;
+}
+
+public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(L4D_IsPlayerIncapacitated(i))
+			continue;
+
+		else if(g_iCurrentTank[i] < 0)
+			continue;
 
 		SetClientName(i, "Tank");
 

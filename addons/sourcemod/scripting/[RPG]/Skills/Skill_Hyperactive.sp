@@ -76,7 +76,7 @@ public Action Event_AdrenOrPillsUsed(Event event, const char[] name, bool dontBr
 
     float fDuration = float(GunXP_RPG_GetClientLevel(client)) * g_fDurationPerLevel;
 
-    RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive", fDuration, COLLISION_ADD);
+    RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
 
     return Plugin_Continue;
 }

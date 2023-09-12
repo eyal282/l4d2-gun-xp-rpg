@@ -105,6 +105,8 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnIgniteWithOwnership;
+
 GlobalForward g_fwOnGetMaxLimitedAbility;
 GlobalForward g_fwOnTimedAttributeStart;
 GlobalForward g_fwOnTimedAttributeExpired;
@@ -149,6 +151,11 @@ enum struct enTimedAttribute
 
 	int entity;
 	float fExpire;
+	// ATTRIBUTE_*
+	int attributeType;
+
+	// TRANSFER_*
+	int transferRules;
 }
 
 ArrayList g_aTimedAttributes;
@@ -170,17 +177,13 @@ public void OnPluginEnd()
 	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
 	g_hAdrenalineHealPercent.IntValue = g_hRPGAdrenalineHealPercent.IntValue;
 	g_hPainPillsHealPercent.IntValue = g_hRPGPainPillsHealPercent.IntValue;
-
-	char sCode[64];
-	FormatEx(sCode, sizeof(sCode), "MutationOptions <- { function EndScriptedMode() { return 1; }");
-
-	L4D2_ExecVScriptCode(sCode);
 }
 
 
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+	CreateNative("RPG_Perks_IgniteWithOwnership", Native_IgniteWithOwnership);
 	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
 	CreateNative("RPG_Perks_GetClientHealth", Native_GetClientHealth);
@@ -194,6 +197,23 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	return APLRes_Success;
 }
 
+
+public int Native_IgniteWithOwnership(Handle caller, int numParams)
+{
+	int victim = GetNativeCell(1);
+	int attacker = GetNativeCell(2);
+
+	SDKHooks_TakeDamage(victim, attacker, attacker, 0.0, DMG_BURN);
+	
+	Call_StartForward(g_fwOnIgniteWithOwnership);
+
+	Call_PushCell(victim);
+	Call_PushCell(attacker);
+
+	Call_Finish();	
+
+	return 0;
+}
 public int Native_RecalculateMaxHP(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -236,7 +256,10 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 		iTemporaryHealth = RoundToFloor((fOldTemporaryPercent * GetEntityMaxHealth(client))) - L4D_GetPlayerTempHealth(client);
 	}
 
-	GunXP_GiveClientHealth(client, iPermanentHealth, iTemporaryHealth);
+	if(!L4D_IsPlayerIncapacitated(client))
+	{
+		GunXP_GiveClientHealth(client, iPermanentHealth, iTemporaryHealth);
+	}
 
 	return 0;
 }
@@ -362,10 +385,11 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 
 	float duration = GetNativeCell(3);
 
-	if(duration == 0.0)
-		return true;
-
 	int collision = GetNativeCell(4);
+
+	int attributeType = GetNativeCell(5);
+
+	int transferRules = GetNativeCell(6);
 
 	int size = g_aTimedAttributes.Length;
 
@@ -407,7 +431,6 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 			}
 			
 			g_aTimedAttributes.SetArray(i, attribute);
-
 			if(attribute.fExpire <= GetGameTime())
 			{
 				Call_StartForward(g_fwOnTimedAttributeTransfered);
@@ -419,6 +442,11 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 				Call_Finish();
 			}
 
+
+			// Can be null while applying an attribute DURING g_fwOnTimedAttributeTransfered
+			if(g_hCheckAttributeExpire == INVALID_HANDLE)
+				g_hCheckAttributeExpire = CreateTimer(duration, Timer_CheckAttributeExpire, _, TIMER_FLAG_NO_MAPCHANGE);
+
 			TriggerTimer(g_hCheckAttributeExpire);
 
 			return true;
@@ -429,6 +457,8 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 	attribute.attributeName = attributeName;
 	attribute.entity = entity;
 	attribute.fExpire = GetGameTime() + duration;
+	attribute.attributeType = attributeType;
+	attribute.transferRules = transferRules;
 
 	g_aTimedAttributes.PushArray(attribute);
 
@@ -440,7 +470,7 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 
 	Call_Finish();
 
-	if(g_hCheckAttributeExpire == null)
+	if(g_hCheckAttributeExpire == INVALID_HANDLE)
 		g_hCheckAttributeExpire = CreateTimer(duration, Timer_CheckAttributeExpire, _, TIMER_FLAG_NO_MAPCHANGE);
 
 	TriggerTimer(g_hCheckAttributeExpire);
@@ -578,7 +608,7 @@ public int Native_UseClientLimitedAbility(Handle caller, int numParams)
 
 public Action Timer_CheckAttributeExpire(Handle hTimer)
 {
-	delete g_hCheckAttributeExpire;
+	g_hCheckAttributeExpire = INVALID_HANDLE;
 
 	float shortestToExpire = 999999999.0;
 
@@ -595,8 +625,11 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 			continue;
 		}
 
-		else if(attribute.fExpire <= GetGameTime())
+		else if(attribute.fExpire - GetGameTime() <= 0.05)
 		{
+			g_aTimedAttributes.Erase(i);
+			i--;
+
 			Call_StartForward(g_fwOnTimedAttributeExpired);
 
 			Call_PushCell(attribute.entity);
@@ -604,8 +637,6 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 			Call_Finish();
 
-			g_aTimedAttributes.Erase(i);
-			i--;
 			continue;
 		}
 		else
@@ -626,7 +657,7 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 public void OnMapStart()
 {
-	delete g_hCheckAttributeExpire;
+	g_hCheckAttributeExpire = INVALID_HANDLE;
 
 	g_fRoundStartTime = 0.0;
 
@@ -729,7 +760,7 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	FormatEx(sCode, sizeof(sCode), "g_ModeScript.GetDirectorOptions().EndScriptedMode <- function() { return %i }", g_bEndConditionMet ? 1 : -1);
 
 	L4D2_ExecVScriptCode(sCode);
-	
+
 	return Plugin_Continue;
 }
 
@@ -741,7 +772,7 @@ public void OnPluginStart()
 	if(g_aLimitedAbilities == null)
 		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
 
-	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Pre);
 	HookEvent("player_hurt", Event_PlayerHurt);
@@ -764,10 +795,10 @@ public void OnPluginStart()
 	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
 
+	g_fwOnIgniteWithOwnership = CreateGlobalForward("RPG_Perks_OnIgniteWithOwnership", ET_Ignore, Param_Cell, Param_Cell);
+
 	g_fwOnGetMaxLimitedAbility = CreateGlobalForward("RPG_Perks_OnGetMaxLimitedAbility", ET_Ignore, Param_Cell, Param_Cell, Param_String, Param_CellByRef);
 
-	g_fwOnTimedAttributeExpired = CreateGlobalForward("RPG_Perks_OnTimedAttributeExpired", ET_Ignore, Param_Cell, Param_String);
-	g_fwOnTimedAttributeTransfered = CreateGlobalForward("RPG_Perks_OnTimedAttributeTransfered", ET_Ignore, Param_Cell, Param_Cell, Param_String);
 
 	g_fwOnTimedAttributeStart = CreateGlobalForward("RPG_Perks_OnTimedAttributeStart", ET_Ignore, Param_Cell, Param_String, Param_Cell);
 	g_fwOnTimedAttributeExpired = CreateGlobalForward("RPG_Perks_OnTimedAttributeExpired", ET_Ignore, Param_Cell, Param_String);
@@ -879,7 +910,7 @@ public void GunXP_OnReloadRPGPlugins()
 	#if defined _GunXP_RPG_included
 		GunXP_ReloadPlugin();
 	#endif
-   
+
 }
 
 public void GunXP_RPGShop_OnResetRPG(int client)
@@ -961,7 +992,11 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 		return;
 
 	else if(!L4D_IsPlayerIncapacitated(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+
 		return;
+	}
 
 	else if(L4D_IsPlayerHangingFromLedge(client))
 		return;
@@ -1136,6 +1171,7 @@ public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 	g_fRoundStartTime = GetGameTime();
 
 	g_aLimitedAbilities.Clear();
+	g_aTimedAttributes.Clear();
 
 	return Plugin_Continue;
 }
@@ -1503,8 +1539,18 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	return Plugin_Continue;
 }
 
+// This is to allow editing the array in g_fwOnTimedAttributeTransfered
+enum struct enFireList
+{
+	int oldPlayer;
+	int newPlayer;
+	char attributeName[64];
+}
+
 public void TransferTimedAttributes(int oldPlayer, int newPlayer)
 {
+	ArrayList aFireList = CreateArray(sizeof(enFireList));
+
 	int size = g_aTimedAttributes.Length;
 
 	for(int i=0;i < size;i++)
@@ -1512,20 +1558,48 @@ public void TransferTimedAttributes(int oldPlayer, int newPlayer)
 		enTimedAttribute attribute;
 		g_aTimedAttributes.GetArray(i, attribute);
 
-		if(attribute.entity == oldPlayer)
+		if(attribute.entity == oldPlayer && attribute.transferRules == TRANSFER_NORMAL)
 		{
 			attribute.entity = newPlayer;
 			g_aTimedAttributes.SetArray(i, attribute);	
 
-			Call_StartForward(g_fwOnTimedAttributeTransfered);
 
-			Call_PushCell(oldPlayer);
-			Call_PushCell(newPlayer);
-			Call_PushString(attribute.attributeName);
+			enFireList fireList;
+			fireList.oldPlayer = oldPlayer;
+			fireList.newPlayer = newPlayer;
+			fireList.attributeName = attribute.attributeName;
 
-			Call_Finish();
+			aFireList.PushArray(fireList);
+		}
+		if(attribute.entity == newPlayer && attribute.transferRules == TRANSFER_REVERT)
+		{
+			attribute.entity = oldPlayer;
+			g_aTimedAttributes.SetArray(i, attribute);	
+
+			enFireList fireList;
+			fireList.oldPlayer = newPlayer;
+			fireList.newPlayer = oldPlayer;
+			fireList.attributeName = attribute.attributeName;
 		}
 	}
+
+	size = aFireList.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enFireList fireList;
+		aFireList.GetArray(i, fireList);
+
+		Call_StartForward(g_fwOnTimedAttributeTransfered);
+
+		Call_PushCell(fireList.oldPlayer);
+		Call_PushCell(fireList.newPlayer);
+		Call_PushString(fireList.attributeName);
+
+		Call_Finish();
+	}
+
+	delete aFireList;
 }
 
 public Action Event_HealBegin(Event event, const char[] name, bool dontBroadcast)
@@ -1884,17 +1958,19 @@ public void OnClientPutInServer(int client)
 	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 }
 
+// I suspect fall damage is fully ignored in these functions.
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {
 	
 	if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(!SurvivorVictimNextBotAttacker(victim, attacker))
+	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL))
 		return Plugin_Continue;
 
+
 	float fFinalDamage = damage;
-	
+
 	Action rtn = RPG_OnTraceAttack(victim, attacker, inflictor, fFinalDamage, damagetype, 0, 0);
 
 	damage = fFinalDamage;
@@ -1909,15 +1985,11 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	if(damage == 0.0)
 		return Plugin_Continue;
 
-	// Account for fire and fall damage in function above.
-	else if(damagetype & DMG_FALL || damagetype & DMG_BURN)
-		return Plugin_Continue;
-
-	else if(SurvivorVictimNextBotAttacker(victim, attacker))
+	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL)
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
-	
+
 	Action rtn = RPG_OnTraceAttack(victim, attacker, inflictor, fFinalDamage, damagetype, hitbox, hitgroup);
 
 	damage = fFinalDamage;
@@ -1941,6 +2013,13 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 		damage = damage * g_hRPGTriggerHurtMultiplier.FloatValue;
 	}
 
+	char sClass[64];
+	GetEdictClassname(inflictor, sClass, sizeof(sClass));
+
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank && damagetype & DMG_BURN && StrEqual(sClass, "entityflame", false))
+	{
+		damage = CalculateTankBurnDamage(victim);
+	}
 	
 	for(int i=-10;i <= 10;i++)
 	{
@@ -1967,6 +2046,12 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 		// Commons are allergic to logic. At least bDontInstaKill doesn't break explosive ammo nor does it break hit animations.
 		bDontInstakill = true;
 
+	}
+
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank && damagetype & DMG_BURN && StrEqual(sClass, "entityflame", false))
+	{
+		// To award tank burner.
+		bDontStagger = true;
 	}
 	if(bImmune)
 	{
@@ -2595,4 +2680,43 @@ stock bool SurvivorVictimNextBotAttacker(int victim, int attacker)
 		return true;
 
 	return false;
+}
+
+stock float CalculateTankBurnDamage(int victim)
+{
+
+	char sGamemode[64], sDifficulty[64];
+	GetConVarString(FindConVar("mp_gamemode"), sGamemode, sizeof(sGamemode));
+	GetConVarString(FindConVar("z_difficulty"), sDifficulty, sizeof(sDifficulty));
+	
+	float burnDuration = 0.0;
+
+	if(StrEqual(sGamemode, "versus", false) || StrEqual(sGamemode, "survival", false))
+	{
+		burnDuration = GetConVarFloat(FindConVar(("tank_burn_duration")));
+	}
+	else
+	{
+		if(StrEqual(sDifficulty, "Impossible", false))
+		{
+			burnDuration = GetConVarFloat(FindConVar(("tank_burn_duration_expert")));
+		}
+		else if(StrEqual(sDifficulty, "Hard", false))
+		{
+			burnDuration = GetConVarFloat(FindConVar(("tank_burn_duration_hard")));
+		}
+		else
+		{
+			burnDuration = GetConVarFloat(FindConVar(("tank_burn_duration")));
+		}
+	}
+
+	float burnLeft = (float(GetEntityHealth(victim)) / float(GetEntityMaxHealth(victim))) * burnDuration;
+
+	// Tanks take fire damage five times per second.
+	burnLeft -= 0.2;
+
+	float damageNeeded = float(GetEntityHealth(victim)) - ((burnLeft / burnDuration) * float(GetEntityMaxHealth(victim)));
+
+	return damageNeeded;
 }

@@ -100,11 +100,13 @@ public void CastAngerIgnition(int client)
             }
             else
             {
+                RPG_Perks_IgniteWithOwnership(pinner, client);
                 SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN, -1, NULL_VECTOR, NULL_VECTOR, false);
             }
         }
         else
         {
+            RPG_Perks_IgniteWithOwnership(pinner, client);
             SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN, -1, NULL_VECTOR, NULL_VECTOR, false);
         }
     }
@@ -125,7 +127,7 @@ public void CastAngerIgnition(int client)
 
         if (GetVectorDistance(fOrigin, fTargetOrigin, false) < 512.0)
         {
-            SDKHooks_TakeDamage(i, client, client, 0.0, DMG_BURN);
+            RPG_Perks_IgniteWithOwnership(i, client);
         }
     }
 
@@ -137,7 +139,7 @@ public void CastAngerIgnition(int client)
 
         if (GetVectorDistance(fOrigin, fTargetOrigin, false) < 512.0)
         {
-            SDKHooks_TakeDamage(iEntity, client, client, 0.0, DMG_BURN);
+            RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
 
@@ -149,7 +151,7 @@ public void CastAngerIgnition(int client)
 
         if (GetVectorDistance(fOrigin, fTargetOrigin, false) < 512.0)
         {
-            SDKHooks_TakeDamage(iEntity, client, client, 0.0, DMG_BURN);
+            RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
 

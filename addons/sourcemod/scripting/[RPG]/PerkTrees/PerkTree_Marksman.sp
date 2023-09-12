@@ -161,6 +161,12 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     else if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw)
         return;
     
+    char sClassname[64];
+    GetEdictClassname(inflictor, sClassname, sizeof(sClassname));
+
+    if(StrEqual(sClassname, "entityflame") || StrEqual(sClassname, "inferno"))
+        return;
+        
     int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, marksmanIndex);
 
     if(perkLevel == -1)
