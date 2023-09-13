@@ -95,69 +95,74 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
     g_iLastButtons[client] = buttons;
 
-    if(! ( buttons & IN_JUMP ) || lastButtons & IN_JUMP || g_bSpam[client] || L4D_GetPinnedInfected(client) == 0 || L4D_GetAttackerCarry(client) != 0 || g_fNextExpireJump[client] < GetGameTime())
-    {
-        
-        if(!(lastButtons & IN_JUMP))
-        {
-            g_iJumpCount[client] = 0;
-            g_fNextExpireJump[client] = GetGameTime() + 1.5;
-
-            if(buttons & IN_JUMP)
-            {
-                g_iJumpCount[client]++;
-            }
-        }
+    if(g_bSpam[client] || L4D_GetPinnedInfected(client) == 0 || L4D_GetAttackerCarry(client) != 0)
         return Plugin_Continue;
-    }
 
-    g_fNextExpireJump[client] = GetGameTime() + 1.5;
-    g_iJumpCount[client]++;
-
-    if(g_iJumpCount[client] >= 3 && GunXP_RPGShop_IsSkillUnlocked(client, knifeIndex))
+    if(buttons & IN_JUMP && !(lastButtons & IN_JUMP) && g_fNextExpireJump[client] > GetGameTime())
     {
-        bool success = RPG_Perks_UseClientLimitedAbility(client, "Knife");
+    
+        g_fNextExpireJump[client] = GetGameTime() + 1.5;
+        g_iJumpCount[client]++;
 
-        if(success)
+        PrintToChatIfEyal(client, "%i", g_iJumpCount[client]);
+
+        if(g_iJumpCount[client] >= 3 && GunXP_RPGShop_IsSkillUnlocked(client, knifeIndex))
         {
-            int timesUsed, maxUses;
+            bool success = RPG_Perks_UseClientLimitedAbility(client, "Knife");
 
-            RPG_Perks_GetClientLimitedAbility(client, "Knife", timesUsed, maxUses);
-
-            PrintToChat(client, "Successfully used the Knife (%i/%i)", timesUsed, maxUses);
-
-            g_iJumpCount[client] = 0;
-
-            g_bSpam[client] = true;
-        
-            CreateTimer(1.0, Timer_SpamOff, client);
-
-            int pinner = L4D_GetPinnedInfected(client);
-
-            ClientCommand(client, "weapons/knife/knife_deploy.wav");
-
-            if(RPG_Perks_GetZombieType(pinner) == ZombieType_Smoker)
+            if(success)
             {
-                float fOrigin[3], fSmokerOrigin[3];
+                int timesUsed, maxUses;
 
-                GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
-                GetEntPropVector(pinner, Prop_Data, "m_vecAbsOrigin", fSmokerOrigin);
+                RPG_Perks_GetClientLimitedAbility(client, "Knife", timesUsed, maxUses);
 
-                L4D_Smoker_ReleaseVictim(client, pinner);
+                PrintToChat(client, "Successfully used the Knife (%i/%i)", timesUsed, maxUses);
 
-                if(GetVectorDistance(fOrigin, fSmokerOrigin) <= 128.0)
+                g_iJumpCount[client] = 0;
+
+                g_bSpam[client] = true;
+            
+                CreateTimer(1.0, Timer_SpamOff, client);
+
+                int pinner = L4D_GetPinnedInfected(client);
+
+                ClientCommand(client, "weapons/knife/knife_deploy.wav");
+
+                if(RPG_Perks_GetZombieType(pinner) == ZombieType_Smoker)
+                {
+                    float fOrigin[3], fSmokerOrigin[3];
+
+                    GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+                    GetEntPropVector(pinner, Prop_Data, "m_vecAbsOrigin", fSmokerOrigin);
+
+                    L4D_Smoker_ReleaseVictim(client, pinner);
+
+                    if(GetVectorDistance(fOrigin, fSmokerOrigin) <= 128.0)
+                    {
+                        RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH);
+                    }
+                }
+                else
                 {
                     RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH);
                 }
             }
-            else
-            {
-                RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH);
-            }
+        }
+
+        return Plugin_Continue;
+    }
+
+    if(g_fNextExpireJump[client] <= GetGameTime())
+    {
+        g_iJumpCount[client] = 0;
+        g_fNextExpireJump[client] = GetGameTime() + 1.5;
+
+        if(buttons & IN_JUMP)
+        {
+            g_iJumpCount[client]++;
         }
     }
 
-    
     return Plugin_Continue;
 }
 
