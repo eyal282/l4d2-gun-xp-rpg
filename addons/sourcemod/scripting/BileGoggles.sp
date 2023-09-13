@@ -70,8 +70,10 @@ public void OnPluginStart()
 
 public void GunXP_OnReloadRPGPlugins()
 {
-	#if defined 
-    GunXP_ReloadPlugin();
+	#if defined _GunXP_RPG_included
+		GunXP_ReloadPlugin();
+	#endif
+
 }
 
 public Action Event_RoundStartOrEnd(Handle hEvent, const char[] sEventName, bool bDontBroadcast)
@@ -104,8 +106,7 @@ public Action Event_Boom(Handle hEvent, const char[] sEventName, bool bDontBroad
 
 	if(!bHasGoggles)
 		return Plugin_Continue;
-	
-	g_fBileTimer[victim] = fCleanTime; // 15 seconds of Goggles Blindness / Eyes Blindness.
+
 	
 	if(g_hVomitTimer[victim] != INVALID_HANDLE)
 	{
@@ -118,6 +119,8 @@ public Action Event_Boom(Handle hEvent, const char[] sEventName, bool bDontBroad
 	if(!g_bTookGogglesOff[victim]) // victim has not taken goggles. Now print message that he can press "G" to take them off.
 	{
 		PrintToChat(victim, "You have Bile Goggles. Press +ZOOM to take them off and see clearly.");	
+
+		g_fBileTimer[victim] = fCleanTime; // 15 seconds of Goggles Blindness / Eyes Blindness.
 		
 		g_bBlindEyes[victim] = false;
 	}
@@ -126,6 +129,9 @@ public Action Event_Boom(Handle hEvent, const char[] sEventName, bool bDontBroad
 	{
 		PrintToChat(victim, "You were blinded without your goggles. They can not help you now.");
 		
+		if(g_fBileTimer[victim] < 15.0)
+			g_fBileTimer[victim] = 15.0; // 15 seconds of Goggles Blindness / Eyes Blindness.)
+			
 		g_bBlindEyes[victim] = true; // Player was blind without goggles on ( goggles will be useless can't be used )
 	}
 
