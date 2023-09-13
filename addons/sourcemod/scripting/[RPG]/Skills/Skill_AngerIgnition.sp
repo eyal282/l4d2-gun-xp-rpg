@@ -101,13 +101,13 @@ public void CastAngerIgnition(int client)
             else
             {
                 RPG_Perks_IgniteWithOwnership(pinner, client);
-                SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN, -1, NULL_VECTOR, NULL_VECTOR, false);
+                RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN);
             }
         }
         else
         {
             RPG_Perks_IgniteWithOwnership(pinner, client);
-            SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN, -1, NULL_VECTOR, NULL_VECTOR, false);
+            RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN);
         }
     }
 

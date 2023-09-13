@@ -25,6 +25,8 @@ int immolationIndex;
 
 float g_fDurationPerLevel = 0.5;
 
+float g_fRadius = 512.0;
+
 public void OnLibraryAdded(const char[] name)
 {
 	if (StrEqual(name, "GunXP_SkillShop"))
@@ -93,7 +95,11 @@ public Action Event_MolotovDetonate(Handle hEvent, const char[] Name, bool dontB
 
     if(GetVectorDistance(fOrigin, fDetonationOrigin) < 128.0)
     {
-        RPG_Perks_ApplyEntityTimedAttribute(client, "Immolation", g_fDurationPerLevel * float(GunXP_RPG_GetClientLevel(client)), COLLISION_ADD, ATTRIBUTE_POSITIVE);
+        float fDuration = g_fDurationPerLevel * float(GunXP_RPG_GetClientLevel(client));
+
+        PrintToChat(client, "Immolation is active for %.1f seconds.", fDuration);
+
+        RPG_Perks_ApplyEntityTimedAttribute(client, "Immolation", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
 
         if(g_hTimer[client] != INVALID_HANDLE)
         {
@@ -125,7 +131,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
     GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
-    int iFakeWeapon = CreateEntityByName("weapon_ak47");
+    int iFakeWeapon = CreateEntityByName("weapon_pistol_magnum");
 
     for (int i = 1; i <= MaxClients; i++)
     {
@@ -142,11 +148,11 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
             continue;
 
         float fEntityOrigin[3];
-        GetEntPropVector(i, Prop_Data, "m_vecOrigin", fEntityOrigin);
+        GetEntPropVector(i, Prop_Data, "m_vecAbsOrigin", fEntityOrigin);
 
-        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < 512.0)
+        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            SDKHooks_TakeDamage(i, iFakeWeapon, client, 58.0, DMG_BULLET, -1, NULL_VECTOR, NULL_VECTOR, false);
+            RPG_Perks_TakeDamage(i, client, iFakeWeapon, 80.0, DMG_BULLET);
             RPG_Perks_IgniteWithOwnership(i, client);
         }
     }
@@ -157,9 +163,9 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
         float fEntityOrigin[3];
         GetEntPropVector(iEntity, Prop_Data, "m_vecOrigin", fEntityOrigin);
 
-        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < 512.0)
+        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            SDKHooks_TakeDamage(iEntity, iFakeWeapon, client, 58.0, DMG_BULLET, -1, NULL_VECTOR, NULL_VECTOR, false);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
@@ -170,9 +176,9 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
         float fEntityOrigin[3];
         GetEntPropVector(iEntity, Prop_Data, "m_vecOrigin", fEntityOrigin);
 
-        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < 512.0)
+        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            SDKHooks_TakeDamage(iEntity, iFakeWeapon, client, 58.0, DMG_BULLET, -1, NULL_VECTOR, NULL_VECTOR, false);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
@@ -183,7 +189,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
         float fEntityOrigin[3];
         GetEntPropVector(iEntity, Prop_Data, "m_vecOrigin", fEntityOrigin);
 
-        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < 512.0)
+        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
             AcceptEntityInput(iEntity, "Ignite", client, client);
         }
@@ -196,7 +202,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is 512 units\nEvery second while active, zombies take damage equal to 1 ak47 shot");
+	FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to 1 magnum shot", g_fRadius);
    	immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
 	150000, 0);
 }

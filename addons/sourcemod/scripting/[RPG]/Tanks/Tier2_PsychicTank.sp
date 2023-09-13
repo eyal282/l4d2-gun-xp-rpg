@@ -227,7 +227,7 @@ public Action Timer_BulletRelease(Handle hTimer, int userid)
 
 		float damage = ratio * RPG_Perks_GetClientMaxHealth(i);
 
-		SDKHooks_TakeDamage(i, client, client, damage, DMG_BULLET, -1, NULL_VECTOR, NULL_VECTOR, false);
+		RPG_Perks_TakeDamage(i, client, client, damage, DMG_BULLET);
 	}
 
 	g_iBulletRelease[client]--;
@@ -448,7 +448,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 			return;
 
 		// Damage the attacker by the victim ( damage reflect )
-		SDKHooks_TakeDamage(attacker, victim, victim, damage, damagetype, -1, NULL_VECTOR, NULL_VECTOR, false);
+		RPG_Perks_TakeDamage(attacker, victim, victim, damage, damagetype);
 
 		bImmune = true;
 		

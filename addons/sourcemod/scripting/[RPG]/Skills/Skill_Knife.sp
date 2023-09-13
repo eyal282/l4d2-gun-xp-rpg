@@ -147,16 +147,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
                 if(GetVectorDistance(fOrigin, fSmokerOrigin) <= 128.0)
                 {
-                    L4D_Smoker_ReleaseVictim(client, pinner);
-                }
-                else
-                {
-                    SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH, -1, NULL_VECTOR, NULL_VECTOR, false);
+                    RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH);
                 }
             }
             else
             {
-                SDKHooks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH, -1, NULL_VECTOR, NULL_VECTOR, false);
+                RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH);
             }
         }
     }

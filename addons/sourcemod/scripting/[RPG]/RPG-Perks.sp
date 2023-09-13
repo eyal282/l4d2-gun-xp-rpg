@@ -183,6 +183,7 @@ public void OnPluginEnd()
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+	CreateNative("RPG_Perks_TakeDamage", Native_TakeDamage);
 	CreateNative("RPG_Perks_IgniteWithOwnership", Native_IgniteWithOwnership);
 	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
@@ -197,6 +198,28 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	return APLRes_Success;
 }
 
+// For now, DMG_BURN and DMG_FALL will not require this native.
+public any Native_TakeDamage(Handle caller, int numParams)
+{
+	int victim = GetNativeCell(1);
+	int attacker = GetNativeCell(2);
+	int inflictor = GetNativeCell(3);
+	float damage = GetNativeCell(4);
+	int damagetype = GetNativeCell(5);
+	int hitbox = GetNativeCell(6);
+	int hitgroup = GetNativeCell(7);
+	
+	float fFinalDamage = damage;
+
+	Action rtn = RPG_OnTraceAttack(victim, attacker, inflictor, fFinalDamage, damagetype, hitbox, hitgroup);
+
+	if(rtn == Plugin_Handled || rtn == Plugin_Stop)
+		return 0.0;
+
+	SDKHooks_TakeDamage(victim, inflictor, attacker, fFinalDamage, damagetype);
+	
+	return fFinalDamage;
+}
 
 public int Native_IgniteWithOwnership(Handle caller, int numParams)
 {
