@@ -448,6 +448,7 @@ public void Func_DifficultyChanged(const char[] newValue)
 		SetClientName(i, "Tank");
 
 		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+		//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
@@ -674,6 +675,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 			SetClientName(victim, "Tank");
 
 			RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+			//RPG_Perks_SetClientMaxHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 			g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
 		}
@@ -1077,6 +1079,7 @@ public void OnStartTouchTriggerGravity(const char[] output, int caller, int acti
 		SetClientName(i, "Tank");
 
 		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+		//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
@@ -1154,6 +1157,7 @@ public Action Event_EnterCheckpoint(Handle hEvent, char[] Name, bool dontBroadca
 			SetClientName(i, "Tank");
 
 			RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+			//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 			g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 		}
@@ -1187,6 +1191,7 @@ public Action Event_FinaleWin(Handle hEvent, char[] Name, bool dontBroadcast)
 		SetClientName(i, "Tank");
 
 		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+		//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
@@ -1216,6 +1221,7 @@ public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
 		SetClientName(i, "Tank");
 
 		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+		//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
@@ -1262,6 +1268,7 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			SetClientName(i, "Tank");
 
 			RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+			//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 			g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 		}

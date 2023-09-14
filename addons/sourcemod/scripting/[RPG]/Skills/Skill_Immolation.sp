@@ -12,9 +12,9 @@
 
 public Plugin myinfo =
 {
-	name        = "Sticky Bile Skill --> Gun XP - RPG",
+	name        = "Immolation Skill --> Gun XP - RPG",
 	author      = "Eyal282",
-	description = "Skill that makes bile stun targets for x seconds",
+	description = "Skill that makes you ignite yourself for x seconds when you throw molotov on yourself",
 	version     = PLUGIN_VERSION,
 	url         = ""
 };

@@ -22,6 +22,8 @@
 
 #define PLUGIN_VERSION "1.0"
 
+#define MIN_FLOAT -2147483647.0 // I think -2147483648 is lowest but meh, same thing.
+
 public Plugin myinfo = {
 	name = "Gun XP - RPG",
 	author = "Eyal282",
@@ -69,7 +71,6 @@ char g_sForbiddenMapWeapons[][] =
 	"weapon_shotgun_spas_spawn",
 	"weapon_smg_mp5_spawn",
 	"weapon_smg_silenced_spawn",
-	"weapon_smg_spawn",
 	"weapon_sniper_awp_spawn",
 	"weapon_sniper_military_spawn",
 	"weapon_sniper_scout_spawn",
@@ -1034,7 +1035,7 @@ public void OnMapStart()
 {
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
-	CreateTimer(5.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	TriggerTimer(CreateTimer(5.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE));
 		
 	CreateTimer(150.0, Timer_TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
@@ -1129,7 +1130,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 	if(bFound)
 		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
-		
+
 	return Plugin_Continue;
 }
 public Action Timer_HudMessageXP(Handle hTimer)
@@ -2351,16 +2352,36 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		if(StrEqual(classname, g_sForbiddenMapWeapons[i]))
 		{
-			SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
+			SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_ConvertSpawn);
 		}
 	}
 }
 
-public Action OnShouldSpawn_NeverSpawn(int entity)
+public Action OnShouldSpawn_ConvertSpawn(int entity)
 {
+	float fOrigin[3], fAngles[3];
+
+	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", fOrigin);
+	GetEntPropVector(entity, Prop_Data, "m_angRotation", fAngles);
+
+	fAngles[0] = 90.0;
+	fAngles[2] = 270.0;
+
+	int iSpawn = CreateEntityByName("weapon_smg_spawn");
+
+	if(IsValidEntity(iSpawn))
+	{		
+		TeleportEntity(iSpawn, fOrigin, fAngles, NULL_VECTOR);
+		DispatchKeyValue(iSpawn, "count", "4"); 
+		DispatchSpawn(iSpawn);					
+
+		TeleportEntityToGround(iSpawn);
+	}
+
 	AcceptEntityInput(entity, "Kill");
 	return Plugin_Handled;
 }
+
 public void OnWeaponReload(int weapon, bool bSuccessful)
 {
 	if(!bSuccessful)
@@ -2710,7 +2731,7 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 		// We just loaded the client, and this is the first query made after authentication. We need to skip any queued queries to increase XP.
 		dbGunXP.Query(SQLCB_Error, sQuery, _, DBPrio_High);	
 
-		if(IsPlayerAlive(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
+		if(IsClientInGame(client) && IsPlayerAlive(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 		{
 			RPG_Perks_RecalculateMaxHP(client);
 		}
@@ -3021,6 +3042,32 @@ stock bool StripWeaponFromPlayer(int client, const char[] Classname)
 	return false;
 }
 
+
+stock void TeleportEntityToGround(int entity)
+{
+	float vecMins[3], vecMaxs[3], vecOrigin[3], vecFakeOrigin[3];
+    
+	GetEntPropVector(entity, Prop_Data, "m_vecMins", vecMins);
+	GetEntPropVector(entity, Prop_Data, "m_vecMaxs", vecMins);
+    
+	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vecOrigin);
+	vecFakeOrigin = vecOrigin;
+	
+	vecFakeOrigin[2] = MIN_FLOAT;
+    
+	TR_TraceHullFilter(vecOrigin, vecFakeOrigin, vecMins, vecMaxs, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
+	
+	TR_GetEndPosition(vecOrigin);
+	
+	TeleportEntity(entity, vecOrigin, NULL_VECTOR, NULL_VECTOR);
+}
+
+public bool TraceRayDontHitPlayers(int entityhit, int mask) 
+{
+    return (entityhit>MaxClients || entityhit == 0);
+}
+
+
 /**
  * Adds an informational string to the server's public "tags".
  * This string should be a short, unique identifier.
@@ -3324,3 +3371,4 @@ stock int TrueFloatFraction(float value, int precision = 3)
 
 	return StringToInt(sFraction);
 }
+
