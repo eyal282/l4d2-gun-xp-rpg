@@ -78,7 +78,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		else if(damage == 0.0 || bImmune)
 			return;
 
-		if(RPG_Tanks_CanBeIgnited(victim))
+		if(RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
 		{
 			RPG_Perks_IgniteWithOwnership(victim, attacker);
 		}

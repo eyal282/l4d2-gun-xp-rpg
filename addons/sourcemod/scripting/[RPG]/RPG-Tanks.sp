@@ -73,8 +73,7 @@ enum struct enTank
 	int XPRewardMin;
 	int XPRewardMax;
 
-	bool fireDamageImmune;
-	bool meleeDamageImmune;
+	int damageImmunities;
 
 	ArrayList aActiveAbilities;
 	ArrayList aPassiveAbilities;
@@ -93,13 +92,13 @@ int g_iDamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {
 
-	CreateNative("RPG_Tanks_CanBeIgnited", Native_CanBeIgnited);
-	CreateNative("RPG_Tanks_CanBeMelee", Native_CanBeMelee);
+	CreateNative("RPG_Tanks_IsDamageImmuneTo", Native_IsDamageImmuneTo);
 	CreateNative("RPG_Tanks_RegisterTank", Native_RegisterTank);
 	CreateNative("RPG_Tanks_RegisterActiveAbility", Native_RegisterActiveAbility);
 	CreateNative("RPG_Tanks_RegisterPassiveAbility", Native_RegisterPassiveAbility);
 	CreateNative("RPG_Tanks_GetClientTank", Native_GetClientTank);
 	CreateNative("RPG_Tanks_GetDamagePercent", Native_GetDamagePercent);
+	CreateNative("RPG_Tanks_SetDamagePercent", Native_SetDamagePercent);
 	CreateNative("RPG_Tanks_IsTankInPlay", Native_IsTankInPlay);
 
 
@@ -110,12 +109,15 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 }
 
 
-public int Native_CanBeIgnited(Handle caller, int numParams)
+public int Native_IsDamageImmuneTo(Handle caller, int numParams)
 {
 	if(g_aTanks == null)
 		g_aTanks = CreateArray(sizeof(enTank));
 
 	int client = GetNativeCell(1);
+
+	// DAMAGE_IMMUNITY_*
+	int damageType = GetNativeCell(2);
 
 	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
 		return true;
@@ -128,25 +130,10 @@ public int Native_CanBeIgnited(Handle caller, int numParams)
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[client], tank);
 
-	return tank.fireDamageImmune;
-}
+	if(tank.damageImmunities == NO_DAMAGE_IMMUNITY)
+		return false;
 
-public int Native_CanBeMelee(Handle caller, int numParams)
-{
-	if(g_aTanks == null)
-		g_aTanks = CreateArray(sizeof(enTank));
-
-	int client = GetNativeCell(1);
-
-	if(g_iCurrentTank[client] < 0)
-	{
-		return true;
-	}
-
-	enTank tank;
-	g_aTanks.GetArray(g_iCurrentTank[client], tank);
-
-	return tank.meleeDamageImmune;
+	return tank.damageImmunities & damageType;
 }
 
 public int Native_RegisterTank(Handle caller, int numParams)
@@ -175,8 +162,7 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	int XPRewardMin = GetNativeCell(8);
 	int XPRewardMax = GetNativeCell(9);
 
-	bool fireDamageImmune = GetNativeCell(10);
-	bool meleeDamageImmune = GetNativeCell(11);
+	int damageImmunities = GetNativeCell(10);
 
 	int foundIndex = TankNameToTankIndex(name);
 
@@ -189,8 +175,7 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	tank.damageMultiplier = damageMultiplier;
 	tank.XPRewardMin = XPRewardMin;
 	tank.XPRewardMax = XPRewardMax;
-	tank.fireDamageImmune = fireDamageImmune;
-	tank.meleeDamageImmune = meleeDamageImmune;
+	tank.damageImmunities = damageImmunities;
 	tank.aActiveAbilities = CreateArray(sizeof(enActiveAbility));
 	tank.aPassiveAbilities = CreateArray(sizeof(enPassiveAbility));
 
@@ -293,9 +278,24 @@ public any Native_GetDamagePercent(Handle caller, int numParams)
 	int client = GetNativeCell(1);
 	int tank = GetNativeCell(2);
 
-	return float(g_iDamageTaken[tank][client]) / float(RPG_Perks_GetClientMaxHealth(tank)) * 100.0;
+	float damagePercent = float(g_iDamageTaken[tank][client]) / float(RPG_Perks_GetClientMaxHealth(tank)) * 100.0;
+
+	if(damagePercent > 100.0)
+		return 100.0;
+		
+	return damagePercent;
 }
 
+public any Native_SetDamagePercent(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+	int tank = GetNativeCell(2);
+	float damagePercent = GetNativeCell(2);
+
+	g_iDamageTaken[tank][client] = RoundFloat((damagePercent / 100.0) * float(RPG_Perks_GetClientMaxHealth(tank)));
+
+	return 0;
+}
 public any Native_IsTankInPlay(Handle caller, int numParams)
 {
 	int tankIndex = GetNativeCell(1);
@@ -707,12 +707,17 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[victim], tank);
 
-	if(tank.fireDamageImmune && damagetype & DMG_BURN)
+	if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && damagetype & DMG_BURN)
 	{
 		bImmune = true;
 	}
 
-	if(tank.meleeDamageImmune && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
+	if(tank.damageImmunities & DAMAGE_IMMUNITY_EXPLOSIVES && damagetype & DMG_BLAST)
+	{
+		bImmune = true;
+	}
+
+	if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
 	{
 		bImmune = true;
 	}
@@ -884,20 +889,36 @@ public Action ShowTargetTankInfo(int client, int tankIndex)
 	if(GetMenuItemCount(hMenu) == 0)
 		AddMenuItem(hMenu, tank.name, "No Abilities", ITEMDRAW_DEFAULT);
 
-	char immunityFormat[16];
+	char immunityFormat[32];
 	FormatEx(immunityFormat, sizeof(immunityFormat), "Nothing");
 
-	if(tank.meleeDamageImmune && tank.fireDamageImmune)
+	if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS )
+	{
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Melee, Fire & Bullets");
+	}
+	else if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE)
 	{
 		FormatEx(immunityFormat, sizeof(immunityFormat), "Melee & Fire");
 	}
-	else if(tank.meleeDamageImmune)
+	else if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS )
+	{
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Melee & Bullets");
+	}
+	else if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS )
+	{
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Fire & Bullets");
+	}
+	else if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN)
+	{
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Fire");
+	}
+	else if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE)
 	{
 		FormatEx(immunityFormat, sizeof(immunityFormat), "Melee");
 	}
-	else if(tank.fireDamageImmune)
+	else if(tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS )
 	{
-		FormatEx(immunityFormat, sizeof(immunityFormat), "Fire");
+		FormatEx(immunityFormat, sizeof(immunityFormat), "Bullets");
 	}
 
 	FormatEx(TempFormat, sizeof(TempFormat), "%s Tank | Choose an Ability for info\nMax HP : %i | Entries : %i\nAverage XP : %i | Immune to : %s\n%s", tank.name, tank.maxHP, tank.entries, (tank.XPRewardMin + tank.XPRewardMax) / 2, immunityFormat, tank.description);
@@ -972,6 +993,8 @@ public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
 		tank.aPassiveAbilities.GetArray(abilityIndex, passiveAbility);
 
 		strcopy(description, sizeof(description), passiveAbility.description);
+
+		FormatEx(TempFormat, sizeof(TempFormat), " %s\n%s", sName, description);
 	}
 	else
 	{
@@ -981,11 +1004,23 @@ public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
 		tank.aActiveAbilities.GetArray(abilityIndex, activeAbility);
 
 		strcopy(description, sizeof(description), activeAbility.description);
+
+		if(activeAbility.minCooldown == 0 && activeAbility.maxCooldown == 0)
+		{
+			FormatEx(TempFormat, sizeof(TempFormat), " %s\nDelay: Controlled by Passive Abilities\n%s", sName, description);
+		}
+		else if(activeAbility.minCooldown == activeAbility.maxCooldown)
+		{
+			FormatEx(TempFormat, sizeof(TempFormat), " %s\nDelay: %i seconds\n%s", sName, activeAbility.minCooldown, description);
+		}
+		else
+		{
+			FormatEx(TempFormat, sizeof(TempFormat), " %s\nDelay: %i ~ %i seconds\n%s", sName, activeAbility.minCooldown, activeAbility.maxCooldown, description);
+		}
 	}
 
 	AddMenuItem(hMenu, tank.name, "Back", ITEMDRAW_DEFAULT);
 
-	FormatEx(TempFormat, sizeof(TempFormat), " %s\n%s", sName, description);
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);
@@ -1100,7 +1135,7 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 		enTank tank;
 		g_aTanks.GetArray(g_iCurrentTank[victim], tank);
 
-		if(tank.fireDamageImmune && L4D_IsPlayerOnFire(victim))
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && L4D_IsPlayerOnFire(victim))
 		{
 			ExtinguishEntity(victim);
 		}

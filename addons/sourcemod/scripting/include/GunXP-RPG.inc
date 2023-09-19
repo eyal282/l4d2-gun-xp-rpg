@@ -14,6 +14,12 @@
 #define TANK_TIER_UNKNOWN -2
 #define TANK_TIER_UNTIERED -1
 
+#define NO_DAMAGE_IMMUNITY 0
+#define DAMAGE_IMMUNITY_BURN (1 << 0)
+#define DAMAGE_IMMUNITY_MELEE (1 << 1)
+#define DAMAGE_IMMUNITY_BULLETS (1 << 2)
+#define DAMAGE_IMMUNITY_EXPLOSIVES (1 << 2)
+
 enum
 {
 	ATTRIBUTE_NEUTRAL,
@@ -123,11 +129,11 @@ native int RPG_Perks_SetClientTempHealth(int client, int hp);
 // Please only pass survivors to this function.
 native int RPG_Perks_GetClientTempHealth(int client);
 
-// Is this tank immune to fire / melee?
-native int RPG_Tanks_CanBeIgnited(int client);
-native int RPG_Tanks_CanBeMelee(int client);
+// For immunityType, see DAMAGE_IMMUNITY_*
+native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
 
-native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, bool fireDamageImmune, bool meleeDamageImmune);
+// For damageImmunities, see DAMAGE_IMMUNITY_*
+native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities);
 
 
 // If cooldown is 0, ability will be described "Check passive abilities for details"
@@ -141,6 +147,7 @@ native int RPG_Tanks_RegisterPassiveAbility(int tank, char name[32], char descri
 native int RPG_Tanks_GetClientTank(int client);
 
 native float RPG_Tanks_GetDamagePercent(int client, int tank);
+native void RPG_Tanks_SetDamagePercent(int client, int tank, float damagePercent);
 
 native bool RPG_Tanks_IsTankInPlay(int tankIndex);
 

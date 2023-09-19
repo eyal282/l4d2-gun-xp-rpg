@@ -87,7 +87,7 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 
     if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
     {
-        if(RPG_Tanks_CanBeIgnited(victim))
+        if(RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
         {
             RPG_Perks_ApplyEntityTimedAttribute(victim, "Eternal Flame", 86400.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
             RPG_Perks_IgniteWithOwnership(victim, attacker);
@@ -115,7 +115,7 @@ public void RPG_Perks_OnIgniteWithOwnership(int victim, int attacker)
 
     if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
     {
-        if(RPG_Tanks_CanBeIgnited(victim))
+        if(RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
         {
             RPG_Perks_ApplyEntityTimedAttribute(victim, "Eternal Flame", 86400.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
         }
@@ -146,7 +146,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
         if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
         {
-            if(RPG_Tanks_CanBeIgnited(victim))
+            if(RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
             {
                 RPG_Perks_ApplyEntityTimedAttribute(victim, "Eternal Flame", 86400.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
                 RPG_Perks_IgniteWithOwnership(victim, attacker);
