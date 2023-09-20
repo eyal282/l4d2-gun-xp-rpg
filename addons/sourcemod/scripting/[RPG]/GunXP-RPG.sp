@@ -78,6 +78,7 @@ char g_sForbiddenMapWeapons[][] =
 };
 
 bool g_bLate = false;
+bool g_bMapStarted = false;
 
 ConVar hcv_priorityGiveGuns;
 
@@ -587,15 +588,6 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
 
-	for(int i=0;i < g_aSkills.Length;i++)
-	{
-		enSkill iSkill;
-		g_aSkills.GetArray(i, iSkill);
-		
-		if(StrEqual(identifier, iSkill.identifier))
-			return i;
-	}
-
 	int cost = GetNativeCell(4);
 
 	int levelReq = GetClosestLevelToXP(GetNativeCell(5));
@@ -623,6 +615,20 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 	skill.skillIndex = -1;
 
 	delete reqIdentifiers;
+
+	for(int i=0;i < g_aSkills.Length;i++)
+	{
+		enSkill iSkill;
+		g_aSkills.GetArray(i, iSkill);
+		
+		if(StrEqual(identifier, iSkill.identifier))
+		{
+			skill.skillIndex = i;
+			g_aSkills.SetArray(i, skill);
+
+			return i;
+		}
+	}
 
 	int skillIndex = g_aSkills.PushArray(skill);
 
@@ -692,15 +698,6 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 	ArrayList costs = GetNativeCell(4);
 	ArrayList levelReqs = GetNativeCell(5);
 
-	for(int i=0;i < g_aPerkTrees.Length;i++)
-	{
-		enPerkTree iPerkTree;
-		g_aPerkTrees.GetArray(i, iPerkTree);
-		
-		if(StrEqual(identifier, iPerkTree.identifier))
-			return i;
-	}
-
 	ArrayList reqIdentifiers = GetNativeCell(6);
 
 	bool doubleEdged = GetNativeCell(7);
@@ -744,6 +741,22 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 	delete levelReqs;
 
 	perkTree.perkIndex = -1;
+
+
+	for(int i=0;i < g_aPerkTrees.Length;i++)
+	{
+		enPerkTree iPerkTree;
+		g_aPerkTrees.GetArray(i, iPerkTree);
+		
+		if(StrEqual(identifier, iPerkTree.identifier))
+		{
+			perkTree.perkIndex = i;
+
+			g_aPerkTrees.SetArray(i, perkTree);
+
+			return i;
+		}
+	}
 
 	int perkIndex = g_aPerkTrees.PushArray(perkTree);
 
@@ -1031,13 +1044,30 @@ public void OnClientConnected(int client)
 	CalculateStats(client);
 }
 
+
+public void OnMapEnd()
+{
+	g_bMapStarted = false;
+}
 public void OnMapStart()
 {
+	g_bMapStarted = true;
+
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 	TriggerTimer(CreateTimer(5.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE));
 		
 	CreateTimer(150.0, Timer_TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+
+	for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
+	{
+		int entity = -1;
+
+		while((entity = FindEntityByClassname(entity, g_sForbiddenMapWeapons[i])) != -1)
+		{
+			OnShouldSpawn_ConvertSpawn(entity);
+		}
+	}
 }
 
 public Action Timer_AutoRPG(Handle hTimer)
@@ -2348,6 +2378,9 @@ public void OnEntityCreated(int entity, const char[] classname)
 	//if(StrEqual(classname, "game_player_equip"))
 	//	SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
 
+	if(!g_bMapStarted)
+		return;
+
 	for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
 	{
 		if(StrEqual(classname, g_sForbiddenMapWeapons[i]))
@@ -2620,6 +2653,8 @@ stock void ResetPerkTreesAndSkills(int client)
 	if(IsPlayerAlive(client))
 	{
 		RPG_Perks_RecalculateMaxHP(client);
+
+		RecalculateBotMaxHP();
 	}
 
 }
@@ -2734,6 +2769,8 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 		if(IsClientInGame(client) && IsPlayerAlive(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 		{
 			RPG_Perks_RecalculateMaxHP(client);
+
+			RecalculateBotMaxHP();
 		}
 		return;
 	}
@@ -2789,6 +2826,8 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 	if(IsClientInGame(client) && IsPlayerAlive(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 	{
 		RPG_Perks_RecalculateMaxHP(client);
+
+		RecalculateBotMaxHP();
 	}
 }
 
@@ -3372,3 +3411,22 @@ stock int TrueFloatFraction(float value, int precision = 3)
 	return StringToInt(sFraction);
 }
 
+stock void RecalculateBotMaxHP()
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		else if(!IsFakeClient(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		RPG_Perks_RecalculateMaxHP(i);
+	}
+}

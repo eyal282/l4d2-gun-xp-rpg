@@ -120,7 +120,7 @@ public int Native_IsDamageImmuneTo(Handle caller, int numParams)
 	int damageType = GetNativeCell(2);
 
 	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
-		return true;
+		return false;
 		
 	if(g_iCurrentTank[client] < 0)
 	{
@@ -290,7 +290,7 @@ public any Native_SetDamagePercent(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
 	int tank = GetNativeCell(2);
-	float damagePercent = GetNativeCell(2);
+	float damagePercent = GetNativeCell(3);
 
 	g_iDamageTaken[tank][client] = RoundFloat((damagePercent / 100.0) * float(RPG_Perks_GetClientMaxHealth(tank)));
 
@@ -377,6 +377,14 @@ public void OnMapStart()
 	TriggerTimer(CreateTimer(0.5, Timer_TanksOpenDoors, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
+public void OnClientConnected(int client)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		g_iDamageTaken[client][i] = 0;
+		g_iDamageTaken[i][client] = 0;
+	}
+}
 public Action Timer_TanksOpenDoors(Handle hTimer)
 {
 	for(int i=1;i <= MaxClients;i++)
@@ -667,8 +675,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		char sClassname[64];
 		if(attacker != 0)
 			GetEdictClassname(attacker, sClassname, sizeof(sClassname));
-		
-		if(IsPlayer(victim) && (damage >= 100.0 && (attacker == victim || attacker == 0 || StrEqual(sClassname, "trigger_hurt") || StrEqual(sClassname, "point_hurt"))))
+
+		if(IsPlayer(victim) && (damage >= 100.0 && (attacker == victim || attacker == 0 || strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0)))
 		{
 			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
 
@@ -718,6 +726,11 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	}
 
 	if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
+	{
+		bImmune = true;
+	}
+
+	if(tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS && damagetype & DMG_BULLET)
 	{
 		bImmune = true;
 	}
@@ -1327,9 +1340,11 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			continue;
 
 		
+		float fDamageRatio = RPG_Tanks_GetDamagePercent(i, victim) / 100.0;
+
 		if(LibraryExists("GunXP-RPG"))
 		{
-			PrintToChat(i, "You dealt\x03 %.1f%%\x01 of %N's max HP as damage", float(g_iDamageTaken[victim][i]) / float(RPG_Perks_GetClientMaxHealth(victim)) * 100.0, victim);
+			PrintToChat(i, "You dealt\x03 %.1f%%\x01 of %N's max HP as damage", fDamageRatio * 100.0, victim);
 		}
 
 		float fMinDamageRatio = 0.05;
@@ -1337,9 +1352,9 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientLevel(i) <= 6)
 			fMinDamageRatio = 0.01;
 
-		if(LibraryExists("GunXP-RPG") && float(g_iDamageTaken[victim][i]) / float(tank.maxHP) < fMinDamageRatio)
+		if(LibraryExists("GunXP-RPG") && fDamageRatio < fMinDamageRatio)
 		{
-			PrintToChat(i, "This is not enough to gain XP rewards.", victim);
+			PrintToChat(i, "This is not enough to gain XP rewards. (Min. %.0f%%)", victim, fMinDamageRatio * 100.0);
 
 			continue;
 		}

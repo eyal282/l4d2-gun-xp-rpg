@@ -59,10 +59,10 @@ public void GunXP_RPGShop_OnResetRPG(int client)
     char sValue[32];
 
     FloatToString(hcv_IncapAccuracyPenalty.FloatValue, sValue, sizeof(sValue));
-    SendConVarValue(client, hcv_IncapAccuracyPenalty, sValue);
+    RPG_SendConVarValue(client, hcv_IncapAccuracyPenalty, sValue);
 
     FloatToString(hcv_IncapCameraShake.FloatValue, sValue, sizeof(sValue));
-    SendConVarValue(client, hcv_IncapCameraShake, sValue);
+    RPG_SendConVarValue(client, hcv_IncapCameraShake, sValue);
 }
 
 public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
@@ -70,8 +70,8 @@ public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
     if(skillIndex != sniperIndex)
         return;
 
-    SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
-    SendConVarValue(client, hcv_IncapCameraShake, "0.0");
+    RPG_SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
+    RPG_SendConVarValue(client, hcv_IncapCameraShake, "0.0");
 }
 
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
@@ -82,8 +82,8 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
     else if(!GunXP_RPGShop_IsSkillUnlocked(client, sniperIndex))
         return;
 
-    SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
-    SendConVarValue(client, hcv_IncapCameraShake, "0.0");
+    RPG_SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
+    RPG_SendConVarValue(client, hcv_IncapCameraShake, "0.0");
 }
 public void OnMapStart()
 {
@@ -140,4 +140,19 @@ stock void GiveClientWeaponUpgrade(int client, int upgrade)
 
     char sOutput[512];
     L4D2_GetVScriptOutput(code, sOutput, sizeof(sOutput));
+}
+
+stock void RPG_SendConVarValue(int client, ConVar cvar, char[] sValue)
+{
+    if(IsFakeClient(client))
+    {
+        char sCvarName[256];
+        cvar.GetName(sCvarName, sizeof(sCvarName));
+
+        SetFakeClientConVar(client, sCvarName, sValue);
+    }
+    else
+    {
+        SendConVarValue(client, cvar, sValue);
+    }
 }

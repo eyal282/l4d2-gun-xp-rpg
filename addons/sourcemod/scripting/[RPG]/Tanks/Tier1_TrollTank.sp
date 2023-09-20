@@ -10,6 +10,8 @@
 
 #define PLUGIN_VERSION "1.0"
 
+#define MODEL_EXPLOSIVE		"models/props_junk/propanecanister001a.mdl"
+
 public Plugin myinfo =
 {
 	name        = "Troll Tank --> Gun XP - RPG",
@@ -22,6 +24,9 @@ public Plugin myinfo =
 int tankIndex;
 
 int stunIndex, hunterIndex;
+
+float g_fExplosionRange = 512.0;
+
 
 public void OnLibraryAdded(const char[] name)
 {
@@ -39,9 +44,10 @@ public void OnConfigsExecuted()
 public void OnPluginStart()
 {
 	RegisterTank();
+}
 
-	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
-
+public void OnMapStart()
+{
 	TriggerTimer(CreateTimer(1.0, Timer_TrollTank, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
@@ -82,6 +88,14 @@ public Action Timer_TrollTank(Handle hTimer)
 
 public void OnTrollTankTimer(int client)
 {
+	int weapon = L4D_GetPlayerCurrentWeapon(client);
+
+	if(weapon != -1)
+	{
+		SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", 2000000000.0);
+		SetEntPropFloat(weapon, Prop_Data, "m_flNextSecondaryAttack", 2000000000.0);
+	}
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -94,51 +108,105 @@ public void OnTrollTankTimer(int client)
 	}
 }
 
-public Action Event_WeaponFire(Handle hEvent, char[] Name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	
-	if(client == 0)
-		return Plugin_Continue;
-
-	char sWeaponName[16];
-	GetEventString(hEvent, "weapon", sWeaponName, sizeof(sWeaponName));
-
-	if(!StrEqual(sWeaponName, "tank_claw"))
-		return Plugin_Continue;
-
-	else if(RPG_Tanks_GetClientTank(client) != tankIndex)
-		return Plugin_Continue;
-
-	int weapon = L4D_GetPlayerCurrentWeapon(client);
-	
-	if(weapon == -1)
-		return Plugin_Continue;
-		
-	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", GetGameTime() + 0.3);
-	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.3);
-
-	return Plugin_Continue;
-}
-
 public void GunXP_OnReloadRPGPlugins()
 {
 	GunXP_ReloadPlugin();
 }
 
+public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker)
+{
+	if(RPG_Tanks_GetClientTank(victim) != tankIndex)
+		return;
+
+	float fOrigin[3];
+	GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	int entity = CreateEntityByName("prop_physics");
+	if( entity != -1 )
+	{
+		DispatchKeyValue(entity, "model", MODEL_EXPLOSIVE);
+
+		// Hide from view (multiple hides still show the gascan/propane tank for a split second sometimes, but works better than only using 1 of them)
+		SDKHook(entity, SDKHook_SetTransmit, SDKEvent_NeverTransmit);
+
+		// Hide from view
+		int flags = GetEntityFlags(entity);
+		SetEntityFlags(entity, flags|FL_EDICT_DONTSEND);
+
+		// Make invisible
+		SetEntityRenderMode(entity, RENDER_TRANSALPHAADD);
+		SetEntityRenderColor(entity, 0, 0, 0, 0);
+
+		// Prevent collision and movement
+		SetEntProp(entity, Prop_Send, "m_CollisionGroup", 1, 1);
+		SetEntityMoveType(entity, MOVETYPE_NONE);
+
+		// Teleport
+		TeleportEntity(entity, fOrigin, NULL_VECTOR, NULL_VECTOR);
+
+		// Spawn
+		DispatchSpawn(entity);
+
+		// Set attacker
+		SetEntPropEnt(entity, Prop_Data, "m_hPhysicsAttacker", victim);
+		SetEntPropFloat(entity, Prop_Data, "m_flLastPhysicsInfluenceTime", GetGameTime());
+
+		// Explode
+		AcceptEntityInput(entity, "Break", victim);
+	}
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		float fSurvivorOrigin[3];
+		GetClientAbsOrigin(i, fSurvivorOrigin);
+
+		if (GetVectorDistance(fOrigin, fSurvivorOrigin) < g_fExplosionRange)
+		{
+			RPG_Perks_InstantKill(i, victim, victim, DMG_BLAST);
+		}
+	}
+}
+
+public Action SDKEvent_NeverTransmit(int victim, int viewer)
+{
+	return Plugin_Handled;
+}
 public void RegisterTank()
 {
-	tankIndex = RPG_Tanks_RegisterTank(1, 3, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes almost no damage.", 1000000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+	tankIndex = RPG_Tanks_RegisterTank(1, 99, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes almost no damage.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Mental Pain", "Tank deals no direct damage");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Close and Personal", "Tank attacks at high speed.\nTank cannot throw rocks.");
-	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Painful Goodbye", "Tank explodes after death killing all survivors in 512 unit radius\nEven if mission is lost, XP is still given.");
+
+	char sDescription[512];
+	FormatEx(sDescription, sizeof(sDescription), "Tank explodes after death killing all survivors in %i unit radius\nEven if mission is lost, XP is still given.", RoundFloat(g_fExplosionRange));
+
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Painful Goodbye", sDescription);
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Cheerful Goodbye?", "No matter the situation, all players are treated as inflicted 100{PERCENT} of Tank's HP in damage.");
 
 	stunIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Stun", "Stuns 2 closest survivors for 30 seconds in a 512 unit radius\nThis can stack freely.", 20, 40);
-	hunterIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Tactical Stun", "Spawns a Hunter that pins closest survivor\nThis always works no matter how far the survivor is.\nThe hunter deals 1 base damage.", 30, 45);
+	hunterIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Tactical Stun", "Spawns a Hunter that pins closest survivor\nThis always works no matter how far the survivor is.", 30, 45);
 }
 
+public void RPG_Perks_OnGetTankSwingSpeed(int priority, int client, float &delay)
+{
+	if(priority != -2)
+		return;
+
+	if(RPG_Tanks_GetClientTank(client) != tankIndex)
+		return;
+
+	delay = 0.0;
+}
 
 public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 {  
@@ -207,7 +275,7 @@ public Action Timer_ForceHunter(Handle hTimer, DataPack DP)
 	int survivor = ReadPackCell(DP);
 	int hunter = ReadPackCell(DP);
 
-	L4D2_ForceJockeyVictim(survivor, hunter);
+	L4D_ForceHunterVictim(survivor, hunter);
 
 	return Plugin_Continue;
 }
@@ -226,7 +294,7 @@ stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception
 			continue;
 
 		// Technically unused because the tank can never be survivor but still...
-		else if(client == i || client == exception)
+		else if(client == i || exception == i)
 			continue;
 
 		else if(!IsPlayerAlive(i))

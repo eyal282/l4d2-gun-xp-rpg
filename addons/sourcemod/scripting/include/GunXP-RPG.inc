@@ -94,6 +94,9 @@ native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] nam
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
 
+// Returns true if player died, false otherwise.
+native bool RPG_Perks_InstantKill(int victim, int attacker, int inflictor, int damagetype);
+
 // Returns damage dealt after all modifiers.
 native float RPG_Perks_TakeDamage(int victim, int attacker, int inflictor, float damage, int damagetype, int hitbox=0, int hitgroup=0);
 
@@ -108,6 +111,7 @@ native bool  RPG_Perks_UseClientLimitedAbility(int client, char identifier[32], 
 native bool RPG_Perks_IsEntityTimedAttribute(int entity, char attributeName[64]);
 
 // See COLLISION_* for list of actions taken on collision.
+// See ATTRIBUTE_* for list of attribute types.
 // If COLLISION_RETURN, COLLISION_SET_IF_HIGHER, or COLLISION_SET_IF_LOWER are used, returns false if attribute was not set.
 native bool RPG_Perks_ApplyEntityTimedAttribute(int entity, char attributeName[64], float fDuration, int collision, int attributeType, int transferRules = TRANSFER_NORMAL);
 
@@ -193,6 +197,19 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 forward void GunXP_RPGShop_OnResetRPG(int client);
 
 
+// WARNING! THIS FORWARD FIRES 20 TIMES PER CHECK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
+// Generally you should set-up a cvar and make the priority 0. Other plugins will be closer or further from 10 based on what they need.
+// If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 10 it will run LAST.
+// Check for priority closer to -10 if you want to SET the speed to a certain value.
+// Check for priority closer to 10 if you want to go after another plugin to fix something they did.
+// After that, it would be recommended to multiply the swing speed.
+// Do not hog -10 and 10, this may have severe consequences when a programmer cannot naturally go before / after you.
+
+// ATTENTION!!! float delay is the time it takes for the tank to swing after his hand connects with survivor / air.
+forward void RPG_Perks_OnGetTankSwingSpeed(int priority, int client, float &delay);
+
 // Called when RPG_Perks_IgniteWithOwnership is used.
 forward void RPG_Perks_OnIgniteWithOwnership(int victim, int attacker);
 
@@ -260,6 +277,18 @@ forward void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpaw
 // If you're altering on a positive priority, the closer it is to 10 it will run LAST.
 // I can't think of a reason to use a priority closer to -10.
 forward void RPG_Perks_OnZombiePlayerSpawned(int priority, int client);
+
+// WARNING! THIS FORWARD FIRES 20 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
+// It is recommended to default priority of 0 but have a cvar that lets controlling it.
+// If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 10 it will run LAST.
+// Check for priority closer to -10 if you want to SET the damage to a certain value.
+// Check for priority closer to 10 if you want to go after another plugin to fix something they did.
+// Do not hog -10 and 10, this may have severe consequences when a programmer cannot naturally go before / after you.
+// bImmune is like setting damage to 0.0, but enables plugins to block your damage immunity. Example: Tier 1 tank is immune to fire damage. Flaming katana deals fire damage and ignores all fire immunity.
+
+forward void RPG_Perks_OnShouldInstantKill(int priority, int victim, int attacker, int inflictor, int damagetype, bool &bImmune);
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"

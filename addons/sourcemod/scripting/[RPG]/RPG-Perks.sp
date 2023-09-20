@@ -19,6 +19,9 @@
 
 #pragma semicolon 1
 
+// Debug variable.
+int g_iHurtCount = 0;
+
 public Plugin myinfo =
 {
 	name        = "RPG Perks",
@@ -62,6 +65,9 @@ bool g_bTeleported[MAXPLAYERS+1];
 
 Handle g_hCheckAttributeExpire;
 
+ConVar g_hTankSwingInterval;
+ConVar g_hTankAttackInterval;
+
 ConVar g_hRPGDeathCheckMode;
 
 ConVar g_hRPGTriggerHurtMultiplier;
@@ -104,6 +110,10 @@ ConVar g_hLimpHealth;
 ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
+
+GlobalForward g_fwOnShouldInstantKill;
+
+GlobalForward g_fwOnGetTankSwingSpeed;
 
 GlobalForward g_fwOnIgniteWithOwnership;
 
@@ -177,12 +187,14 @@ public void OnPluginEnd()
 	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
 	g_hAdrenalineHealPercent.IntValue = g_hRPGAdrenalineHealPercent.IntValue;
 	g_hPainPillsHealPercent.IntValue = g_hRPGPainPillsHealPercent.IntValue;
+	g_hTankAttackInterval.FloatValue = 1.5;
 }
 
 
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+	CreateNative("RPG_Perks_InstantKill", Native_InstantKill);
 	CreateNative("RPG_Perks_TakeDamage", Native_TakeDamage);
 	CreateNative("RPG_Perks_IgniteWithOwnership", Native_IgniteWithOwnership);
 	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
@@ -196,6 +208,45 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_GetClientLimitedAbility", Native_GetClientLimitedAbility);
 	CreateNative("RPG_Perks_UseClientLimitedAbility", Native_UseClientLimitedAbility);
 	return APLRes_Success;
+}
+
+public any Native_InstantKill(Handle caller, int numParams)
+{
+	int victim = GetNativeCell(1);
+	int attacker = GetNativeCell(2);
+	int inflictor = GetNativeCell(3);
+	int damagetype = GetNativeCell(4);
+	
+	bool bImmune = false;
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnShouldInstantKill);
+
+		Call_PushCell(a);
+		Call_PushCell(victim);
+		Call_PushCell(attacker);
+		Call_PushCell(inflictor);
+		Call_PushCell(damagetype);
+		
+		Call_PushCellRef(bImmune);
+
+		Call_Finish();	
+	}
+
+	if(bImmune)
+		return false;
+
+	ConVar cvar = FindConVar("survivor_max_incapacitated_count");
+
+	SetEntProp(victim, Prop_Send, "m_currentReviveCount", cvar.IntValue);
+
+	SDKHooks_TakeDamage(victim, inflictor, attacker, 100000.0, damagetype);
+
+	if(IsPlayerAlive(victim))
+		return false;
+	
+	return true;
 }
 
 // For now, DMG_BURN and DMG_FALL will not require this native.
@@ -689,6 +740,10 @@ public void OnMapStart()
 
 public Action Timer_CheckSpeedModifiers(Handle hTimer)
 {
+	g_iHurtCount = 0;
+
+	// As opposed to Tank Swing Interval, this is basically the "CS:GO invisible timer involving changing weapons". Tank can't switch weapons.
+	g_hTankAttackInterval.FloatValue = 0.0;
 	g_hLimpHealth.IntValue = 0;
 	g_hAdrenalineDuration.FloatValue = 0.0;
 	g_hAdrenalineHealPercent.IntValue = 0;
@@ -818,6 +873,10 @@ public void OnPluginStart()
 	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
 
+	g_fwOnShouldInstantKill = CreateGlobalForward("RPG_Perks_OnShouldInstantKill", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef);
+
+	g_fwOnGetTankSwingSpeed = CreateGlobalForward("RPG_Perks_OnGetTankSwingSpeed", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
+
 	g_fwOnIgniteWithOwnership = CreateGlobalForward("RPG_Perks_OnIgniteWithOwnership", ET_Ignore, Param_Cell, Param_Cell);
 
 	g_fwOnGetMaxLimitedAbility = CreateGlobalForward("RPG_Perks_OnGetMaxLimitedAbility", ET_Ignore, Param_Cell, Param_Cell, Param_String, Param_CellByRef);
@@ -859,6 +918,9 @@ public void OnPluginStart()
 	g_hRPGTriggerHurtMultiplier = AutoExecConfig_CreateConVar("rpg_trigger_hurt_multiplier", "10.0", "Multiplier of damage inflicted to ZOMBIES by trigger_hurt that has greater than 600 damage.\nOn rooftop finale if a charger doesn't instantly die from the trigger_hurt, bugs can easily occur.");
 
 	g_hRPGTankHealth = AutoExecConfig_CreateConVar("rpg_z_tank_health", "4000", "Default health of the Tank");
+
+	g_hTankSwingInterval = FindConVar("tank_swing_interval");
+	g_hTankAttackInterval = FindConVar("z_tank_attack_interval");
 
 	g_hPillsDecayRate = FindConVar("pain_pills_decay_rate");
 
@@ -921,7 +983,7 @@ public void OnPluginStart()
 		if(StrEqual(sClassname, "infected") || StrEqual(sClassname, "witch"))
 		{
 			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
-			SDKHook(i, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
+			SDKHook(i, SDKHook_OnTakeDamage, Event_TakeDamage);
 		}
 	}
 
@@ -975,7 +1037,7 @@ public void Event_ZombieSpawnPost(int entity)
 	SetEntProp(entity, Prop_Data, "m_iHealth", maxHP);
 
 	SDKHook(entity, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(entity, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
+	SDKHook(entity, SDKHook_OnTakeDamage, Event_TakeDamage);
 }
 
 public void Event_OnSpawnpointSpawnPost(int entity)
@@ -1230,11 +1292,22 @@ public Action Event_TankKilled(Handle hEvent, char[] Name, bool dontBroadcast)
 	return Plugin_Handled;
 }
 
-
 public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 
+	g_iHurtCount++;
+
+	if(g_iHurtCount > 200)
+	{
+		g_iHurtCount = 0;
+
+		char classname[64];
+		int attackerent = GetEventInt(hEvent, "attackerentid");
+		GetEdictClassname(attackerent, classname, sizeof(classname));
+
+		LogError("EYAL282!!! Found 200 hurt quickly!!!\nClient: %i, attacker classname: %s", client, classname);
+	}
 	if(client == 0)
 		return Plugin_Continue;
 
@@ -1978,17 +2051,94 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
+	SDKHook(client, SDKHook_OnTakeDamage, Event_TakeDamage);
+
+	AnimHookEnable(client, INVALID_FUNCTION, OnTankStartSwingPost);
+}
+
+public Action OnTankStartSwingPost(int client, int &sequence)
+{
+	// 0 Clue how the other two got here...
+	//if(sequence != PLAYERANIMEVENT_PRIMARY_ATTACK && sequence != PLAYERANIMEVENT_HEAL_OTHER && sequence != PLAYERANIMEVENT_CROUCH_HEAL_INCAPACITATED_ABOVE)
+	//	return Plugin_Continue;
+
+	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+		return Plugin_Continue;
+
+	int weapon = L4D_GetPlayerCurrentWeapon(client);
+
+	if(weapon == -1)
+		return Plugin_Continue;
+		
+	else if(GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - GetGameTime() <= g_hTankSwingInterval.FloatValue)
+		return Plugin_Continue;
+
+	float fDelay = GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - GetGameTime() - g_hTankSwingInterval.FloatValue;
+	CreateTimer(fDelay, Timer_CheckTankSwing, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
+}
+
+public Action Timer_CheckTankSwing(Handle hTimer, int userid)
+{
+	int client = GetClientOfUserId(userid);
+	
+	if(client == 0)
+		return Plugin_Continue;
+
+	int weapon = L4D_GetPlayerCurrentWeapon(client);
+	
+	if(weapon == -1)
+		return Plugin_Continue;
+
+	float fOriginalDelay = GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - GetGameTime();
+	float fDelay = fOriginalDelay;
+
+	for(int a=-10;a <= 10;a++)
+	{
+		Call_StartForward(g_fwOnGetTankSwingSpeed);
+
+		Call_PushCell(a);
+		Call_PushCell(client);
+		
+		Call_PushFloatRef(fDelay);
+
+		Call_Finish();	
+	}
+
+	if(fDelay == fOriginalDelay)
+		return Plugin_Continue;
+
+	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", GetGameTime() + fDelay);
+	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
+
+	SetEntPropFloat(client, Prop_Data, "m_flNextAttack", GetGameTime() + fDelay);
+	SetEntPropFloat(weapon, Prop_Data, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
+
+	int iAttackTimer = FindSendPropInfo("CTankClaw", "m_attackTimer");
+	SetEntData(weapon, iAttackTimer + 4, 0.0);
+	SetEntData(weapon, iAttackTimer + 8, 0.0);
+
+
+	iAttackTimer = FindSendPropInfo("CTankClaw", "m_swingTimer");
+	SetEntData(weapon, iAttackTimer + 4, 0.0);
+	SetEntData(weapon, iAttackTimer + 8, 0.0);
+
+	iAttackTimer = FindSendPropInfo("CTankClaw", "m_lowAttackDurationTimer");
+	SetEntData(weapon, iAttackTimer + 4, 0.0);
+	SetEntData(weapon, iAttackTimer + 8, 0.0);
+
+
+	return Plugin_Continue;
 }
 
 // I suspect fall damage is fully ignored in these functions.
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
-{
-	
+{		
 	if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL))
+	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !IsDamageToSelf(victim, attacker))
 		return Plugin_Continue;
 
 
@@ -2008,7 +2158,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL)
+	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || IsDamageToSelf(victim, attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -2705,6 +2855,25 @@ stock bool SurvivorVictimNextBotAttacker(int victim, int attacker)
 	return false;
 }
 
+stock bool IsDamageToSelf(int victim, int attacker)
+{
+	if(victim == attacker)
+		return true;
+
+	else if(attacker == 0)
+		return true;
+
+	char sClassname[64];
+	if(attacker != 0)
+		GetEdictClassname(attacker, sClassname, sizeof(sClassname));
+
+	if(strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0)
+	{
+		return true;
+	}
+
+	return false;
+}
 stock float CalculateTankBurnDamage(int victim)
 {
 
