@@ -39,6 +39,7 @@
 
  
 
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Addict.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_AngerIgnition.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Athlete.smx"
  	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_BileGoggles.smx"
@@ -47,6 +48,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_FullAuto.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Hyperactive.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Immolation.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_KarmaSurvivor.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Knife.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Leader_And_ParryTactics.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Sniper.smx"
@@ -54,6 +56,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_UltimateSamurai.smx"
 
 	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier1_JockeyTank.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier1_TrollTank.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier2_PsychicTank.smx"
 
 }
