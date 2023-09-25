@@ -303,15 +303,11 @@ public void CastMutation(int client)
 
 	int survivor2 = FindRandomSurvivorNearby(client, 512.0, survivor1);
 
-	RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 
 	int survivor3 = FindRandomSurvivorNearby(client, 512.0, survivor1, survivor2);
 
-	RPG_Perks_ApplyEntityTimedAttribute(survivor3, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 
 	int survivor4 = FindRandomSurvivorNearby(client, 512.0, survivor1, survivor2, survivor3);
-
-	RPG_Perks_ApplyEntityTimedAttribute(survivor4, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 
 	if(survivor2 == -1)
 	{
@@ -320,16 +316,25 @@ public void CastMutation(int client)
 	else if(survivor3 == -1)
 	{
 		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
+
+		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 	}
 	else if(survivor4 == -1)
 	{
 		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
 		PrintToChatAll("%N is mutated for %.0f seconds.", survivor3, fDuration);
+
+		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(survivor3, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 	}
 	else
 	{
 		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
 		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor3, survivor4, fDuration);
+
+		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(survivor3, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(survivor4, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 	}
 
 	PrintToChatAll("Mutated players lose all abilities");

@@ -423,6 +423,66 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 {
 	AddClientXP(attacker, XPReward);
 }
+
+
+public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
+{
+	if(!StrEqual(attributeName, "Mutated"))
+		return;
+
+	else if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
+		return;
+
+	Call_StartForward(g_fwOnResetRPG);
+
+	Call_PushCell(entity);
+
+	Call_Finish();
+
+	if(IsPlayerAlive(entity))
+	{
+		RPG_Perks_RecalculateMaxHP(entity);
+
+		RecalculateBotMaxHP();
+	}
+}
+
+public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
+{
+	if(!StrEqual(attributeName, "Mutated"))
+		return;
+
+	else if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
+		return;
+
+	if(IsPlayerAlive(entity))
+	{
+		RPG_Perks_RecalculateMaxHP(entity);
+
+		RecalculateBotMaxHP();
+	}
+}
+
+public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
+{
+	if(!StrEqual(attributeName, "Mutated"))
+		return;
+
+	// Not possible to transfer to common or witch...
+	Call_StartForward(g_fwOnResetRPG);
+
+	Call_PushCell(newClient);
+
+	Call_Finish();
+
+	if(IsPlayerAlive(newClient))
+	{
+		RPG_Perks_RecalculateMaxHP(newClient);
+
+		RecalculateBotMaxHP();
+	}
+}
+
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
 {
 	if(priority != hcv_priorityGiveGuns.IntValue)

@@ -790,6 +790,8 @@ public Action Command_TankHP(int client, int args)
 		if(bestTank == 0)
 			return Plugin_Handled;
 
+		PrintToChat(client, "Damage dealt to %N:", bestTank);
+
 		char PlayerFormat[256];
 
 		int count = 0;
@@ -802,8 +804,8 @@ public Action Command_TankHP(int client, int args)
 			else if(!IsPlayerAlive(i))
 				continue;
 
-			else if(IsFakeClient(i))
-				continue;
+			//else if(IsFakeClient(i))
+			//	continue;
 
 			else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 				continue;
@@ -814,6 +816,8 @@ public Action Command_TankHP(int client, int args)
 
 				ReplaceString(PlayerFormat, sizeof(PlayerFormat), "{PERCENT}", "%%");
 				PrintToChat(client, PlayerFormat);
+
+				PlayerFormat[0] = EOS;
 			}
 			else
 			{
@@ -823,7 +827,7 @@ public Action Command_TankHP(int client, int args)
 			count++;
 		}
 
-		if(count % 2 == 0)
+		if(count % 2 == 1)
 		{
 			PlayerFormat[strlen(PlayerFormat) - 2] = EOS;
 

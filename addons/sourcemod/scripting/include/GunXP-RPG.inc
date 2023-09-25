@@ -196,6 +196,7 @@ forward void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLeve
 forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG);
 
 // This is called while the player still has their current perk tree and skills.
+// Also called when player begins mutating.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 
 
