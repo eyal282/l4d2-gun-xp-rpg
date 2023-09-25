@@ -9,6 +9,8 @@
 
 #define FPERM_ULTIMATE (FPERM_U_READ | FPERM_U_WRITE | FPERM_U_EXEC | FPERM_G_READ | FPERM_G_WRITE | FPERM_G_EXEC | FPERM_O_READ | FPERM_O_WRITE | FPERM_O_EXEC)
 
+#define PERK_TREE_NOT_UNLOCKED -1
+
 #define SPEEDSTATE_NULL -1	// This is to return an invalid speeds and stop attempting to change player movement speed
 
 #define TANK_TIER_UNKNOWN -2

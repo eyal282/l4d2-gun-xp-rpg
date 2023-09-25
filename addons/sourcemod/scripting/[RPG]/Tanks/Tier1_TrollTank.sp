@@ -23,14 +23,15 @@ public Plugin myinfo =
 
 int tankIndex;
 
-int stunIndex, hunterIndex;
+int stunIndex, hunterIndex, mutationIndex;
 
 float g_fExplosionRange = 512.0;
 
 
 public void OnLibraryAdded(const char[] name)
 {
-	if (StrEqual(name, "RPG_Tanks"))
+	// GunXP-RPG is to make Mutation only work with GunXP - RPG
+	if (StrEqual(name, "RPG_Tanks") || StrEqual(name, "GunXP-RPG"))
 	{
 		RegisterTank();
 	}
@@ -195,6 +196,11 @@ public void RegisterTank()
 
 	stunIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Stun", "Stuns 2 closest survivors for 30 seconds in a 512 unit radius\nThis can stack freely.", 20, 40);
 	hunterIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Tactical Stun", "Spawns a Hunter that pins closest survivor\nThis always works no matter how far the survivor is.", 30, 45);
+
+	if(LibraryExists("GunXP-RPG"))
+	{
+		mutationIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Mutation", "Mutates 4 closest survivors for 15 seconds in a 512 unit radius\nMutated survivors are treated as level 0 and lose all abilities.", 90, 120);
+	}
 }
 
 public void RPG_Perks_OnGetTankSwingSpeed(int priority, int client, float &delay)
@@ -218,6 +224,9 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 
 	else if(abilityIndex == hunterIndex)
 		CastHunter(client);
+
+	else if(abilityIndex == mutationIndex)
+		CastMutation(client);
 }
 
 public void CastStun(int client)
@@ -280,7 +289,53 @@ public Action Timer_ForceHunter(Handle hTimer, DataPack DP)
 	return Plugin_Continue;
 }
 
-stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception=0)
+
+public void CastMutation(int client)
+{
+	int survivor1 = FindRandomSurvivorNearby(client, 512.0);
+
+	if(survivor1 == -1)
+		return;
+
+	float fDuration = 30.0;
+
+	RPG_Perks_ApplyEntityTimedAttribute(survivor1, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+
+	int survivor2 = FindRandomSurvivorNearby(client, 512.0, survivor1);
+
+	RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+
+	int survivor3 = FindRandomSurvivorNearby(client, 512.0, survivor1, survivor2);
+
+	RPG_Perks_ApplyEntityTimedAttribute(survivor3, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+
+	int survivor4 = FindRandomSurvivorNearby(client, 512.0, survivor1, survivor2, survivor3);
+
+	RPG_Perks_ApplyEntityTimedAttribute(survivor4, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+
+	if(survivor2 == -1)
+	{
+		PrintToChatAll("%N is mutated for %.0f seconds.", survivor1, fDuration);
+	}
+	else if(survivor3 == -1)
+	{
+		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor1, survivor2, fDuration);
+	}
+	else if(survivor4 == -1)
+	{
+		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor1, survivor2, fDuration);
+		PrintToChatAll("%N is mutated stunned for %.0f seconds.", survivor3, fDuration);
+	}
+	else
+	{
+		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor1, survivor2, fDuration);
+		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor3, survivor4, fDuration);
+	}
+
+	PrintToChatAll("Mutated players lose all abilities");
+}
+
+stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception=0, int exception2=0, int exception3=0)
 {
 	float fOrigin[3];
 	GetClientAbsOrigin(client, fOrigin);
@@ -294,7 +349,7 @@ stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception
 			continue;
 
 		// Technically unused because the tank can never be survivor but still...
-		else if(client == i || exception == i)
+		else if(client == i || exception == i || exception2 == i || exception3 == i)
 			continue;
 
 		else if(!IsPlayerAlive(i))

@@ -120,8 +120,6 @@ int StartOfPrimary = 14; // Change to the beginning of rifles in the levels, rem
 
 #define MAX_LEVEL 65
 
-#define PERK_TREE_NOT_UNLOCKED -1
-
 enum struct enSkill
 {
 	// Database entry of the skill. Never change this.
@@ -558,6 +556,9 @@ public int Native_GetClientLevel(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
 
+	if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+		return 0;
+
 	return GetClientLevel(client);
 }
 
@@ -648,8 +649,11 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	int skillIndex = GetNativeCell(2);
 
+	if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+		return false;
+
 	if(!IsFakeClient(client))
-		return view_as<bool>(g_bUnlockedSkills[client][skillIndex]);
+		return g_bUnlockedSkills[client][skillIndex];
 
 	// Check if average of humans have the skill unlocked.
 	else
@@ -775,6 +779,9 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 	int client = GetNativeCell(1);
 
 	int perkIndex = GetNativeCell(2);
+
+	if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+		return PERK_TREE_NOT_UNLOCKED;
 
 	if(!IsFakeClient(client))
 		return g_iUnlockedPerkTrees[client][perkIndex];
