@@ -52,9 +52,11 @@ public void OnMapStart()
         g_iJumpCount[i] = 0;
     }
 }
+
 public void OnPluginStart()
 {
     hcv_Difficulty = FindConVar("z_difficulty");
+
     RegisterSkill();
 }
 

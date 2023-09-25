@@ -96,10 +96,6 @@ public void CastAngerIgnition(int client)
 
             if(GetVectorDistance(fOrigin, fSmokerOrigin) <= 128.0)
             {
-                L4D_Smoker_ReleaseVictim(client, pinner);
-            }
-            else
-            {
                 RPG_Perks_IgniteWithOwnership(pinner, client);
                 RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN);
             }
@@ -127,7 +123,10 @@ public void CastAngerIgnition(int client)
 
         if (GetVectorDistance(fOrigin, fTargetOrigin, false) < 512.0)
         {
-            RPG_Perks_IgniteWithOwnership(i, client);
+            if(!RPG_Tanks_IsDamageImmuneTo(i, DAMAGE_IMMUNITY_BURN))
+            {
+                RPG_Perks_IgniteWithOwnership(i, client);
+            }
         }
     }
 

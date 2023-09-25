@@ -332,12 +332,13 @@ public void OnPluginStart()
 	#endif
 
 	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
+	RegConsoleCmd("sm_tankhp", Command_TankHP);
 
 	g_hMinigunDamageMultiplier = UC_CreateConVar("rpg_tanks_minigun_damage_multiplier", "0.1", "Minigun damage multiplier");
 	g_hRPGDamageMultiplier = UC_CreateConVar("rpg_tanks_rpg_damage_multiplier", "0.05", "RPG damage multiplier");
 
 	g_hPriorityImmunities = UC_CreateConVar("rpg_tanks_priority_immunities", "2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a tank their immunity from fire or melee.\nWhen making a plugin, feel free to track this cvar's value for reference.");
-	g_hPriorityTankSpawn = UC_CreateConVar("rpg_tanks_priority_finale_tank_spawn", "-5", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 that when a tank spawns, check what tier to give it and give it max HP.");
+	g_hPriorityTankSpawn = UC_CreateConVar("rpg_tanks_priority_rpg_tank_spawn", "-5", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 that when a tank spawns, check what tier to give it and give it max HP.");
 
 	g_hEntriesUntiered = UC_CreateConVar("rpg_tanks_entries_untiered", "5", "Entries to spawn an untiered tank.");
 	g_hEntriesTierOne = UC_CreateConVar("rpg_tanks_entries_tier_one", "0", "Entries to spawn a tier one tank.");
@@ -425,6 +426,16 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 				if(GetVectorDistance(fOrigin, fDoorOrigin) < 128.0)
 				{
 					AcceptEntityInput(a, "Open");
+				}
+			}
+			else if(StrEqual(sClassname, "func_breakable"))
+			{
+				float fDoorOrigin[3];
+				GetEntPropVector(a, Prop_Data, "m_vecOrigin", fDoorOrigin);
+
+				if(GetVectorDistance(fOrigin, fDoorOrigin) < 128.0)
+				{
+					AcceptEntityInput(a, "Break");
 				}
 			}
 		}
@@ -749,6 +760,79 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	}
 }
 
+public Action Command_TankHP(int client, int args)
+{
+	int bestTank = 0;
+
+	if(L4D2_IsTankInPlay())
+	{
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+				continue;
+			
+			else if(L4D_IsPlayerIncapacitated(i))
+				continue;
+
+			else if(g_iCurrentTank[i] < 0)
+				continue;
+
+			if(bestTank == 0 || RPG_Perks_GetClientHealth(i) > RPG_Perks_GetClientHealth(bestTank))
+				bestTank = i;
+		}
+
+		if(bestTank == 0)
+			return Plugin_Handled;
+
+		char PlayerFormat[256];
+
+		int count = 0;
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(IsFakeClient(i))
+				continue;
+
+			else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+				continue;
+
+			if(count % 2 == 1)
+			{
+				Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%.1f{PERCENT}]", PlayerFormat, i, RPG_Tanks_GetDamagePercent(i, bestTank));
+
+				ReplaceString(PlayerFormat, sizeof(PlayerFormat), "{PERCENT}", "%%");
+				PrintToChat(client, PlayerFormat);
+			}
+			else
+			{
+				Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%.1f{PERCENT}] | ", PlayerFormat, i, RPG_Tanks_GetDamagePercent(i, bestTank));
+			}
+
+			count++;
+		}
+
+		if(count % 2 == 0)
+		{
+			PlayerFormat[strlen(PlayerFormat) - 2] = EOS;
+
+			ReplaceString(PlayerFormat, sizeof(PlayerFormat), "{PERCENT}", "%%");
+			PrintToChat(client, PlayerFormat);
+		}
+	}
+	return Plugin_Handled;
+}
 public Action Command_TankInfo(int client, int args)
 {
 	Handle hMenu = CreateMenu(TankInfo_MenuHandler);

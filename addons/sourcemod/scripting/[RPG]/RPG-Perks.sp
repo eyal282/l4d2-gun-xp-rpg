@@ -241,6 +241,13 @@ public any Native_InstantKill(Handle caller, int numParams)
 
 	SetEntProp(victim, Prop_Send, "m_currentReviveCount", cvar.IntValue);
 
+	char filename[512], class[64];
+	GetPluginFilename(caller, filename, sizeof(filename));
+	GetEdictClassname(victim, class, sizeof(class));
+
+	Format(filename, sizeof(filename), "RPG_Perks_InstantKill: %s - %i - %s", filename, victim, class);
+
+	LogToFile("eyal_crash_detector.txt", filename);
 	SDKHooks_TakeDamage(victim, inflictor, attacker, 100000.0, damagetype);
 
 	if(IsPlayerAlive(victim))
@@ -262,6 +269,13 @@ public any Native_TakeDamage(Handle caller, int numParams)
 	
 	float fFinalDamage = damage;
 
+	char filename[512], class[64];
+	GetPluginFilename(caller, filename, sizeof(filename));
+	GetEdictClassname(victim, class, sizeof(class));
+
+	Format(filename, sizeof(filename), "RPG_Perks_TakeDamage: %s - %i - %.1f - %i - %s", filename, victim, damage, damagetype, class);
+	LogToFile("eyal_crash_detector.txt", filename);
+
 	Action rtn = RPG_OnTraceAttack(victim, attacker, inflictor, fFinalDamage, damagetype, hitbox, hitgroup);
 
 	if(rtn == Plugin_Handled || rtn == Plugin_Stop)
@@ -276,6 +290,20 @@ public int Native_IgniteWithOwnership(Handle caller, int numParams)
 {
 	int victim = GetNativeCell(1);
 	int attacker = GetNativeCell(2);
+
+	// Prevent crashes, also this works on commons and witches despite the name of the native.
+	if(L4D_IsPlayerOnFire(victim))
+		return 0;
+
+	else if(LibraryExists("RPG_Tanks") && RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
+		return 0;
+
+	char filename[512], class[64];
+	GetPluginFilename(caller, filename, sizeof(filename));
+	GetEdictClassname(victim, class, sizeof(class));
+
+	Format(filename, sizeof(filename), "RPG_Perks_IgniteWithOwnership: %s - %i - %s", filename, victim, class);
+	LogToFile("eyal_crash_detector.txt", filename);
 
 	SDKHooks_TakeDamage(victim, attacker, attacker, 0.0, DMG_BURN);
 	
@@ -736,6 +764,12 @@ public void OnMapStart()
 	g_fRoundStartTime = 0.0;
 
 	TriggerTimer(CreateTimer(1.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+
+	char mapname[64];
+	GetCurrentMap(mapname, sizeof(mapname));
+
+
+	LogToFile("eyal_crash_detector.txt", mapname);
 }
 
 public Action Timer_CheckSpeedModifiers(Handle hTimer)
@@ -837,7 +871,7 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	char sCode[128];
 	FormatEx(sCode, sizeof(sCode), "g_ModeScript.GetDirectorOptions().EndScriptedMode <- function() { return %i }", g_bEndConditionMet ? 1 : -1);
 
-	L4D2_ExecVScriptCode(sCode);
+	//L4D2_ExecVScriptCode(sCode);
 
 	return Plugin_Continue;
 }
@@ -983,7 +1017,7 @@ public void OnPluginStart()
 		if(StrEqual(sClassname, "infected") || StrEqual(sClassname, "witch"))
 		{
 			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
-			SDKHook(i, SDKHook_OnTakeDamage, Event_TakeDamage);
+			SDKHook(i, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 		}
 	}
 
@@ -1037,7 +1071,7 @@ public void Event_ZombieSpawnPost(int entity)
 	SetEntProp(entity, Prop_Data, "m_iHealth", maxHP);
 
 	SDKHook(entity, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(entity, SDKHook_OnTakeDamage, Event_TakeDamage);
+	SDKHook(entity, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 }
 
 public void Event_OnSpawnpointSpawnPost(int entity)
@@ -1050,7 +1084,14 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	if(!StrEqual(attributeName, "Stun"))
 		return;
 
-	SetEntityMoveType(entity, MOVETYPE_NONE);
+	if(RPG_Perks_GetZombieType(entity) == ZombieType_CommonInfected || RPG_Perks_GetZombieType(entity) == ZombieType_Witch)
+	{
+		SetEntityFlags(entity, GetEntityFlags(entity) | FL_FROZEN);
+	}
+	else
+	{
+		SetEntityMoveType(entity, MOVETYPE_NONE);
+	}
 }
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
@@ -1058,7 +1099,14 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	if(!StrEqual(attributeName, "Stun"))
 		return;
 
-	SetEntityMoveType(entity, MOVETYPE_WALK);
+	if(RPG_Perks_GetZombieType(entity) == ZombieType_CommonInfected || RPG_Perks_GetZombieType(entity) == ZombieType_Witch)
+	{
+		SetEntityFlags(entity, GetEntityFlags(entity) & ~FL_FROZEN);
+	}
+	else
+	{
+		SetEntityMoveType(entity, MOVETYPE_WALK);
+	}
 }
 
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
@@ -1066,6 +1114,7 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	if(!StrEqual(attributeName, "Stun"))
 		return;
 
+	// Not possible to transfer to common or witch...
 	SetEntityMoveType(oldClient, MOVETYPE_WALK);
 	SetEntityMoveType(newClient, MOVETYPE_NONE);
 }
@@ -1183,7 +1232,12 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 	if (client == 0)
 		return Plugin_Continue;
 
-	else if(!L4D_IsPlayerIncapacitated(client))
+	if(RPG_Perks_IsEntityTimedAttribute(client, "Stun"))
+	{
+		SetEntityMoveType(client, MOVETYPE_NONE);
+	}
+
+	if(!L4D_IsPlayerIncapacitated(client))
 		return Plugin_Continue;
 
 	else if(L4D_IsPlayerHangingFromLedge(client))
@@ -2051,7 +2105,7 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(client, SDKHook_OnTakeDamage, Event_TakeDamage);
+	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 
 	AnimHookEnable(client, INVALID_FUNCTION, OnTankStartSwingPost);
 }
@@ -2109,6 +2163,9 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 	if(fDelay == fOriginalDelay)
 		return Plugin_Continue;
 
+	if(fDelay <= 0.1)
+		fDelay = 0.1;
+
 	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", GetGameTime() + fDelay);
 	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
 
@@ -2116,17 +2173,17 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 	SetEntPropFloat(weapon, Prop_Data, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
 
 	int iAttackTimer = FindSendPropInfo("CTankClaw", "m_attackTimer");
-	SetEntData(weapon, iAttackTimer + 4, 0.0);
-	SetEntData(weapon, iAttackTimer + 8, 0.0);
+	SetEntData(weapon, iAttackTimer + 4, GetGameTime() + fDelay);
+	SetEntData(weapon, iAttackTimer + 8, GetGameTime() + fDelay);
 
 
 	iAttackTimer = FindSendPropInfo("CTankClaw", "m_swingTimer");
-	SetEntData(weapon, iAttackTimer + 4, 0.0);
-	SetEntData(weapon, iAttackTimer + 8, 0.0);
+	SetEntData(weapon, iAttackTimer + 4, GetGameTime() + fDelay);
+	SetEntData(weapon, iAttackTimer + 8, GetGameTime() + fDelay);
 
 	iAttackTimer = FindSendPropInfo("CTankClaw", "m_lowAttackDurationTimer");
-	SetEntData(weapon, iAttackTimer + 4, 0.0);
-	SetEntData(weapon, iAttackTimer + 8, 0.0);
+	SetEntData(weapon, iAttackTimer + 4, GetGameTime() + fDelay);
+	SetEntData(weapon, iAttackTimer + 8, GetGameTime() + fDelay);
 
 
 	return Plugin_Continue;
@@ -2181,7 +2238,7 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 	bool bDontInstakill;
 	bool bImmune;
 
-	if(IsPlayer(victim) && damage >= 600.0 && (damagetype & DMG_DROWN || damagetype & DMG_FALL))
+	if(IsPlayer(victim) && damage >= 600.0 && (damagetype & DMG_DROWN || damagetype & DMG_FALL || IsDamageToSelf(victim, attacker)))
 	{
 		damage = damage * g_hRPGTriggerHurtMultiplier.FloatValue;
 	}
@@ -2254,6 +2311,13 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 		if(StrEqual(sClassname, "witch"))
 			bDontInstakill = true;
 	}
+
+	char filename[512], class[64];
+	GetEdictClassname(victim, class, sizeof(class));
+
+	Format(filename, sizeof(filename), "RPG_OnTraceAttack: %s - %i - %s - %.1f - noinsta: %i nostagger: %i dontinter: %i", filename, victim, class, damage, damagetype, bDontInstakill, bDontStagger, bDontInterruptActions);
+	LogToFile("eyal_crash_detector.txt", filename);
+
 	if(damage == 0.0)
 		return Plugin_Stop;
 
@@ -2288,52 +2352,7 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 			SetEntityHealth(victim, 1);
 		}
 		
-		Event hNewEvent = CreateEvent("player_hurt", true);
-
-		SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
-
-		if(IsPlayer(attacker))
-		{
-			SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
-		}
-		else
-		{
-			SetEventInt(hNewEvent, "attacker", 0);
-		}
-
-		if(inflictor != 0 && !IsPlayer(inflictor))
-		{
-
-			char sWeaponName[64];
-			GetEdictClassname(inflictor, sWeaponName, sizeof(sWeaponName));
-
-			ReplaceStringEx(sWeaponName, sizeof(sWeaponName), "weapon_", "");
-
-			SetEventString(hNewEvent, "weapon", sWeaponName);
-		}
-		else if(inflictor == attacker && IsPlayer(attacker))
-		{
-			int weapon = L4D_GetPlayerCurrentWeapon(attacker);
-
-			if(weapon != -1)
-			{
-				
-				char sWeaponName[64];
-				GetEdictClassname(weapon, sWeaponName, sizeof(sWeaponName));
-
-				ReplaceStringEx(sWeaponName, sizeof(sWeaponName), "weapon_", "");
-
-				SetEventString(hNewEvent, "weapon", sWeaponName);
-			}
-		}
-		SetEventInt(hNewEvent, "attackerentid", attacker);
-		SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
-		SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
-		SetEventInt(hNewEvent, "dmg_armor", 0);
-		SetEventInt(hNewEvent, "hitgroup", 0);
-		SetEventInt(hNewEvent, "type", damagetype);
-
-		FireEvent(hNewEvent);
+		MakeDelayedPlayerHurtEvent(victim, attacker, inflictor, damage, damagetype);
 		
 		return Plugin_Stop;
 	}
@@ -2345,32 +2364,94 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 		}
 
 		SetEntityHealth(victim, GetEntityHealth(victim) - RoundFloat(damage));
-		Event hNewEvent = CreateEvent("player_hurt", true);
-
-		SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
-
-		if(IsPlayer(attacker))
-		{
-			SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
-		}
-		else
-		{
-			SetEventInt(hNewEvent, "attacker", 0);
-		}
 		
-		SetEventInt(hNewEvent, "attackerentid", attacker);
-		SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
-		SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
-		SetEventInt(hNewEvent, "dmg_armor", 0);
-		SetEventInt(hNewEvent, "hitgroup", 0);
-		SetEventInt(hNewEvent, "type", damagetype);
-
-		FireEvent(hNewEvent);
+		MakeDelayedPlayerHurtEvent(victim, attacker, inflictor, damage, damagetype);
 
 		return Plugin_Stop;
 	}
 
 	return Plugin_Continue;
+}
+
+// Hopefully will prevent crashes..
+public void MakeDelayedPlayerHurtEvent(int victim, int attacker, int inflictor, float damage, int damagetype)
+{
+	Handle DP = CreateDataPack();
+
+	WritePackCell(DP, victim);
+	WritePackCell(DP, attacker);
+	WritePackCell(DP, inflictor);
+	WritePackFloat(DP, damage);
+	WritePackCell(DP, damagetype);
+
+	RequestFrame(Frame_FirePlayerHurtEvent, DP);
+}
+
+public void Frame_FirePlayerHurtEvent(Handle DP)
+{
+	ResetPack(DP);
+
+	int victim = ReadPackCell(DP);
+	int attacker = ReadPackCell(DP);
+	int inflictor = ReadPackCell(DP);
+	float damage = ReadPackFloat(DP);
+	int damagetype = ReadPackCell(DP);
+
+	CloseHandle(DP);
+
+	if(IsPlayer(victim) && !IsClientInGame(victim))
+		return;
+
+	else if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+		return;
+		
+	Event hNewEvent = CreateEvent("player_hurt", true);
+
+	SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
+
+	if(IsPlayer(attacker))
+	{
+		SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
+	}
+	else
+	{
+		SetEventInt(hNewEvent, "attacker", 0);
+	}
+
+	if(inflictor != 0 && !IsPlayer(inflictor))
+	{
+
+		char sWeaponName[64];
+		GetEdictClassname(inflictor, sWeaponName, sizeof(sWeaponName));
+
+		ReplaceStringEx(sWeaponName, sizeof(sWeaponName), "weapon_", "");
+
+		SetEventString(hNewEvent, "weapon", sWeaponName);
+	}
+	else if(inflictor == attacker && IsPlayer(attacker))
+	{
+		int weapon = L4D_GetPlayerCurrentWeapon(attacker);
+
+		if(weapon != -1)
+		{
+			
+			char sWeaponName[64];
+			GetEdictClassname(weapon, sWeaponName, sizeof(sWeaponName));
+
+			ReplaceStringEx(sWeaponName, sizeof(sWeaponName), "weapon_", "");
+
+			SetEventString(hNewEvent, "weapon", sWeaponName);
+		}
+	}
+
+	SetEventInt(hNewEvent, "attackerentid", attacker);
+	SetEventInt(hNewEvent, "health", GetEntityHealth(victim));
+	SetEventInt(hNewEvent, "dmg_health", RoundFloat(damage));
+	SetEventInt(hNewEvent, "dmg_armor", 0);
+	SetEventInt(hNewEvent, "hitgroup", 0);
+	SetEventInt(hNewEvent, "type", damagetype);
+
+	FireEvent(hNewEvent);
 }
 
 public Action L4D2_BackpackItem_StartAction(int client, int entity)

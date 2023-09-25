@@ -56,6 +56,9 @@ public Action Event_PinEnded(Handle hEvent, const char[] Name, bool dontBroadcas
     if(victim == 0)
         return Plugin_Continue;
 
+    else if(L4D_IsPlayerIncapacitated(victim))
+        return Plugin_Continue;
+
     else if(!GunXP_RPGShop_IsSkillUnlocked(victim, athleteIndex))
         return Plugin_Continue;
 
@@ -69,7 +72,7 @@ public Action Event_PinEnded(Handle hEvent, const char[] Name, bool dontBroadcas
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "You instantly get up when a Special Infected stops pinning you.");
+    FormatEx(sDescription, sizeof(sDescription), "You instantly get up when a Special Infected stops pinning you.\nThis won't apply if you're incapped.");
     athleteIndex = GunXP_RPGShop_RegisterSkill("Instantly Getup After Pinned", "Athlete", sDescription,
     200000, 0);
 }
