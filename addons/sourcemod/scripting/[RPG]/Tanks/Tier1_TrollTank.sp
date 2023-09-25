@@ -297,7 +297,7 @@ public void CastMutation(int client)
 	if(survivor1 == -1)
 		return;
 
-	float fDuration = 30.0;
+	float fDuration = 15.0;
 
 	RPG_Perks_ApplyEntityTimedAttribute(survivor1, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 
@@ -319,17 +319,17 @@ public void CastMutation(int client)
 	}
 	else if(survivor3 == -1)
 	{
-		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor1, survivor2, fDuration);
+		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
 	}
 	else if(survivor4 == -1)
 	{
-		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor1, survivor2, fDuration);
-		PrintToChatAll("%N is mutated stunned for %.0f seconds.", survivor3, fDuration);
+		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
+		PrintToChatAll("%N is mutated for %.0f seconds.", survivor3, fDuration);
 	}
 	else
 	{
-		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor1, survivor2, fDuration);
-		PrintToChatAll("%N & %N are mutated stunned for %.0f seconds.", survivor3, survivor4, fDuration);
+		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
+		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor3, survivor4, fDuration);
 	}
 
 	PrintToChatAll("Mutated players lose all abilities");
