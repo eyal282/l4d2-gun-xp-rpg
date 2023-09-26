@@ -181,7 +181,8 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 #endif
 
 // RPG_Tanks_GetClientTank(victim) will work properly in this forward. After this forward is called it will return TANK_TIER_UNKNOWN.
-forward void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPRewardMin, int XPRewardMax);
+// XPReward is set to -1 if not enough damage is dealt.
+forward void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward);
 
 // abilityIndex is the index registered with RPG_Tanks_RegisterActiveAbility
 // Note: Verify the tank is the same index as yours, because two activated abilities by different tanks can have the same index.

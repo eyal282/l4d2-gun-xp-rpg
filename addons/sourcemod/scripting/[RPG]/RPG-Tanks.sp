@@ -1421,9 +1421,6 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		if(!IsClientInGame(i))
 			continue;
 
-		else if(IsFakeClient(i))
-			continue;
-
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
 
@@ -1443,6 +1440,17 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		if(LibraryExists("GunXP-RPG") && fDamageRatio < fMinDamageRatio)
 		{
 			PrintToChat(i, "This is not enough to gain XP rewards. (Min. %.0f%%)", victim, fMinDamageRatio * 100.0);
+
+			Call_StartForward(g_fwOnRPGTankKilled);
+
+			
+			Call_PushCell(victim);
+			
+			Call_PushCell(i);
+			
+			Call_PushCell(-1);
+
+			Call_Finish();
 
 			continue;
 		}

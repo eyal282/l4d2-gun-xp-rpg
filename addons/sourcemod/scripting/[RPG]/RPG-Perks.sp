@@ -60,6 +60,7 @@ int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 
 float g_fRoundStartTime;
 float g_fSpawnPoint[3];
+float g_fLastStunOrigin[MAXPLAYERS+1][3];
 
 bool g_bTeleported[MAXPLAYERS+1];
 
@@ -188,6 +189,20 @@ public void OnPluginEnd()
 	g_hAdrenalineHealPercent.IntValue = g_hRPGAdrenalineHealPercent.IntValue;
 	g_hPainPillsHealPercent.IntValue = g_hRPGPainPillsHealPercent.IntValue;
 	g_hTankAttackInterval.FloatValue = 1.5;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(!RPG_Perks_IsEntityTimedAttribute(i, "Stun"))
+			continue;
+		
+		SetEntityMoveType(i, MOVETYPE_WALK);
+	}
 }
 
 
@@ -801,6 +816,10 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		else if(!IsPlayerAlive(i))
 			continue;
 
+		if(RPG_Perks_IsEntityTimedAttribute(i, "Stun"))
+		{
+			TeleportEntity(i, g_fLastStunOrigin[i], NULL_VECTOR, NULL_VECTOR);
+		}
 		if(g_hRPGDeathCheckMode.IntValue == 2)
 			g_bEndConditionMet = false;
 
@@ -1091,6 +1110,7 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	else
 	{
 		SetEntityMoveType(entity, MOVETYPE_NONE);
+		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", g_fLastStunOrigin[entity]);
 	}
 }
 
@@ -1106,6 +1126,8 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	else
 	{
 		SetEntityMoveType(entity, MOVETYPE_WALK);
+
+		TeleportEntity(entity, g_fLastStunOrigin[entity], NULL_VECTOR, NULL_VECTOR);
 	}
 }
 
@@ -1235,6 +1257,8 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 	if(RPG_Perks_IsEntityTimedAttribute(client, "Stun"))
 	{
 		SetEntityMoveType(client, MOVETYPE_NONE);
+
+		GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", g_fLastStunOrigin[client]);
 	}
 
 	if(!L4D_IsPlayerIncapacitated(client))
