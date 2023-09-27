@@ -25,7 +25,7 @@ int tankIndex;
 int weakerTankIndex;
 
 float g_fEndDamageReflect[MAXPLAYERS+1];
-float g_fEndNightmare[MAXPLAYERS+1];
+bool g_bNightmare[MAXPLAYERS+1];
 int g_iBulletRelease[MAXPLAYERS+1];
 
 
@@ -68,7 +68,7 @@ public void OnMapStart()
 	for(int i=0;i < sizeof(g_fEndDamageReflect);i++)
 	{
 		g_fEndDamageReflect[i] = 0.0;
-		g_fEndNightmare[i] = 0.0;
+		g_bNightmare[i] = false;
 		g_iBulletRelease[i] = 0;
 	}
 }
@@ -91,6 +91,42 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}	
 }
 
+
+public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
+{
+	if(!StrEqual(attributeName, "Nightmare"))
+		return;
+
+	else if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
+		return;
+
+	g_bNightmare[entity] = true;
+}
+
+public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
+{
+	if(!StrEqual(attributeName, "Nightmare"))
+		return;
+
+	else if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
+		return;
+
+	g_bNightmare[entity] = false;
+}
+
+public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
+{
+	if(!StrEqual(attributeName, "Nightmare"))
+		return;
+
+	else if(oldClient == newClient)
+		return;
+
+	g_bNightmare[newClient] = true;
+	g_bNightmare[oldClient] = false;
+}
+
+
 public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 {
 	if(priority != 0)
@@ -101,19 +137,6 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 	
 	else if(RPG_Tanks_GetClientTank(entity) != tankIndex && RPG_Tanks_GetClientTank(entity) != weakerTankIndex)
 		return;
-
-	int count = GetEntityCount();
-
-	for(int i=0;i < count;i++)
-	{
-		if(!IsValidEdict(i))
-			continue;
-
-		else if(RPG_Perks_GetZombieType(i) == ZombieType_Invalid)
-			continue;
-
-		SDKHook(i, SDKHook_SetTransmit, SDKEvent_SetTransmit);
-	}
 
 	float fDuration = 30.0;
 
@@ -292,7 +315,7 @@ public void CastNightmare(int client)
 	if(RPG_Tanks_GetClientTank(client) == tankIndex)
 		fDuration = 20.0;
 
-	g_fEndNightmare[survivor1] = GetGameTime() + fDuration;
+	RPG_Perks_ApplyEntityTimedAttribute(survivor1, "Nightmare", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 
 	int survivor2 = FindRandomSurvivorWithoutStatus(client);
 
@@ -302,7 +325,8 @@ public void CastNightmare(int client)
 	}
 	else
 	{
-		g_fEndNightmare[survivor2] = GetGameTime() + fDuration;
+		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Nightmare", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+
 		PrintToChatAll("%N & %N are under nightmare for %.0f seconds.", survivor1, survivor2, fDuration);
 		PrintToChatAll("They are blind and take 2x damage from all sources");
 	}
@@ -331,7 +355,7 @@ stock int FindRandomSurvivorWithoutStatus(int client)
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
 
-		else if(g_fEndNightmare[i] > GetGameTime())
+		else if(g_bNightmare[i])
 			continue;
 
 		float fSurvivorOrigin[3];
@@ -360,29 +384,7 @@ public void CastDamageReflect(int client)
 
 public void Event_ZombieSpawnPost(int entity)
 {
-	if(RPG_Tanks_IsTankInPlay(tankIndex))
-	{
-		SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
-	}
-}
-
-public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
-{
-	if(RPG_Tanks_GetClientTank(victim) == tankIndex || RPG_Tanks_GetClientTank(victim) == weakerTankIndex)
-	{
-		int count = GetEntityCount();
-
-		for(int i=0;i < count;i++)
-		{
-			if(!IsValidEdict(i))
-				continue;
-
-			else if(RPG_Perks_GetZombieType(i) == ZombieType_Invalid)
-				continue;
-
-			SDKUnhook(i, SDKHook_SetTransmit, SDKEvent_SetTransmit);
-		}
-	}
+	SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
 }
 
 public Action SDKEvent_SetTransmit(int victim, int viewer)
@@ -393,7 +395,7 @@ public Action SDKEvent_SetTransmit(int victim, int viewer)
 	else if(victim == viewer)
 		return Plugin_Continue;
 
-	else if(g_fEndNightmare[viewer] <= GetGameTime())
+	else if(!g_bNightmare[viewer])
 		return Plugin_Continue;
 
 	else if(L4D_GetPinnedInfected(viewer) == victim)
@@ -463,7 +465,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		else if(!IsPlayer(attacker) || L4D_GetClientTeam(attacker) != L4DTeam_Survivor)
     	    return;
 
-		else if(!IsPlayer(victim) || g_fEndNightmare[victim] < GetGameTime())
+		else if(!IsPlayer(victim) || !g_bNightmare[victim])
 			return;
 
 		damage *= 2.0;

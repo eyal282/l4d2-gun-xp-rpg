@@ -468,6 +468,9 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	if(!StrEqual(attributeName, "Mutated"))
 		return;
 
+	else if(oldClient == newClient)
+		return;
+
 	// Not possible to transfer to common or witch...
 	Call_StartForward(g_fwOnResetRPG);
 

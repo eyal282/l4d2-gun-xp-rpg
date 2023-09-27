@@ -942,10 +942,19 @@ public Action Command_MutationTest(int client, int args)
 
 	return Plugin_Handled;
 }
+
+public Action Command_NightmareTest(int client, int args)
+{
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Nightmare", 15.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+
+	return Plugin_Handled;
+}
+
 public void OnPluginStart()
 {
 	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_nightmaretest", Command_NightmareTest, ADMFLAG_ROOT);
 
 	if(g_aTimedAttributes == null)
 		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
@@ -1187,8 +1196,8 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 		return;
 
 	// Not possible to transfer to common or witch...
-	SetEntityMoveType(oldClient, MOVETYPE_WALK);
 	SetEntityMoveType(newClient, MOVETYPE_NONE);
+	SetEntityMoveType(oldClient, MOVETYPE_WALK);
 }
 
 // Must add natives for after a player spawns for incap hidden pistol.

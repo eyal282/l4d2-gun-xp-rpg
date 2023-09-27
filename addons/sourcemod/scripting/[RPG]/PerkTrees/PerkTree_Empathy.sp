@@ -20,7 +20,50 @@ public Plugin myinfo =
 
 #define MIN_FLOAT -2147483647.0
 
-int empathyIndex = -1;
+int empathyIndex;
+
+float g_fSpeedPercents[] =
+{
+    40.0,
+    70.0,
+    90.0,
+    110.0,
+    150.0,
+    175.0,
+    200.0,
+    350.0,
+    500.0,
+    1000.0
+};
+
+int g_iEmpathyCosts[] =
+{
+    100,
+    200,
+    400,
+    700,
+    1000,
+    3000,
+    5000,
+    8000,
+    20000,
+    50000
+
+};
+
+int g_iEmpathyReqs[] =
+{
+    2000,
+    5000,
+    10000,
+    20000,
+    40000,
+    50000,
+    75000,
+    100000,
+    200000,
+    300000
+};
 
 public void OnLibraryAdded(const char[] name)
 {
@@ -52,7 +95,7 @@ public void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration
     if(perkLevel == -1)
         return;
 
-    float percent = (40.0 * (float(perkLevel) + 1.0));
+    float percent = g_fSpeedPercents[perkLevel];
 
     fDuration -= (percent * fDuration) / (percent + 100.0);
 }
@@ -65,25 +108,15 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+40%% medkit heal speed.");
-    costs.Push(100);
-    xpReqs.Push(2000);
+    for(int i=0;i < sizeof(g_iEmpathyCosts);i++)
+    {
+        char TempFormat[128];
 
-    descriptions.PushString("+80%% medkit heal speed.");
-    costs.Push(300);
-    xpReqs.Push(5000);
-
-    descriptions.PushString("+120%% medkit heal speed.");
-    costs.Push(700);
-    xpReqs.Push(20000);
-
-    descriptions.PushString("+160%% medkit heal speed.");
-    costs.Push(1000);
-    xpReqs.Push(50000);
-
-    descriptions.PushString("+200%% medkit heal speed.");
-    costs.Push(3000);
-    xpReqs.Push(400000);
+        FormatEx(TempFormat, sizeof(TempFormat), "+%.0f%% Medkit Heal Speed", g_fSpeedPercents[i]);
+        descriptions.PushString(TempFormat);
+        costs.Push(g_iEmpathyCosts[i]);
+        xpReqs.Push(g_iEmpathyReqs[i]);
+    }
 
     empathyIndex = GunXP_RPGShop_RegisterPerkTree("Heal Speed", "Empathy", descriptions, costs, xpReqs);
 }

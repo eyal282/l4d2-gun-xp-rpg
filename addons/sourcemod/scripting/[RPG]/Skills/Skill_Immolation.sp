@@ -65,9 +65,6 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
     if(!StrEqual(attributeName, "Immolation"))
         return;
 
-    else if(oldClient == newClient)
-        return;
-
     if(g_hTimer[oldClient] != INVALID_HANDLE)
     {
         CloseHandle(g_hTimer[oldClient]);
