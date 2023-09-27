@@ -2275,10 +2275,11 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 // I suspect fall damage is fully ignored in these functions.
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {		
+	PrintToChatEyal("Take Damage");
 	if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !IsDamageToSelf(victim, attacker))
+	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !IsDamageToSelf(victim, attacker) && !IsPinDamage(victim, attacker))
 		return Plugin_Continue;
 
 
@@ -2298,7 +2299,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || IsDamageToSelf(victim, attacker))
+	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
@@ -2383,7 +2384,6 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 
 	if(IsPlayer(attacker) && IsPlayer(victim) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
 		bDontInterruptActions = false;
-	
 
 	// This is because witch for some reason absorbs damage modifiers.
 	if(!IsPlayer(victim))
@@ -3038,6 +3038,22 @@ stock bool IsDamageToSelf(int victim, int attacker)
 
 	return false;
 }
+
+
+stock bool IsPinDamage(int victim, int attacker)
+{
+	if(RPG_Perks_GetZombieType(victim) != ZombieType_NotInfected)
+		return false;
+
+	else if(!IsPlayer(attacker))
+		return false;
+
+	else if(L4D_GetPinnedInfected(victim) != attacker)
+		return false;
+
+	return true;
+}
+
 stock float CalculateTankBurnDamage(int victim)
 {
 
@@ -3075,4 +3091,24 @@ stock float CalculateTankBurnDamage(int victim)
 	float damageNeeded = float(GetEntityHealth(victim)) - ((burnLeft / burnDuration) * float(GetEntityMaxHealth(victim)));
 
 	return damageNeeded;
+}
+
+stock int RPG_GetPlayerUsingATarget(int victim)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		if(L4D_GetPlayerUseTarget(i) == victim)
+			return i;
+	}
+
+	return -1;
 }
