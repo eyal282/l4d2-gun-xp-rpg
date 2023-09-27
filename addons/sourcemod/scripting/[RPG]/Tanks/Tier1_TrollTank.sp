@@ -273,16 +273,19 @@ public void CastHunter(int client)
 	DataPack DP;
 	CreateDataTimer(0.1, Timer_ForceHunter, DP, TIMER_FLAG_NO_MAPCHANGE);
 
-	WritePackCell(DP, survivor);
-	WritePackCell(DP, hunter);
+	WritePackCell(DP, GetClientUserId(survivor));
+	WritePackCell(DP, GetClientUserId(hunter));
 }
 
 public Action Timer_ForceHunter(Handle hTimer, DataPack DP)
 {
 	ResetPack(DP);
 
-	int survivor = ReadPackCell(DP);
-	int hunter = ReadPackCell(DP);
+	int survivor = GetClientOfUserId(ReadPackCell(DP));
+	int hunter = GetClientOfUserId(ReadPackCell(DP));
+
+	if(survivor == 0 || hunter == 0)
+		return Plugin_Continue;
 
 	L4D_ForceHunterVictim(survivor, hunter);
 

@@ -110,7 +110,11 @@ native void RPG_Perks_GetClientLimitedAbility(int entity, char attributeName[64]
 // Returns true if ability was used, false if maxed or another error was thrown.
 native bool  RPG_Perks_UseClientLimitedAbility(int client, char identifier[32], char sError[256] = {EOS, ...});
 
-native bool RPG_Perks_IsEntityTimedAttribute(int entity, char attributeName[64]);
+native bool RPG_Perks_IsEntityTimedAttribute(int entity, char attributeName[64], float &fDuration=0.0);
+
+// Must close the array returned by this native.
+// See ATTRIBUTE_* for list of attribute types.
+native ArrayList RPG_Perks_GetEntityTimedAttributes(int entity, int attributeType);
 
 // See COLLISION_* for list of actions taken on collision.
 // See ATTRIBUTE_* for list of attribute types.

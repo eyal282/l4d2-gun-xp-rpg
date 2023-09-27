@@ -219,6 +219,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_SetClientTempHealth", Native_SetClientTempHealth);
 	CreateNative("RPG_Perks_GetClientTempHealth", Native_GetClientTempHealth);
 	CreateNative("RPG_Perks_IsEntityTimedAttribute", Native_IsEntityTimedAttribute);
+	CreateNative("RPG_Perks_GetEntityTimedAttributes", Native_GetEntityTimedAttributes);
 	CreateNative("RPG_Perks_ApplyEntityTimedAttribute", Native_ApplyEntityTimedAttribute);
 	CreateNative("RPG_Perks_GetClientLimitedAbility", Native_GetClientLimitedAbility);
 	CreateNative("RPG_Perks_UseClientLimitedAbility", Native_UseClientLimitedAbility);
@@ -482,11 +483,44 @@ public int Native_IsEntityTimedAttribute(Handle caller, int numParams)
 
 		if(attribute.entity == entity && StrEqual(attributeName, attribute.attributeName))
 		{
+			SetNativeCellRef(3, attribute.fExpire - GetGameTime());
 			return true;
 		}
 	}
 
 	return false;
+}
+
+
+public any Native_GetEntityTimedAttributes(Handle caller, int numParams)
+{
+	ArrayList array = new ArrayList(sizeof(enTimedAttribute::attributeName));
+
+	if(g_aTimedAttributes == null)
+	{
+		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
+
+		return array;
+	}
+
+	int entity = GetNativeCell(1);
+
+	int attributeType = GetNativeCell(2);
+
+	int size = g_aTimedAttributes.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enTimedAttribute attribute;
+		g_aTimedAttributes.GetArray(i, attribute);
+
+		if(attribute.entity == entity && attribute.attributeType == attributeType)
+		{
+			array.PushString(attribute.attributeName);
+		}
+	}
+
+	return array;
 }
 
 public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
@@ -521,12 +555,12 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 			{
 				case COLLISION_RETURN: return false;
 				case COLLISION_ADD: attribute.fExpire += duration;
-				case COLLISION_SET: attribute.fExpire = duration;
+				case COLLISION_SET: attribute.fExpire = GetGameTime() + duration;
 				case COLLISION_SET_IF_LOWER:
 				{
 					if(attribute.fExpire - GetGameTime() < duration)
 					{
-						attribute.fExpire = duration;
+						attribute.fExpire = GetGameTime() + duration;
 					}
 					else
 					{
@@ -538,7 +572,7 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 				{
 					if(attribute.fExpire - GetGameTime() > duration)
 					{
-						attribute.fExpire = duration;
+						attribute.fExpire = GetGameTime() + duration;
 					}
 					else
 					{
@@ -895,8 +929,24 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	return Plugin_Continue;
 }
 
+public Action Command_StunTest(int client, int args)
+{
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Stun", 15.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+
+	return Plugin_Handled;
+}
+
+public Action Command_MutationTest(int client, int args)
+{
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Mutated", 15.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+
+	return Plugin_Handled;
+}
 public void OnPluginStart()
 {
+	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
+
 	if(g_aTimedAttributes == null)
 		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
 	

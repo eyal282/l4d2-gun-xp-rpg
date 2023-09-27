@@ -81,8 +81,8 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 	DataPack DP;
 	CreateDataTimer(0.1, Timer_ForceJockey, DP, TIMER_FLAG_NO_MAPCHANGE);
 
-	WritePackCell(DP, victim);
-	WritePackCell(DP, jockey);
+	WritePackCell(DP, GetClientUserId(victim));
+	WritePackCell(DP, GetClientUserId(jockey));
 
 	return Plugin_Continue;
 }
@@ -91,10 +91,13 @@ public Action Timer_ForceJockey(Handle hTimer, DataPack DP)
 {
 	ResetPack(DP);
 
-	int victim = ReadPackCell(DP);
-	int jockey = ReadPackCell(DP);
+	int survivor = GetClientOfUserId(ReadPackCell(DP));
+	int jockey = GetClientOfUserId(ReadPackCell(DP));
 
-	L4D2_ForceJockeyVictim(victim, jockey);
+	if(survivor == 0 || jockey == 0)
+		return Plugin_Continue;
+
+	L4D2_ForceJockeyVictim(survivor, jockey);
 
 	return Plugin_Continue;
 }
