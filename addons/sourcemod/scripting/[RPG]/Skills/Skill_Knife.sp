@@ -100,7 +100,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
     if(g_bSpam[client] || L4D_GetPinnedInfected(client) == 0 || L4D_GetAttackerCarry(client) != 0)
         return Plugin_Continue;
 
-    if(buttons & IN_JUMP && !(lastButtons & IN_JUMP) && g_fNextExpireJump[client] > GetGameTime())
+    if(buttons & IN_SPEED && !(lastButtons & IN_SPEED) && g_fNextExpireJump[client] > GetGameTime())
     {
     
         g_fNextExpireJump[client] = GetGameTime() + 1.5;
@@ -157,7 +157,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
         g_iJumpCount[client] = 0;
         g_fNextExpireJump[client] = GetGameTime() + 1.5;
 
-        if(buttons & IN_JUMP)
+        if(buttons & IN_SPEED)
         {
             g_iJumpCount[client]++;
         }
@@ -175,7 +175,7 @@ public Action Timer_SpamOff(Handle Timer, int client)
 
 public void RegisterSkill()
 {
-    knifeIndex = GunXP_RPGShop_RegisterSkill("Knife", "Knife", "Triple click +JUMP to instantly kill a Special Infected that pins you.\nYou only get 1 knife per round.\nYou get 1 extra knife per difficulty under Expert.",
+    knifeIndex = GunXP_RPGShop_RegisterSkill("Knife", "Knife", "Triple click SHIFT to instantly kill a Special Infected that pins you.\nYou only get 1 knife per round.\nYou get 1 extra knife per difficulty under Expert.",
     1000, 0);
 }
 

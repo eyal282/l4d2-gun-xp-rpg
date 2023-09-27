@@ -394,10 +394,7 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 			continue;
 
 		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-		{
-			//SetEntPropFloat(i, Prop_Send, "m_tugTimer", GetGameTime() - 5.0, 2);
 			continue;
-		}
 
 		else if(!IsPlayerAlive(i))
 			continue;
