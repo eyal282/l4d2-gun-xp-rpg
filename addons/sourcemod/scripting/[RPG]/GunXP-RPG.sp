@@ -1554,7 +1554,7 @@ public Action Command_GiveXP(int client, int args)
 			client,
 			target_list,
 			MAXPLAYERS,
-			COMMAND_FILTER_NO_MULTI,
+			COMMAND_FILTER_NO_MULTI|COMMAND_FILTER_NO_IMMUNITY,
 			target_name,
 			sizeof(target_name),
 			tn_is_ml)) > 0)
@@ -2567,7 +2567,7 @@ public Action Command_XP(int client, int args)
 				client,
 				target_list,
 				MAXPLAYERS,
-				COMMAND_FILTER_NO_MULTI	,
+				COMMAND_FILTER_NO_MULTI|COMMAND_FILTER_NO_IMMUNITY,
 				target_name,
 				sizeof(target_name),
 				tn_is_ml)) <= 0)
@@ -3615,7 +3615,7 @@ stock int GetRPGTargetInfo(int client, char[] sNameTarget, int len1, char[] sPos
 				client,
 				target_list,
 				MAXPLAYERS,
-				COMMAND_FILTER_NO_MULTI,
+				COMMAND_FILTER_NO_MULTI|COMMAND_FILTER_NO_IMMUNITY,
 				target_name,
 				sizeof(target_name),
 				tn_is_ml)) <= 0)
