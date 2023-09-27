@@ -214,7 +214,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
 
 	if(IsPlayerAlive(client))
 		return;
-		
+
 	int entity = EntRefToEntIndex(g_iDeathDefib[client]);
 
 	if(entity == INVALID_ENT_REFERENCE)
@@ -229,6 +229,8 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
 	if(owner != -1)
 	{
 		PrintToChat(client, "Someone took your defib since you died.");
+
+		return;
 	}
 
 	AcceptEntityInput(entity, "Kill");

@@ -1162,6 +1162,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 		// If XP Currency is below 0, it means that an admin stole his XP.
 		if(GetClientXPCurrency(i) < 0 || GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) > GetClientXP(i))
 		{
+			PrintToChatIfEyal(i, "Level: %i | %i - %i|%i|%i - %i", GetClientLevel(i), GetClientXPCurrency(i),  GetXPWorthOfPerkTrees(i), GetXPWorthOfSkills(i), GetClientXPCurrency(i), GetClientXP(i));
 			ResetPerkTreesAndSkills(i);
 
 			CreateTimer(1.0, Timer_AnnounceResetRPG, GetClientUserId(i), TIMER_FLAG_NO_MAPCHANGE);
@@ -2584,6 +2585,12 @@ public void FetchStats(int client)
 	// RequestFrame is used on this function occasionally.
 	if(!IsClientAuthorized(client))
 		return;
+
+	else if(!IsClientInGame(client))
+	{
+		RequestFrame(FetchStats, client);
+		return;
+	}
 
 	g_iXP[client] = 0;
 	g_iLevel[client] = 0;
