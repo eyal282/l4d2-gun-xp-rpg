@@ -2275,8 +2275,10 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 // I suspect fall damage is fully ignored in these functions.
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {		
-	PrintToChatEyal("Take Damage");
-	if(damage == 0.0)
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+		return Plugin_Continue;
+
+	else if(damage == 0.0)
 		return Plugin_Continue;
 
 	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !IsDamageToSelf(victim, attacker) && !IsPinDamage(victim, attacker))
@@ -2296,7 +2298,10 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 // Trace Attack does not trigger with common on survivor violence. ACCOUNT FOR IT.
 public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {	
-	if(damage == 0.0)
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+		return Plugin_Continue;
+
+	else if(damage == 0.0)
 		return Plugin_Continue;
 
 	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
@@ -2501,7 +2506,7 @@ public void Frame_FirePlayerHurtEvent(Handle DP)
 		SetEventInt(hNewEvent, "attacker", 0);
 	}
 
-	if(inflictor != 0 && !IsPlayer(inflictor))
+	if(inflictor != 0 && !IsPlayer(inflictor) && IsValidEdict(inflictor))
 	{
 
 		char sWeaponName[64];

@@ -124,7 +124,7 @@ public int Native_IsDamageImmuneTo(Handle caller, int numParams)
 		
 	if(g_iCurrentTank[client] < 0)
 	{
-		return true;
+		return false;
 	}
 
 	enTank tank;
