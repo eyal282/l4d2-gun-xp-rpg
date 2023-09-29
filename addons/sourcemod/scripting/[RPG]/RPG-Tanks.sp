@@ -774,9 +774,6 @@ public Action Command_TankHP(int client, int args)
 			else if(!IsPlayerAlive(i))
 				continue;
 
-			else if(IsFakeClient(i))
-				continue;
-
 			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
 				continue;
 			
@@ -807,8 +804,8 @@ public Action Command_TankHP(int client, int args)
 			else if(!IsPlayerAlive(i))
 				continue;
 
-			//else if(IsFakeClient(i))
-			//	continue;
+			else if(IsFakeClient(i))
+				continue;
 
 			else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 				continue;
