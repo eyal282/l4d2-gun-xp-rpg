@@ -51,6 +51,8 @@ ConVar g_hJockPitch;
 ConVar g_hPetAttack;
 ConVar g_hPetDist;
 ConVar g_hPetDmg;
+ConVar g_hPetUpdateRate;
+ConVar g_hPetTargetMethod;
 
 GlobalForward g_fwOnCanHavePets;
 
@@ -64,7 +66,9 @@ int g_iPlyPetLim;
 int g_iOwner[MAXPLAYERS + 1];		// Who owns this pet?
 int g_iTarget[MAXPLAYERS + 1];	// Pet can target another special infected to protect its owner
 int g_iNextCheck[MAXPLAYERS + 1];
+int g_iPetTargetMethod;
 float g_fPetDist;
+float g_fPetUpdateRate;
 Handle g_hDetThreat, g_hDetThreatL4D1, g_hDetTarget, g_hDetLeap;
 Handle g_hPetVictimTimer[MAXPLAYERS + 1];
 
@@ -92,18 +96,20 @@ public void OnPluginStart()
 {
     CreateConVar("l4d2_pets_version",			PLUGIN_VERSION,			"Zombie pets version",			FCVAR_NOTIFY|FCVAR_DONTRECORD);
     
-    g_hAllow =		CreateConVar("l4d2_pets_enable",				"1",					"1 = Plugin On. 0 = Plugin Off.", FCVAR_FLAGS, true, 0.0, true, 1.0);
-    g_hGameModes =	CreateConVar("l4d2_pets_gamemodes",				"",						"Enable plugin in these gamemodes, separated by commas, no spaces.", FCVAR_FLAGS);
-    g_hFlags =		CreateConVar("l4d2_pets_flags",					"",						"Flags required for a player to create a pet, empty to allow everyone.", FCVAR_FLAGS);
-    g_hGlobPetLim =	CreateConVar("l4d2_pets_global_limit",			"4",					"Maximum amount of pets allowed in game.", FCVAR_FLAGS, true, 0.0, true, float(PET_LIMIT));
-    g_hPlyPetLim =	CreateConVar("l4d2_pets_player_limit",			"1",					"Maximum amount of pets allowed per player.", FCVAR_FLAGS, true, 0.0, true, float(PET_LIMIT));
-    g_hPetFree =	CreateConVar("l4d2_pets_ownerdeath_action",		"0",					"What will happen to the pet if its owner dies?\n0 = Kill pet.\n1 = Transfer to random survivor.\n2 = Make it wild.", FCVAR_FLAGS, true, 0.0, true, 2.0);
-    g_hPetColor =	CreateConVar("l4d2_pets_opacity",				"235",					"Opacity of the pet.\n0 = Invisible. 255 = Full opaque.", FCVAR_FLAGS, true, 0.0, true, 255.0);
-    g_hJockSize =	CreateConVar("l4d2_pets_size",					"0.55",					"(JOCKEYS ONLY) Scale pets by this amount", FCVAR_FLAGS, true, 0.1, true, 5.0);
-    g_hJockPitch =	CreateConVar("l4d2_pets_pitch",					"150",					"Zombie sound pitch, default pitch: 100.", FCVAR_FLAGS, true, 0.0, true, 255.0);
-    g_hPetAttack =	CreateConVar("l4d2_pets_attack",				"2",					"Allow pets to attack other SI.\n0 = Don't allow.\n1 = Only if the SI attacks its owner.\n2 = The closest SI to its owner.", FCVAR_FLAGS, true, 0.0, true, 2.0);
-    g_hPetDmg =		CreateConVar("l4d2_pets_dmg_scale",				"5.0",					"Multiply pet damage caused to other SI by this value.", FCVAR_FLAGS, true, 0.0, true, 100.0);
-    g_hPetDist =	CreateConVar("l4d2_pets_target_dist",			"400",					"Radius around the survivor to allow pets to attack enemy SI.", FCVAR_FLAGS, true, 0.0, true, 2000.0);
+    g_hAllow =		        CreateConVar("l4d2_pets_enable",               "1",					"1 = Plugin On. 0 = Plugin Off.", FCVAR_FLAGS, true, 0.0, true, 1.0);
+    g_hGameModes =	        CreateConVar("l4d2_pets_gamemodes",            "",						"Enable plugin in these gamemodes, separated by commas, no spaces.", FCVAR_FLAGS);
+    g_hFlags =		        CreateConVar("l4d2_pets_flags",                "",						"Flags required for a player to create a pet, empty to allow everyone.", FCVAR_FLAGS);
+    g_hGlobPetLim =	        CreateConVar("l4d2_pets_global_limit",         "4",					"Maximum amount of pets allowed in game.", FCVAR_FLAGS, true, 0.0, true, float(PET_LIMIT));
+    g_hPlyPetLim =	        CreateConVar("l4d2_pets_player_limit",         "1",					"Maximum amount of pets allowed per player.", FCVAR_FLAGS, true, 0.0, true, float(PET_LIMIT));
+    g_hPetFree =	        CreateConVar("l4d2_pets_ownerdeath_action",    "0",					"What will happen to the pet if its owner dies?\n0 = Kill pet.\n1 = Transfer to random survivor.\n2 = Make it wild.", FCVAR_FLAGS, true, 0.0, true, 2.0);
+    g_hPetColor =	        CreateConVar("l4d2_pets_opacity",              "235",					"Opacity of the pet.\n0 = Invisible. 255 = Full opaque.", FCVAR_FLAGS, true, 0.0, true, 255.0);
+    g_hJockSize =	        CreateConVar("l4d2_pets_size",                 "0.55",					"(JOCKEYS ONLY) Scale pets by this amount", FCVAR_FLAGS, true, 0.1, true, 5.0);
+    g_hJockPitch =	        CreateConVar("l4d2_pets_pitch",                "150",					"Zombie sound pitch, default pitch: 100.", FCVAR_FLAGS, true, 0.0, true, 255.0);
+    g_hPetAttack =	        CreateConVar("l4d2_pets_attack",               "2",					"Allow pets to attack other SI.\n0 = Don't allow.\n1 = Only if the SI attacks its owner.\n2 = The closest SI to its owner.", FCVAR_FLAGS, true, 0.0, true, 2.0);
+    g_hPetDmg =		        CreateConVar("l4d2_pets_dmg_scale",            "5.0",					"Multiply pet damage caused to other SI by this value.", FCVAR_FLAGS, true, 0.0, true, 100.0);
+    g_hPetDist =	        CreateConVar("l4d2_pets_target_dist",          "400",					"Radius around the survivor to allow pets to attack enemy SI.", FCVAR_FLAGS, true, 0.0, true, 2000.0);
+    g_hPetUpdateRate =	    CreateConVar("l4d2_pets_target_update_rate",   "3.0",					"Time in seconds Pet updates their target.", FCVAR_FLAGS, true, 0.3, true, 10.0);
+    g_hPetTargetMethod =	CreateConVar("l4d2_pets_target_method",        "1",					"0 = Pet targets closest to owner. 1 = Pet focuses on pinned, then on incapped, then on closest to owner.", FCVAR_FLAGS, true, 0.0, true, 1.0);
 
     g_hCurrGamemode = FindConVar("mp_gamemode");
 
@@ -117,6 +123,8 @@ public void OnPluginStart()
     g_hPlyPetLim.AddChangeHook(CVarChange_Cvars);
     g_hPetAttack.AddChangeHook(CVarChange_PetAtk);
     g_hPetDist.AddChangeHook(CVarChange_Cvars);
+    g_hPetUpdateRate.AddChangeHook(CVarChange_Cvars);
+    g_hPetTargetMethod.AddChangeHook(CVarChange_Cvars);
     
     AutoExecConfig(true, "l4d2_pets");
     
@@ -324,6 +332,8 @@ void ConVars()
     g_iGlobPetLim = g_hGlobPetLim.IntValue;
     g_iPlyPetLim = g_hPlyPetLim.IntValue;
     g_fPetDist = Pow(g_hPetDist.FloatValue, 2.0);
+    g_fPetUpdateRate = g_hPetUpdateRate.FloatValue;
+    g_iPetTargetMethod = g_hPetTargetMethod.IntValue;
     
     g_hPetColor.GetString(sBuffer, sizeof(sBuffer));
     if( ExplodeString(sBuffer, ",", sBuffer2, sizeof(sBuffer2), sizeof(sBuffer2[])) != 4 )
@@ -339,7 +349,7 @@ void SetPetAtk()
         {
             delete g_hPetVictimTimer[i];
             if( g_iOwner[i] != 0 )
-                g_hPetVictimTimer[i] = CreateTimer(3.0, ChangeVictim_Timer, i);
+                g_hPetVictimTimer[i] = CreateTimer(g_fPetUpdateRate, ChangeVictim_Timer, i);
         }
     }
 }
@@ -668,22 +678,123 @@ Action ChangeVictim_Timer(Handle timer, int pet)
     int nextTarget = 0;
     
     GetClientAbsOrigin(g_iOwner[pet], vOwner);
-    for( int i = 1; i <= MaxClients; i++ )
+
+    switch(g_iPetTargetMethod)
     {
-        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 )
+        case 0:
         {
-            GetClientAbsOrigin(i, vTarget);
-            float tempDist = GetVectorDistance(vOwner, vTarget, true);
-            if( tempDist < fDist )
+            for( int i = 1; i <= MaxClients; i++ )
             {
-                fDist = tempDist;
-                nextTarget = i;
-            }			
+                if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                {
+                    GetClientAbsOrigin(i, vTarget);
+                    float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                    if( tempDist < fDist )
+                    {
+                        fDist = tempDist;
+
+                        if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
+                        {
+                            nextTarget = i;
+                        }
+                        else
+                        {
+                            nextTarget = L4D_GetPinnedSurvivor(i);
+                        }
+                    }			
+                }
+            }
+        }
+        case 1:
+        {
+            for( int i = 1; i <= MaxClients; i++ )
+            {
+                if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && L4D_GetPinnedSurvivor(i) != 0 && g_iOwner[i] == 0)
+                {
+                    GetClientAbsOrigin(i, vTarget);
+                    float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                    if( tempDist < fDist )
+                    {
+                        fDist = tempDist;
+
+                        if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
+                        {
+                            nextTarget = i;
+                        }
+                        else
+                        {
+                            nextTarget = L4D_GetPinnedSurvivor(i);
+                        }
+                    }			
+                }
+            }
+
+            if(nextTarget == 0)
+            {
+                fDist = g_fPetDist;
+
+                int closestIncapped = 0;
+
+                for( int i = 1; i <= MaxClients; i++ )
+                {
+                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && L4D_IsPlayerIncapacitated(i))
+                    {
+                        GetClientAbsOrigin(i, vTarget);
+                        float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                        if( tempDist < fDist )
+                        {
+                            fDist = tempDist;
+                            closestIncapped = i;
+                        }	
+                    }
+                }
+
+                // This is the closest incapped survivor. Find closest SI to it.
+                if(closestIncapped != 0)
+                {
+                    fDist = g_fPetDist;
+
+                    float vIncapped[3];
+                    GetClientAbsOrigin(closestIncapped, vIncapped);
+                    for( int i = 1; i <= MaxClients; i++ )
+                    {
+                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                        {
+                            GetClientAbsOrigin(i, vTarget);
+
+                            float tempDist = GetVectorDistance(vIncapped, vTarget, true);
+                            if( tempDist < fDist )
+                            {
+                                fDist = tempDist;
+                                nextTarget = i;
+                            }			
+                        }
+                    }
+                }
+            }
+            if(nextTarget == 0)
+            {
+                fDist = g_fPetDist;
+                for( int i = 1; i <= MaxClients; i++ )
+                {
+                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                    {
+                        GetClientAbsOrigin(i, vTarget);
+                        float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                        if( tempDist < fDist )
+                        {
+                            fDist = tempDist;
+                            nextTarget = i;
+                        }			
+                    }
+                }
+            }
         }
     }
 
+
     g_iTarget[pet] = nextTarget;
-    g_hPetVictimTimer[pet] = CreateTimer(3.0, ChangeVictim_Timer, pet);
+    g_hPetVictimTimer[pet] = CreateTimer(g_fPetUpdateRate, ChangeVictim_Timer, pet);
     
     return Plugin_Continue;
 }
