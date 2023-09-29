@@ -487,9 +487,11 @@ stock int GetEntityHealth(int entity)
 	return GetEntProp(entity, Prop_Data, "m_iHealth");
 }
 
+
+// This function can alter your temporary health twice in a row. If you wish to set, you can call this function with 0 permanent and 0 temporary to ensure it does if it wants to.
 stock void GunXP_GiveClientHealth(int client, int permanentHP = 0, int temporaryHP = 0)
 {
-	if(GetEntityHealth(client) + permanentHP + L4D_GetPlayerTempHealth(client) > GetEntityMaxHealth(client))
+	if(GetEntityHealth(client) + permanentHP + RPG_Perks_GetClientTempHealth(client) > GetEntityMaxHealth(client))
 	{
 		if(GetEntityHealth(client) + permanentHP > GetEntityMaxHealth(client))
 		{
@@ -506,14 +508,14 @@ stock void GunXP_GiveClientHealth(int client, int permanentHP = 0, int temporary
 		SetEntityHealth(client, GetEntityHealth(client) + permanentHP);
 	}
 
-	if(GetEntityHealth(client) + temporaryHP + L4D_GetPlayerTempHealth(client) > GetEntityMaxHealth(client))
+	if(GetEntityHealth(client) + temporaryHP + RPG_Perks_GetClientTempHealth(client) > GetEntityMaxHealth(client))
 	{
 		RPG_Perks_SetClientTempHealth(client, GetEntityMaxHealth(client) - GetEntityHealth(client) + 1);
 
 	}
 	else
 	{
-		RPG_Perks_SetClientTempHealth(client, L4D_GetPlayerTempHealth(client) + temporaryHP + 1);
+		RPG_Perks_SetClientTempHealth(client, RPG_Perks_GetClientTempHealth(client) + temporaryHP + 1);
 	}
 }
 

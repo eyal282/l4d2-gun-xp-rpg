@@ -735,7 +735,10 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 	if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
 	{
-		bImmune = true;
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN || !(damagetype & DMG_BURN))
+		{
+			bImmune = true;
+		}
 	}
 
 	if(tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS && damagetype & DMG_BULLET)
@@ -769,6 +772,9 @@ public Action Command_TankHP(int client, int args)
 				continue;
 
 			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(IsFakeClient(i))
 				continue;
 
 			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)

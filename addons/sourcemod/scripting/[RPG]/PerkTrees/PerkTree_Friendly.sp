@@ -97,5 +97,12 @@ public void RegisterPerkTree()
     costs.Push(500);
     xpReqs.Push(0);
 
+    for(int i=0;i < 15;i++)
+    {
+        descriptions.PushString("No friendly fire damage taken and received.\nThis Perk's Level reflects onto the bots.");
+        costs.Push(0);
+        xpReqs.Push(10000 * RoundToFloor(Pow(2.0, float(i))));
+    }
+
     friendlyIndex = GunXP_RPGShop_RegisterPerkTree("Friendly Fire Decrease", "Friendly", descriptions, costs, xpReqs);
 }

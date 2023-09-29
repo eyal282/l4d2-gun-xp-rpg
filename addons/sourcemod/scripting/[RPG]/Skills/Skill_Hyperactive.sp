@@ -22,7 +22,7 @@ public Plugin myinfo =
 ConVar g_hDamagePriority;
 
 int hyperactiveIndex;
-float g_fMeleeDamagePerLevels = 0.2;
+float g_fMeleeDamagePerLevels = 0.05;
 int g_iMeleeDamageLevels = 2;
 float g_fFireRate = 0.1;
 float g_fDurationPerLevel = 1.0;

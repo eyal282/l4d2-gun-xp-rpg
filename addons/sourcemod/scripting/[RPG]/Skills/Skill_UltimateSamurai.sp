@@ -71,12 +71,24 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	
 		else if(L4D2_GetWeaponId(inflictor) != L4D2WeaponId_Melee)
         	return;
+
+		else if(damagetype & DMG_BURN)
+			return;
 	
 		else if(!GunXP_RPGShop_IsSkillUnlocked(attacker, samuraiIndex))
 			return;
 
-		else if(damage == 0.0)
+		else if(damage == 0.0 || bImmune)
+		{
+			if(!RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
+			{
+				RPG_Perks_IgniteWithOwnership(victim, attacker);
+			}
+
+			// Warning, infinite loop potential. This is negated by	else if(damagetype & DMG_BURN)
+			RPG_Perks_TakeDamage(victim, attacker, inflictor, 0.0, DMG_BURN);
 			return;
+		}
 
 		if(!RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
 		{
@@ -97,6 +109,9 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     
 	else if(!GunXP_RPGShop_IsSkillUnlocked(attacker, samuraiIndex))
 		return;
+
+	if(damagetype & DMG_BURN)
+		damage -= damage * 0.95;
 
 	damage += damage * (1.0 + (g_fMeleeDamagePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(attacker)) / float(g_iMeleeDamageLevels)))));
 }
@@ -126,7 +141,7 @@ public void WH_OnMeleeSwing(int client, int weapon, float &speedmodifier)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Melee swings gain +%i{PERCENT} speed per %i levels\nDeploy melee instantly.\nMelee sets targets on fire.\n+%i{PERCENT} melee damage per %i levels.", RoundFloat(g_fSwingSpeedPerLevels * 100.0), g_iSwingSpeedLevels, RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels);
+	FormatEx(sDescription, sizeof(sDescription), "Melee swings gain +%i{PERCENT} speed per %i levels\nDeploy melee instantly.\nMelee sets targets on fire.\n+%i{PERCENT} melee damage per %i levels.\nIf a Tank is immune to Melee but not fire, it will take 5{PERCENT} Fire damage.", RoundFloat(g_fSwingSpeedPerLevels * 100.0), g_iSwingSpeedLevels, RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels);
    	samuraiIndex = GunXP_RPGShop_RegisterSkill("Ultimate Samurai", "Ultimate Samurai", sDescription,
 	80000, 200000);
 }

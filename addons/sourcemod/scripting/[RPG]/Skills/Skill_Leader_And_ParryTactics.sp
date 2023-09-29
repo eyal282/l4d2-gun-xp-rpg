@@ -49,7 +49,7 @@ public void GunXP_OnReloadRPGPlugins()
 public void RegisterSkill()
 {
 	parryTacticsIndex = GunXP_RPGShop_RegisterSkill("Parry Tactics", "Parry Tactics", "While you are incapped, your revive cannot be interrupted by damage.\nIf reviver has Leader skill, and fallen has Parry Tactics skill,\nRevive is 25%% faster", 3000, 4000);
-	leaderIndex = GunXP_RPGShop_RegisterSkill("Leader", "Leader", "+5 Max HP per Level.\nYou revive players with +20{PERCENT} permanent HP\nAll timer based actions you perform cannot be interrupted\nIf reviver has Leader skill, and fallen has Parry Tactics skill,\nRevive is 25%% faster", 10000, 12500);
+	leaderIndex = GunXP_RPGShop_RegisterSkill("Leader", "Leader", "+5 Max HP per Level.\nYou revive players with +20{PERCENT} + 50 permanent HP\nAll timer based actions you perform cannot be interrupted\nIf reviver has Leader skill, and fallen has Parry Tactics skill,\nRevive is 25%% faster", 10000, 12500);
 }
 
 
@@ -112,4 +112,7 @@ public void RPG_Perks_OnGetReviveHealthPercent(int reviver, int victim, int &tem
 
 	permanentHealthPercent += 20;
 
+	int flatHP = 50;
+
+	permanentHealthPercent += RoundToFloor((float(flatHP) / RPG_Perks_GetClientMaxHealth(victim)) * 100.0);
 }

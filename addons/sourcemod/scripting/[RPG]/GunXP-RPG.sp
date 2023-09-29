@@ -734,7 +734,7 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 			count++;
 
-			if(g_bUnlockedSkills[i][skillIndex])
+			if(g_bUnlockedSkills[client][skillIndex])
 			{
 				unlockedCount++;
 			}
@@ -742,9 +742,11 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 		if(float(unlockedCount) / float(count) >= 0.5)
 		{
+			g_bUnlockedSkills[client][skillIndex] = true;
 			return true;
 		}
 		
+		g_bUnlockedSkills[client][skillIndex] = false;
 		return false;
 	}
 }
@@ -868,9 +870,14 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 		}
 
 		if(count == 0)
-			return -1;
+		{
+			g_iUnlockedPerkTrees[client][perkIndex] = PERK_TREE_NOT_UNLOCKED;
+			return PERK_TREE_NOT_UNLOCKED;
+		}
 
-		return RoundToCeil((float(averageLevel) / float(count)) / 2.0) - 1;
+		int perkLevel = RoundToCeil((float(averageLevel) / float(count)) / 2.0) - 1;
+		g_iUnlockedPerkTrees[client][perkIndex] = perkLevel;
+		return perkLevel;
 	}
 }
 /*
@@ -1165,7 +1172,6 @@ public Action Timer_AutoRPG(Handle hTimer)
 		// If XP Currency is below 0, it means that an admin stole his XP.
 		if(GetClientXPCurrency(i) < 0 || GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) > GetClientXP(i))
 		{
-			PrintToChatIfEyal(i, "Level: %i | %i - %i|%i|%i - %i", GetClientLevel(i), GetClientXPCurrency(i),  GetXPWorthOfPerkTrees(i), GetXPWorthOfSkills(i), GetClientXPCurrency(i), GetClientXP(i));
 			ResetPerkTreesAndSkills(i);
 
 			CreateTimer(1.0, Timer_AnnounceResetRPG, GetClientUserId(i), TIMER_FLAG_NO_MAPCHANGE);
@@ -1697,7 +1703,18 @@ public Action Command_PerkTrees(int client, int args)
 {
 	// sPossessionNameTarget = You have / Rick Grimes has
 	char sNameTarget[64], sPossessionNameTarget[72];
-	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget), args);
+	GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget), args);
+
+	ShowPerkTreesMenu(client);
+
+	return Plugin_Handled;
+}
+
+stock void ShowPerkTreesMenu(int client, int item=0)
+{
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget));
 
 	Handle hMenu = CreateMenu(PerkTreesShop_MenuHandler);
 
@@ -1708,7 +1725,10 @@ public Action Command_PerkTrees(int client, int args)
 	SortADTArrayCustom(aPerkTrees, SortADT_PerkTrees);
 
 	for(int a=0;a < aPerkTrees.Length;a++)
-	{
+	{	
+		if(IsFakeClient(client))
+			GunXP_RPGShop_IsPerkTreeUnlocked(client, a);
+
 		enPerkTree perkTree;
 		aPerkTrees.GetArray(a, perkTree);
 
@@ -1736,14 +1756,14 @@ public Action Command_PerkTrees(int client, int args)
 
 	delete aPerkTrees;
 
-	FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade Perk Trees here for permanent boosts\nSelect a Perk Tree for more info:\nLevel : %i | Total XP : %i | XP Currency : %i", sNameTarget, GetClientLevel(target), GetClientXP(target), GetClientXPCurrency(target));
+	FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade Perk Trees here for permanent boosts\nSelect a Perk Tree for more info:\nLevel : %i | Total XP : %i | XP Currency : %i%s", sNameTarget, GetClientLevel(target), GetClientXP(target), GetClientXPCurrency(target), client == target ? "\nHold SHIFT to upgrade instead of viewing" : "");
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);
 
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	DisplayMenuAtItem(hMenu, client, item, MENU_TIME_FOREVER);
 
-	return Plugin_Handled;
+	return;
 }
 
 public int PerkTreesShop_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -1773,6 +1793,9 @@ public int PerkTreesShop_MenuHandler(Handle hMenu, MenuAction action, int client
 
 public void ShowPerkTreeInfo(int client, int item)
 {
+	if(IsFakeClient(client))
+		GunXP_RPGShop_IsPerkTreeUnlocked(client, item);
+
 	// sPossessionNameTarget = You have / Rick Grimes has
 	char sNameTarget[64], sPossessionNameTarget[72];
 	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget));
@@ -1788,6 +1811,7 @@ public void ShowPerkTreeInfo(int client, int item)
 	IntToString(item, sInfo, sizeof(sInfo));
 
 	AddMenuItem(hMenu, sInfo, "Upgrade Perk Tree", client != target || g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1 || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1) > GetClientLevel(target) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	AddMenuItem(hMenu, sInfo, "Upgrade to MAX", client != target || g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1 || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1) > GetClientLevel(target) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 	if(g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1)
 	{
@@ -1819,7 +1843,19 @@ public void ShowPerkTreeInfo(int client, int item)
 
 	SetMenuExitBackButton(hMenu, true);
 
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	if(GetClientButtons(client) & IN_SPEED)
+	{
+		PerkTreeInfo_MenuHandler(hMenu, MenuAction_Select, client, 1);
+
+		ShowPerkTreesMenu(client, GetMenuSelectionPosition());
+
+		CloseHandle(hMenu);
+
+	}
+	else
+	{
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 
@@ -1842,55 +1878,107 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 
 		int perkIndex = StringToInt(sInfo);
 
-		enPerkTree perkTree;
-
-		g_aPerkTrees.GetArray(perkIndex, perkTree);
-
-		int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex] + 1);
-		int levelReq = perkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][perkIndex] + 1);
-
-		if(levelReq > GetClientLevel(client))
+		if(item == 1)
 		{
-			PrintToChat(client, "\x04[Gun-XP] \x01You need to reach Level %i to unlock this Perk Tree Level!", levelReq);
-			return 0;
-		}
-		else if(cost > GetClientXPCurrency(client))
-		{
-			PrintToChat(client, "\x04[Gun-XP] \x01You need %i more XP Currency to unlock this Perk Tree level!", cost - GetClientXPCurrency(client));
-			return 0;
-		}
-		else if(IsClientAutoRPG(client))
-		{
-			PrintToChat(client, "\x04[Gun-XP] \x01You must have auto RPG disabled to purhcase Perk Trees!");
-			return 0;
+			Transaction transaction = SQL_CreateTransaction();
+
+			bool bFound = false;
+			while(TryPurchasePerkTree(client, perkIndex, transaction))
+			{
+				bFound = true;
+			}
+
+			if(bFound)
+				dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 		}
 		else
 		{
-			PurchasePerkTreeLevel(client, perkIndex, perkTree, false);
+			TryPurchasePerkTree(client, perkIndex);
+		}
 
-			PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree\x04 %s\x03 level\x04 %i\x03!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
-
-			Call_StartForward(g_fwOnPerkTreeBuy);
-
-			Call_PushCell(client);
-			Call_PushCell(perkIndex);
-			Call_PushCell(g_iUnlockedPerkTrees[client][perkIndex]);
-
-			// Auto RPG?
-			Call_PushCell(false);
-
-			Call_Finish();
+		if(!(GetClientButtons(client) & IN_SPEED))
+		{
+			ShowPerkTreeInfo(client, perkIndex);
 		}
 	}
 
 	return 0;
 }
 
+stock bool TryPurchasePerkTree(int client, int perkIndex, Transaction transaction = null)
+{
+	enPerkTree perkTree;
+
+	g_aPerkTrees.GetArray(perkIndex, perkTree);
+
+	if(g_iUnlockedPerkTrees[client][perkIndex] + 1 >= perkTree.costs.Length)
+	{
+		if(transaction == null)
+			PrintToChat(client, "\x04[Gun-XP] \x01You already have this Perk Tree's max Level.");
+
+		return false;
+	}
+
+	int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex] + 1);
+	int levelReq = perkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][perkIndex] + 1);
+
+
+	if(levelReq > GetClientLevel(client))
+	{
+		if(transaction == null)
+			PrintToChat(client, "\x04[Gun-XP] \x01You need to reach Level %i to unlock this Perk Tree Level!", levelReq);
+
+		return false;
+	}
+	else if(cost > GetClientXPCurrency(client))
+	{
+		if(transaction == null)
+			PrintToChat(client, "\x04[Gun-XP] \x01You need %i more XP Currency to unlock this Perk Tree level!", cost - GetClientXPCurrency(client));
+
+		return false;
+	}
+	else if(IsClientAutoRPG(client))
+	{
+		if(transaction == null)
+			PrintToChat(client, "\x04[Gun-XP] \x01You must have auto RPG disabled to purhcase Perk Trees!");
+
+		return false;
+	}
+
+	PurchasePerkTreeLevel(client, perkIndex, perkTree, false, transaction);
+
+	PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree\x04 %s\x03 level\x04 %i\x03!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
+
+	Call_StartForward(g_fwOnPerkTreeBuy);
+
+	Call_PushCell(client);
+	Call_PushCell(perkIndex);
+	Call_PushCell(g_iUnlockedPerkTrees[client][perkIndex]);
+
+	// Auto RPG?
+	Call_PushCell(false);
+
+	Call_Finish();
+
+	return true;
+}
+
 public Action Command_Skills(int client, int args)
 {
 	// sPossessionNameTarget = You have / Rick Grimes has
 	char sNameTarget[64], sPossessionNameTarget[72];
-	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget), args);
+	GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget), args);
+	
+	ShowSkillsMenu(client);
+	
+	return Plugin_Handled;
+}
+
+stock void ShowSkillsMenu(int client, int item=0)
+{
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget));
 
 	Handle hMenu = CreateMenu(SkillShop_MenuHandler);
 
@@ -1902,6 +1990,9 @@ public Action Command_Skills(int client, int args)
 
 	for(int a=0;a < aSkills.Length;a++)
 	{
+		if(IsFakeClient(client))
+			GunXP_RPGShop_IsSkillUnlocked(client, a);
+
 		enSkill skill;
 		aSkills.GetArray(a, skill);
 
@@ -1923,9 +2014,7 @@ public Action Command_Skills(int client, int args)
 
 	SetMenuExitBackButton(hMenu, true);
 
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
-
-	return Plugin_Handled;
+	DisplayMenuAtItem(hMenu, client, item, MENU_TIME_FOREVER);
 }
 
 public int SkillShop_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
@@ -1955,6 +2044,9 @@ public int SkillShop_MenuHandler(Handle hMenu, MenuAction action, int client, in
 
 public void ShowSkillInfo(int client, int item)
 {
+	if(IsFakeClient(client))
+		GunXP_RPGShop_IsSkillUnlocked(client, item);
+
 	// sPossessionNameTarget = You have / Rick Grimes has
 	char sNameTarget[64], sPossessionNameTarget[72];
 	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget));
@@ -1976,7 +2068,19 @@ public void ShowSkillInfo(int client, int item)
 
 	SetMenuExitBackButton(hMenu, true);
 
-	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	if(GetClientButtons(client) & IN_SPEED)
+	{
+		SkillInfo_MenuHandler(hMenu, MenuAction_Select, client, 0);
+
+		ShowSkillsMenu(client, GetMenuSelectionPosition());
+
+		CloseHandle(hMenu);
+
+	}
+	else
+	{
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
 }
 
 
@@ -2035,8 +2139,10 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 			Call_Finish();
 		}
 
-		// -1 instead of 0 is important for calculating a target.
-		Command_Skills(client, -1);
+		if(!(GetClientButtons(client) & IN_SPEED))
+		{
+			ShowSkillsMenu(client);
+		}
 	}	
 
 	return 0;
@@ -2835,7 +2941,7 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree,
 		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 	}
 
-	if(!bAuto)
+	if(!bAuto && transaction == null)
 		ShowPerkTreeInfo(client, perkIndex);
 }
 

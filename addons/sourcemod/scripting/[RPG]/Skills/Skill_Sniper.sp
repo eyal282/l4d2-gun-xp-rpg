@@ -63,6 +63,19 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 
     FloatToString(hcv_IncapCameraShake.FloatValue, sValue, sizeof(sValue));
     RPG_SendConVarValue(client, hcv_IncapCameraShake, sValue);
+
+    int weapon = GetPlayerWeaponSlot(client, view_as<int>(L4DWeaponSlot_Primary));
+
+    if(weapon != -1)
+    {
+        if(L4D2_IsWeaponUpgradeCompatible(weapon))
+        {
+            if(L4D2_GetWeaponUpgrades(weapon) & L4D2_WEPUPGFLAG_LASER)
+            {
+                RemoveClientWeaponUpgrade(client, 2);
+            }
+        }
+    }
 }
 
 public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
@@ -134,12 +147,18 @@ public void RegisterSkill()
 
 stock void GiveClientWeaponUpgrade(int client, int upgrade)
 {
-    char code[512];
+    char code[256];
 
-    FormatEx(code, sizeof(code), "ret <- GetPlayerFromUserID(%d).GiveUpgrade(%i); <RETURN>ret</RETURN>", GetClientUserId(client), upgrade);
+    FormatEx(code, sizeof(code), "GetPlayerFromUserID(%d).GiveUpgrade(%i);", GetClientUserId(client), upgrade);
+    L4D2_ExecVScriptCode(code);
+}
 
-    char sOutput[512];
-    L4D2_GetVScriptOutput(code, sOutput, sizeof(sOutput));
+stock void RemoveClientWeaponUpgrade(int client, int upgrade)
+{
+    char code[256];
+
+    FormatEx(code, sizeof(code), "GetPlayerFromUserID(%d).RemoveUpgrade(%i);", GetClientUserId(client), upgrade);
+    L4D2_ExecVScriptCode(code);
 }
 
 stock void RPG_SendConVarValue(int client, ConVar cvar, char[] sValue)

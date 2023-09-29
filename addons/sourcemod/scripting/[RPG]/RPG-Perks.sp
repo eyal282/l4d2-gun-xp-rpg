@@ -354,25 +354,41 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 		maxHP = 100;
 
 	float fOldPermanentPercent = float(GetEntityHealth(client)) / float(GetEntityMaxHealth(client));
-	float fOldTemporaryPercent = float(L4D_GetPlayerTempHealth(client)) / float(GetEntityMaxHealth(client));
+	float fOldTemporaryPercent = float(RPG_Perks_GetClientTempHealth(client)) / float(GetEntityMaxHealth(client));
+
 
 	SetEntityMaxHealth(client, maxHP);
 
+	// This accounts for temporary health fluctuation instantly, right before we start depending on it, as GunXP_GiveClientHealth can alter Temp Health twice.
+	GunXP_GiveClientHealth(client, 0, 0);
+
 	float fPermanentPercent = float(GetEntityHealth(client)) / float(GetEntityMaxHealth(client));
-	float fTemporaryPercent = float(L4D_GetPlayerTempHealth(client)) / float(GetEntityMaxHealth(client));
+	float fTemporaryPercent = float(RPG_Perks_GetClientTempHealth(client)) / float(GetEntityMaxHealth(client));
 
 	int iPermanentHealth = 0;
 	int iTemporaryHealth = 0;
 
+	//80/100 = 148/189
+
+	//newHP / newMaxHP = fOldTemporaryPercent * צשס;
 	if(fPermanentPercent != fOldPermanentPercent)
 	{
-		iPermanentHealth = RoundToFloor(fOldPermanentPercent * float(GetEntityMaxHealth(client))) - GetEntityHealth(client);
+		iPermanentHealth = RoundToFloor((fOldPermanentPercent * GetEntityMaxHealth(client) - GetEntityHealth(client)));
 	}
 
 	if(fTemporaryPercent != fOldTemporaryPercent)
 	{
-		iTemporaryHealth = RoundToFloor((fOldTemporaryPercent * GetEntityMaxHealth(client))) - L4D_GetPlayerTempHealth(client);
+		iTemporaryHealth = RoundToFloor((fOldTemporaryPercent * GetEntityMaxHealth(client)) - RPG_Perks_GetClientTempHealth(client));
 	}
+	
+	if(iPermanentHealth + GetEntityHealth(client) == 0)
+	{
+		iPermanentHealth++;
+		iTemporaryHealth--;
+	}
+
+	if(iTemporaryHealth + RPG_Perks_GetClientTempHealth(client) < 0)
+		iTemporaryHealth = 0;
 
 	if(!L4D_IsPlayerIncapacitated(client))
 	{
@@ -382,7 +398,10 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 	return 0;
 }
 
-
+stock float RoundToAbs(float value)
+{
+	return float(RoundToFloor(value));
+}
 public int Native_SetClientHealth(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -2358,6 +2377,9 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 		Call_PushCellRef(bImmune);
 
 		Call_Finish();
+
+		if(damage < 0.0)
+			damage = 0.0;
 	}
 	
 	if(IsPlayer(attacker) && !IsPlayer(victim))
