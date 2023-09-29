@@ -603,7 +603,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     if(priority != 9)
         return;
 
-    else if(!IsPlayer(victim) && !IsPlayer(attacker))
+    else if(!IsPlayer(victim) || !IsPlayer(attacker))
         return;
 
     else if(g_iOwner[victim] == 0)
@@ -756,11 +756,11 @@ Action CmdSayPet(int client, int args)
         }
         else if(bCanCharger)
         {
-            SpawnPet(client, view_as<int>(L4D2ZombieClass_Charger));
+            bResult = SpawnPet(client, view_as<int>(L4D2ZombieClass_Charger));
         }
         else if(bCanCharger)
         {
-            SpawnPet(client, view_as<int>(L4D2ZombieClass_Charger));
+            bResult = SpawnPet(client, view_as<int>(L4D2ZombieClass_Charger));
         }
         else
         {
@@ -862,6 +862,7 @@ bool SpawnPet(int client, int zClass)
             SetEntProp(i, Prop_Send, "m_CollisionGroup", 1); // Prevent collisions with players
             SDKHook(i, SDKHook_TraceAttack, OnShootPet);	// Allows bullets to pass through the pet
             SDKHook(i, SDKHook_OnTakeDamage, OnHurtPet);	// Prevents pet from taking any type of damage from survivors
+            SetEntPropEnt(i, Prop_Send, "m_hOwnerEntity", client);
             ResetInfectedAbility(i, 9999.9);
             bReturn = true;
             delete g_hPetVictimTimer[i];

@@ -712,7 +712,10 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	int skillIndex = GetNativeCell(2);
 
-	if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+	if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+		return false;
+
+	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return false;
 
 	if(!IsFakeClient(client))
@@ -845,7 +848,10 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 
 	int perkIndex = GetNativeCell(2);
 
-	if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+	if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+		return false;
+
+	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return PERK_TREE_NOT_UNLOCKED;
 
 	if(!IsFakeClient(client))
