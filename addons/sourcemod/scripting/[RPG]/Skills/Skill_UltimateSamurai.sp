@@ -43,7 +43,7 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    AutoExecConfig_SetFile("GunXP-RPGShop.cfg");
+    AutoExecConfig_SetFile("GunXP-UltimateSamuraiSkill.cfg");
 
     g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_ultimate_samurai_damage_priority", "0", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
 

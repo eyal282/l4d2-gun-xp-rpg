@@ -78,7 +78,7 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    AutoExecConfig_SetFile("GunXP-RPGShop.cfg");
+    AutoExecConfig_SetFile("GunXP-PetPerkTree.cfg");
 
     g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_pet_damage_priority", "-2", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
 

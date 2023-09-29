@@ -44,7 +44,7 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-	AutoExecConfig_SetFile("GunXP-RPGTanks.cfg");
+	AutoExecConfig_SetFile("GunXP-PsychicTank.cfg");
 
 	g_hReflectDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgtanks_reflect_damage_priority", "-10", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin interacts with unbuffed damage, so it must go first");
 

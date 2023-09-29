@@ -67,7 +67,7 @@ public void OnConfigsExecuted()
 
 public void OnPluginStart()
 {
-    AutoExecConfig_SetFile("GunXP-RPGShop.cfg");
+    AutoExecConfig_SetFile("GunXP-SleightOfHandPerkTree.cfg");
 
     g_hRPGMultiplier = AutoExecConfig_CreateConVar("gun_xp_rpgshop_rpg_reload_multiplier", "2.0", "Sleight of hand reload multiplier for RPG");
 
