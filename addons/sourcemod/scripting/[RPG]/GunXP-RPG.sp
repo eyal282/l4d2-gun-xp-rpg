@@ -849,7 +849,7 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 	int perkIndex = GetNativeCell(2);
 
 	if(L4D_GetClientTeam(client) == L4DTeam_Infected)
-		return false;
+		return PERK_TREE_NOT_UNLOCKED;
 
 	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return PERK_TREE_NOT_UNLOCKED;

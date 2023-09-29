@@ -10,10 +10,6 @@
 
 #define PLUGIN_VERSION "1.0"
 
-int g_iLastButtons[MAXPLAYERS+1];
-float g_fNextExpireJump[MAXPLAYERS+1];
-int g_iJumpCount[MAXPLAYERS+1];
-
 public Plugin myinfo =
 {
     name        = "Knife Skill --> Gun XP - RPG",
@@ -27,6 +23,9 @@ ConVar hcv_Difficulty;
 
 int knifeIndex;
 
+int g_iLastButtons[MAXPLAYERS+1];
+float g_fNextExpireJump[MAXPLAYERS+1];
+int g_iJumpCount[MAXPLAYERS+1];
 bool g_bSpam[MAXPLAYERS+1];
 
 public void OnLibraryAdded(const char[] name)

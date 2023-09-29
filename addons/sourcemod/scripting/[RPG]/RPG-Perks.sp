@@ -2339,7 +2339,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	return rtn;
 }
 
-public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& damage, int damagetype, int hitbox, int hitgroup)
+public Action RPG_OnTraceAttack(int victim, int &attacker, int inflictor, float& damage, int damagetype, int hitbox, int hitgroup)
 {
 	bool bDontInterruptActions;
 	bool bDontStagger;
@@ -2393,6 +2393,14 @@ public Action RPG_OnTraceAttack(int victim, int attacker, int inflictor, float& 
 	{
 		// To award tank burner.
 		bDontStagger = true;
+	}
+
+	if(IsPlayer(attacker) && L4D_GetClientTeam(attacker) == L4DTeam_Infected)
+	{
+		int owner = GetEntPropEnt(attacker, Prop_Send, "m_hOwnerEntity");
+
+		if(owner != -1)
+			attacker = owner;
 	}
 	if(bImmune)
 	{
