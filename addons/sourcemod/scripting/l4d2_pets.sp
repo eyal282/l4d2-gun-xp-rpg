@@ -269,6 +269,11 @@ public void OnGameFrame()
 
         fOrigin[2] += CARRY_OFFSET - 64.0;
         TeleportEntity(i, fOrigin, NULL_VECTOR, {0.0, 0.0, 0.1});
+
+        if(IsNotCarryable(i))
+        {
+            EndCarryBetweenPlayers(g_iCarrier[i], i);
+        }
     }
 }
 /* ========================================================================================= *
@@ -646,7 +651,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
             float vPetPos[3], vOwnerPos[3];
             GetClientAbsOrigin(client, vPetPos);
             GetClientAbsOrigin(g_iOwner[client], vOwnerPos);
-            if( GetVectorDistance(vPetPos, vOwnerPos, true) > 16834.0 ) // More than 128 game units between pet and owner
+            if( GetVectorDistance(vPetPos, vOwnerPos, true) > 16834.0 || L4D_GetPinnedInfected(g_iOwner[client]) != 0 ) // More than 128 game units between pet and owner
                 return Plugin_Changed;
         }
         buttons &= ~IN_ATTACK2;
@@ -768,7 +773,7 @@ Action OnCalculateDamage(int priority, int victim, int attacker, int inflictor, 
     bDontStagger = true;
     bImmune = true;
 
-    if(g_iPetCarrySlowSurvivors != 0 && GetPlayerCarry(attacker) == -1 && L4D_GetClientTeam(victim) == L4DTeam_Survivor && L4D_IsInLastCheckpoint(g_iOwner[attacker]) && !L4D_IsInLastCheckpoint(victim) && !L4D_IsInLastCheckpoint(attacker))
+    if(g_iPetCarrySlowSurvivors != 0 && GetPlayerCarry(attacker) == -1 && L4D_GetClientTeam(victim) == L4DTeam_Survivor && IsNotCarryable(g_iOwner[attacker]) && !IsNotCarryable(victim) && !IsNotCarryable(attacker))
     {
         g_iCarrier[victim] = attacker;
     }
@@ -832,7 +837,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
 
     GetClientAbsOrigin(owner, vOwner);
 
-    if(L4D_IsInLastCheckpoint(owner) && L4D_GetPinnedInfected(owner) == 0 && g_iPetCarrySlowSurvivors != 0)
+    if(IsNotCarryable(owner) && L4D_GetPinnedInfected(owner) == 0 && g_iPetCarrySlowSurvivors != 0)
     {
         fDist = Pow(131071.0, 2.0);
 
@@ -841,7 +846,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
             GetClientAbsOrigin(pet, vPet);
             for( int i = 1; i <= MaxClients; i++ )
             {
-                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && !L4D_IsInLastCheckpoint(i) && L4D_GetPinnedInfected(i) == 0 && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
+                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && !IsNotCarryable(i) && L4D_GetPinnedInfected(i) == 0 && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
                 {
                     GetClientAbsOrigin(i, vTarget);
                     GetClientAbsOrigin(owner, vPet);
@@ -1287,6 +1292,25 @@ void ResetInfectedAbility(int client, float time)
     }
 }
 
+bool IsNotCarryable(int client)
+{
+    if(L4D_IsInLastCheckpoint(client))
+        return true;
+
+    int door = L4D_GetCheckpointLast();
+
+    if(door == -1)
+        return true;
+
+    float fOrigin[3], fDoorOrigin[3];
+    GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+    GetEntPropVector(door, Prop_Data, "m_vecAbsOrigin", fDoorOrigin);
+
+    if(GetVectorDistance(fOrigin, fDoorOrigin) < 200.0)
+        return true;
+
+    return false;
+}
 int GetPlayerCarry(int client)
 {
     for(int i=1;i <= MaxClients;i++)

@@ -801,9 +801,6 @@ public Action Command_TankHP(int client, int args)
 			if(!IsClientInGame(i))
 				continue;
 
-			else if(!IsPlayerAlive(i))
-				continue;
-
 			else if(IsFakeClient(i))
 				continue;
 
@@ -1434,7 +1431,7 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 
 		float fMinDamageRatio = 0.05;
 
-		if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientLevel(i) <= 6)
+		if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientLevel(i) <= 21)
 			fMinDamageRatio = 0.01;
 
 		if(LibraryExists("GunXP-RPG") && fDamageRatio < fMinDamageRatio)
