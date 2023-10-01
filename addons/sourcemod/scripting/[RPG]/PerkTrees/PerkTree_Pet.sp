@@ -314,6 +314,19 @@ public Action L4D2_Pets_OnCanHavePets(int client, L4D2ZombieClassType zclass, bo
         cvar.Flags = flags;
     }
 
+    cvar = FindConVar("l4d2_pets_target_dist");
+
+    if(cvar != null)
+    {
+        int flags = cvar.Flags;
+
+        cvar.Flags = (flags & ~FCVAR_NOTIFY);
+
+        cvar.SetFloat(131071.0, true);
+
+        cvar.Flags = flags;
+    }
+
     return Plugin_Handled;
 }
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
@@ -334,23 +347,6 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
     else if(RPG_Perks_GetZombieType(owner) != ZombieType_NotInfected)
         return;
-
-    else if(RPG_Perks_GetZombieType(victim) == ZombieType_NotInfected)
-    {
-        damage = 0.0;
-        bImmune = true;
-
-        int pinner = L4D_GetPinnedInfected(victim);
-
-        if(pinner != 0)
-        {
-            if(RPG_Perks_GetZombieType(pinner) == ZombieType_Jockey)
-            {
-                RPG_Perks_TakeDamage(pinner, attacker, attacker, 20.0, DMG_CLUB);
-            }
-        }
-        return;
-    }
 
     int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(owner, petIndex);
 

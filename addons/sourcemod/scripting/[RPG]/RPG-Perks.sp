@@ -2300,7 +2300,7 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 	else if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !IsDamageToSelf(victim, attacker) && !IsPinDamage(victim, attacker))
+	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !(damagetype & DMG_DIRECT) && !IsDamageToSelf(victim, attacker) && !IsPinDamage(victim, attacker))
 		return Plugin_Continue;
 
 
@@ -2323,7 +2323,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	else if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
+	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || damagetype & DMG_DIRECT || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;

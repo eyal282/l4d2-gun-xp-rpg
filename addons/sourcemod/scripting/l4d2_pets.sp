@@ -74,6 +74,8 @@ int g_iPetTargetMethod;
 int g_iPetCarrySlowSurvivors;
 float g_fPetDist;
 float g_fPetUpdateRate;
+// victim to attacker.
+float g_fImaginaryDamage[MAXPLAYERS+1][MAXPLAYERS+1];
 Handle g_hDetThreat, g_hDetThreatL4D1, g_hDetTarget, g_hDetLeap;
 Handle g_hPetVictimTimer[MAXPLAYERS + 1];
 
@@ -326,6 +328,7 @@ void SwitchPlugin()
         g_bPluginOn = true;
         HookEvent("round_start",		Event_Round_Start, EventHookMode_PostNoCopy);
         HookEvent("round_end",			Event_Round_End, EventHookMode_PostNoCopy);
+        HookEvent("player_spawn",		Event_Player_Spawn);
         HookEvent("player_death",		Event_Player_Death);
         HookEvent("player_bot_replace", Event_Player_Replaced);
         HookEvent("bot_player_replace", Event_Bot_Replaced);
@@ -507,10 +510,24 @@ void Event_Round_End(Event event, const char[] name, bool dontBroadcast)
     }
 }
 
+
+Action Event_Player_Spawn(Event event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(event.GetInt("userid"));
+    if( client == 0 ) return Plugin_Continue;
+
+    for( int i = 0; i < sizeof(g_fImaginaryDamage); i++ )
+    {
+        g_fImaginaryDamage[client][i] = 0.0;
+        g_fImaginaryDamage[i][client] = 0.0;
+    }
+
+    return Plugin_Continue;
+}
 Action Event_Player_Death(Event event, const char[] name, bool dontBroadcast)
 {
     int client = GetClientOfUserId(event.GetInt("userid"));
-    if( !client || client > MaxClients ) return Plugin_Continue;
+    if( client == 0 ) return Plugin_Continue;
     
     int carried = GetPlayerCarry(client);
 
@@ -662,6 +679,8 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
             curTarget = g_iOwner[specialInfected];	
             g_iTarget[specialInfected] = 0;	// Remove target
         }
+
+       // PrintToChatAll("Target: %N", curTarget);
         return Plugin_Changed;
     }
     if( g_iOwner[specialInfected] != 0 )
@@ -674,11 +693,17 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 
 Action OnShootPet(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {
+    if(LibraryExists("RPG_Perks"))
+        return Plugin_Continue;
+
     return Plugin_Handled;
 }
 
 Action OnHurtPet(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
+    if(LibraryExists("RPG_Perks"))
+        return Plugin_Continue;
+
     if( attacker < 0 && attacker <= MaxClients && GetClientTeam(attacker) == 2 )
         return Plugin_Handled;
         
@@ -688,25 +713,53 @@ Action OnHurtPet(int victim, int& attacker, int& inflictor, float& damage, int& 
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
-    OnCalculateDamage(priority, victim, attacker, damage, bDontInterruptActions, bDontStagger, bDontInstakill, bImmune);
+    OnCalculateDamage(priority, victim, attacker, inflictor, damage, damagetype, bDontInterruptActions, bDontStagger, bDontInstakill, bImmune);
 }
 
-Action OnCalculateDamage(int priority, int victim, int attacker, float &damage, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
+Action OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {
-    if(priority != 9)
-        return Plugin_Continue;
-
-    else if(!IsPlayer(victim) || !IsPlayer(attacker))
+    if(!IsPlayer(victim) || !IsPlayer(attacker))
         return Plugin_Continue;
 
     // If both attacker and defender are not pets, ignore damage calculation
     else if(g_iOwner[victim] == 0 && g_iOwner[attacker] == 0)
         return Plugin_Continue;
 
+    if(priority == -10)
+    {
+        int pinner = L4D_GetPinnedInfected(victim);
+
+        if(pinner != 0 && L4D2_GetPlayerZombieClass(pinner) == L4D2ZombieClass_Jockey)
+        {
+            SDKHooks_TakeDamage(pinner, inflictor, attacker, damage, damagetype|DMG_DIRECT, _, _, _, false);
+
+            return Plugin_Stop;
+        }
+    }
+    if(priority != 9)
+        return Plugin_Continue;
+
     else if(L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
     {
         damage *= g_hPetDmg.FloatValue;
         return Plugin_Changed;
+    }
+
+    int pinner = L4D_GetPinnedInfected(victim);
+
+    if(pinner != 0)
+    {
+        if(L4D2_GetPlayerZombieClass(pinner) == L4D2ZombieClass_Smoker)
+        {
+            g_fImaginaryDamage[pinner][attacker] += damage;
+
+            if(g_fImaginaryDamage[pinner][attacker] >= GetEntityHealth(pinner))
+            {
+                L4D_Smoker_ReleaseVictim(victim, pinner);
+
+                g_fImaginaryDamage[pinner][attacker] = 0.0;
+            }
+        }
     }
 
     damage = 0.0;
@@ -746,11 +799,19 @@ bool IsPlayer(int entity)
 // Disable damage to survivors caused by pets, increase damage received by SI from pets
 Action ScaleFF(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {
+    if(LibraryExists("RPG_Perks"))
+        return Plugin_Continue;
+
     Action rtn;
 
     bool dummy_value;
 
-    rtn = OnCalculateDamage(-9, victim, attacker, damage, dummy_value, dummy_value, dummy_value, dummy_value);
+    rtn = OnCalculateDamage(-10, victim, attacker, inflictor, damage, damagetype, dummy_value, dummy_value, dummy_value, dummy_value);
+
+    if(rtn == Plugin_Stop)
+        return rtn;
+
+    rtn = OnCalculateDamage(9, victim, attacker, inflictor, damage, damagetype, dummy_value, dummy_value, dummy_value, dummy_value);
 
     return rtn;
 }
@@ -843,7 +904,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                         {
                             fDist = tempDist;
 
-                            if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
+                            if(GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
                             {
                                 nextTarget = i;
                             }
@@ -1307,6 +1368,12 @@ stock bool UC_IsNullVector(const float Vector[3])
 {
     return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
 }
+
+stock int GetEntityHealth(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_iHealth");
+}
+
 /*============================================================================================
                                     Changelog
 ----------------------------------------------------------------------------------------------
