@@ -684,7 +684,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		if(attacker != 0)
 			GetEdictClassname(attacker, sClassname, sizeof(sClassname));
 
-		if(IsPlayer(victim) && (damage >= 100.0 && (attacker == victim || attacker == 0 || strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0)))
+		if(IsPlayer(victim) && damage >= 200 && (attacker == victim || attacker == 0 || strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0))
 		{
 			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
 

@@ -32,6 +32,8 @@
 #include <dhooks>
 #include <left4dhooks>
 
+#define CARRY_OFFSET 55.0
+
 #define FCVAR_FLAGS FCVAR_NOTIFY
 #define PLUGIN_VERSION "1.1.2"
 #define GAMEDATA "l4d2_pets"
@@ -53,6 +55,7 @@ ConVar g_hPetDist;
 ConVar g_hPetDmg;
 ConVar g_hPetUpdateRate;
 ConVar g_hPetTargetMethod;
+ConVar g_hPetCarrySlowSurvivors;
 
 GlobalForward g_fwOnCanHavePets;
 
@@ -63,10 +66,12 @@ int g_iPetAttack;
 int g_iFlags;
 int g_iGlobPetLim;
 int g_iPlyPetLim;
+int g_iCarrier[MAXPLAYERS+1] = { -1, ... };
 int g_iOwner[MAXPLAYERS + 1];		// Who owns this pet?
 int g_iTarget[MAXPLAYERS + 1];	// Pet can target another special infected to protect its owner
 int g_iNextCheck[MAXPLAYERS + 1];
 int g_iPetTargetMethod;
+int g_iPetCarrySlowSurvivors;
 float g_fPetDist;
 float g_fPetUpdateRate;
 Handle g_hDetThreat, g_hDetThreatL4D1, g_hDetTarget, g_hDetLeap;
@@ -110,6 +115,7 @@ public void OnPluginStart()
     g_hPetDist =	        CreateConVar("l4d2_pets_target_dist",          "400",					"Radius around the survivor to allow pets to attack enemy SI.", FCVAR_FLAGS, true, 0.0, true, 2000.0);
     g_hPetUpdateRate =	    CreateConVar("l4d2_pets_target_update_rate",   "3.0",					"Time in seconds Pet updates their target.", FCVAR_FLAGS, true, 0.3, true, 10.0);
     g_hPetTargetMethod =	CreateConVar("l4d2_pets_target_method",        "1",					"0 = Pet targets closest to owner. 1 = Pet focuses on pinned, then on incapped, then on closest to owner.", FCVAR_FLAGS, true, 0.0, true, 1.0);
+    g_hPetCarrySlowSurvivors =	CreateConVar("l4d2_pets_carry_slow_survivors",        "0",					"0 = Pets don't carry slow survivors. 1 = Pets carry slow survivors to safe room after owner arrives. 2 = Like 1 but pets also carry incapped survivors.", FCVAR_FLAGS, true, 0.0, true, 2.0);
 
     g_hCurrGamemode = FindConVar("mp_gamemode");
 
@@ -125,6 +131,7 @@ public void OnPluginStart()
     g_hPetDist.AddChangeHook(CVarChange_Cvars);
     g_hPetUpdateRate.AddChangeHook(CVarChange_Cvars);
     g_hPetTargetMethod.AddChangeHook(CVarChange_Cvars);
+    g_hPetCarrySlowSurvivors.AddChangeHook(CVarChange_Cvars);
     
     AutoExecConfig(true, "l4d2_pets");
     
@@ -139,9 +146,9 @@ public void OnPluginStart()
     if( hGameData == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
 
     /**
-     *  New method to detour functions, function addresses have changed
-     *  This was made by Silvers
-     */
+        *  New method to detour functions, function addresses have changed
+        *  This was made by Silvers
+        */
     Address offset = GameConfGetAddress(hGameData, "SurvivorBehavior::SelectMoreDangerousThreat");
     g_hDetThreat = DHookCreateDetour(offset, CallConv_THISCALL, ReturnType_CBaseEntity, ThisPointer_Ignore);
     DHookAddParam(g_hDetThreat, HookParamType_CBaseEntity);
@@ -198,6 +205,10 @@ public void OnClientPutInServer(int client)
     else SDKHook(client, SDKHook_OnTakeDamage, ScaleFF);
 }
 
+public void OnClientConnected(int client)
+{
+    g_iCarrier[client] = -1;
+}
 
 public void OnClientDisconnect(int client)
 {
@@ -207,6 +218,7 @@ public void OnClientDisconnect(int client)
     delete g_hPetVictimTimer[client];
     g_iOwner[client] = 0;
     g_iTarget[client] = 0;
+    g_iCarrier[client] = -1;
 }
 
 public void OnPluginEnd()
@@ -218,6 +230,45 @@ public void OnPluginEnd()
     }
 }
 
+public void OnGameFrame()
+{
+    for(int i=1;i < MaxClients;i++)
+    {
+        if(!IsClientInGame(i))
+            continue;
+
+        else if(g_iCarrier[i] == -1)
+            continue;
+
+        else if(!IsClientInGame(g_iCarrier[i]))
+        {
+            g_iCarrier[i] = -1;
+            continue;
+        }
+
+        float fOrigin[3], fAngles[3];
+        GetClientEyePosition(g_iCarrier[i], fOrigin);
+        GetClientEyeAngles(g_iCarrier[i], fAngles);	
+
+        // Only account for the angle of rotation of +left and +right in console.
+
+        fAngles[0] = 0.0;
+
+        float fwd[3];
+
+
+        GetAngleVectors(fAngles, fwd, NULL_VECTOR, NULL_VECTOR);
+
+        NegateVector(fwd);
+
+        ScaleVector(fwd, 20.0);
+
+        AddVectors(fOrigin, fwd, fOrigin);
+
+        fOrigin[2] += CARRY_OFFSET - 64.0;
+        TeleportEntity(i, fOrigin, NULL_VECTOR, {0.0, 0.0, 0.1});
+    }
+}
 /* ========================================================================================= *
 *                                          ConVars                                          *
 * ========================================================================================= */
@@ -279,6 +330,7 @@ void SwitchPlugin()
         HookEvent("player_bot_replace", Event_Player_Replaced);
         HookEvent("bot_player_replace", Event_Bot_Replaced);
         HookEvent("player_hurt",		Event_Player_Hurt);
+        HookEvent("player_entered_checkpoint", Event_Player_Entered_Checkpoint);
         
         if( !DHookEnableDetour(g_hDetThreat, true, SelectThreat_Post) )
             SetFailState("Failed to detour \"SurvivorBehavior::SelectMoreDangerousThreat\".");
@@ -334,6 +386,7 @@ void ConVars()
     g_fPetDist = Pow(g_hPetDist.FloatValue, 2.0);
     g_fPetUpdateRate = g_hPetUpdateRate.FloatValue;
     g_iPetTargetMethod = g_hPetTargetMethod.IntValue;
+    g_iPetCarrySlowSurvivors = g_hPetCarrySlowSurvivors.IntValue;
     
     g_hPetColor.GetString(sBuffer, sizeof(sBuffer));
     if( ExplodeString(sBuffer, ",", sBuffer2, sizeof(sBuffer2), sizeof(sBuffer2[])) != 4 )
@@ -359,7 +412,7 @@ void SetPetAtk()
 * ========================================================================================= */
 
 /**
- *	Detour callback for SurvivorBehavior::SelectMoreDangerousThreat(INextBot const*,CBaseCombatCharacter const*,CBaseCombatCharacter*,CBaseCombatCharacter*)
+    *	Detour callback for SurvivorBehavior::SelectMoreDangerousThreat(INextBot const*,CBaseCombatCharacter const*,CBaseCombatCharacter*,CBaseCombatCharacter*)
 *	1st value is unknown, 2nd is the survivor bot performing the function, 3rd is the current most dangerous threat for survivor,
 *	4th is the next threat for the survivor, returns 4th param as most dangerous threat
 *	This callback checks if the survivor tries to choose a pet charger as next more dangerous threat, don't allow it, and return current threat
@@ -385,7 +438,7 @@ MRESReturn SelectThreat_Post(DHookReturn hReturn, DHookParam hParams)
 }
 
 /**
- *	Detour callback for SurvivorAttack::SelectTarget(SurvivorBot *)
+    *	Detour callback for SurvivorAttack::SelectTarget(SurvivorBot *)
 *	This is the last function called in the survivor decisions to attack an infected, if there are no more zombies in bot sight, he will attempt to attack
 *	survivor pet even if the last detour didn't allowed it to pick as the most dangerous, because survivor has no more zombies to pick
 *	this completely prevents survivor to attack or aim the pet like if it doesn't exist, but survivor will have the pet as the target it should attack
@@ -407,7 +460,7 @@ MRESReturn SelectTarget_Post(DHookReturn hReturn, DHookParam hParams)
 }
 
 /**
- *	Detour callback for CLeap::OnTouch(CBaseEntity *)
+    *	Detour callback for CLeap::OnTouch(CBaseEntity *)
 *	Its called when Jockey ability "touches" another entity, but ability is being constantly fired
 *	Jockey works different than other SI. Killing or blocking permanently jockey ability freezes it, it seems that the ability controls the zombie wtf
 *	Jockey can bypass OnPlayerRunCmd blocks and attack players, maybe because ability forces jockey to leap even with buttons blocked
@@ -459,6 +512,13 @@ Action Event_Player_Death(Event event, const char[] name, bool dontBroadcast)
     int client = GetClientOfUserId(event.GetInt("userid"));
     if( !client || client > MaxClients ) return Plugin_Continue;
     
+    int carried = GetPlayerCarry(client);
+
+    g_iCarrier[client] = -1;
+
+    if(carried != -1)
+        g_iCarrier[carried] = -1;
+
     g_iOwner[client] = 0;
     delete g_hPetVictimTimer[client];
 
@@ -533,6 +593,24 @@ Action Event_Player_Hurt(Event event, const char[] name, bool dontBroadcast)
     return Plugin_Continue;
 }
 
+
+public Action Event_Player_Entered_Checkpoint(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+    
+    if(client == 0)
+        return Plugin_Continue;
+
+    else if(g_iOwner[client] == 0)
+        return Plugin_Continue;
+
+    else if(GetPlayerCarry(client) == -1)
+        return Plugin_Continue;
+
+    EndCarryBetweenPlayers(client, GetPlayerCarry(client));
+
+    return Plugin_Continue;
+}
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
     if( g_iOwner[client] == 0) return Plugin_Continue;
@@ -610,21 +688,39 @@ Action OnHurtPet(int victim, int& attacker, int& inflictor, float& damage, int& 
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
+    OnCalculateDamage(priority, victim, attacker, damage, bDontInterruptActions, bDontStagger, bDontInstakill, bImmune);
+}
+
+Action OnCalculateDamage(int priority, int victim, int attacker, float &damage, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
+{
     if(priority != 9)
-        return;
+        return Plugin_Continue;
 
     else if(!IsPlayer(victim) || !IsPlayer(attacker))
-        return;
+        return Plugin_Continue;
 
-    else if(g_iOwner[victim] == 0)
-        return;
+    // If both attacker and defender are not pets, ignore damage calculation
+    else if(g_iOwner[victim] == 0 && g_iOwner[attacker] == 0)
+        return Plugin_Continue;
 
-    else if(L4D_GetClientTeam(attacker) == L4DTeam_Infected)
-        return;
+    else if(L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
+    {
+        damage *= g_hPetDmg.FloatValue;
+        return Plugin_Changed;
+    }
 
     damage = 0.0;
     bDontInterruptActions = true;
+    bDontInstakill = true;
+    bDontStagger = true;
     bImmune = true;
+
+    if(g_iPetCarrySlowSurvivors != 0 && GetPlayerCarry(attacker) == -1 && L4D_GetClientTeam(victim) == L4DTeam_Survivor && L4D_IsInLastCheckpoint(g_iOwner[attacker]) && !L4D_IsInLastCheckpoint(victim) && !L4D_IsInLastCheckpoint(attacker))
+    {
+        g_iCarrier[victim] = attacker;
+    }
+
+    return Plugin_Stop;
 }
 
 public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2ZombieClassType &zclass)
@@ -650,20 +746,13 @@ bool IsPlayer(int entity)
 // Disable damage to survivors caused by pets, increase damage received by SI from pets
 Action ScaleFF(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {
-    if( attacker > MaxClients || attacker == 0 )
-        return Plugin_Continue;
-        
-    if( g_iOwner[attacker] != 0 )
-    {
-        if( GetClientTeam(victim) == 2 )
-            return Plugin_Handled;
-        else
-        {
-            damage *= g_hPetDmg.FloatValue;
-            return Plugin_Changed;
-        }
-    }
-    return Plugin_Continue;
+    Action rtn;
+
+    bool dummy_value;
+
+    rtn = OnCalculateDamage(-9, victim, attacker, damage, dummy_value, dummy_value, dummy_value, dummy_value);
+
+    return rtn;
 }
 
 /* ========================================================================================= *
@@ -674,107 +763,52 @@ Action ChangeVictim_Timer(Handle timer, int pet)
     g_hPetVictimTimer[pet] = null;
     float vTarget[3];
     float vOwner[3];
+    float vPet[3];
     float fDist = g_fPetDist;
     int nextTarget = 0;
     
-    GetClientAbsOrigin(g_iOwner[pet], vOwner);
+    int owner = g_iOwner[pet];
 
-    switch(g_iPetTargetMethod)
+    GetClientAbsOrigin(owner, vOwner);
+
+    if(L4D_IsInLastCheckpoint(owner) && L4D_GetPinnedInfected(owner) == 0 && g_iPetCarrySlowSurvivors != 0)
     {
-        case 0:
+        fDist = Pow(131071.0, 2.0);
+
+        if(GetPlayerCarry(pet) == -1)
         {
+            GetClientAbsOrigin(pet, vPet);
             for( int i = 1; i <= MaxClients; i++ )
             {
-                if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && !L4D_IsInLastCheckpoint(i) && L4D_GetPinnedInfected(i) == 0 && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
                 {
                     GetClientAbsOrigin(i, vTarget);
-                    float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                    GetClientAbsOrigin(owner, vPet);
+
+                    float tempDist = GetVectorDistance(vPet, vTarget, true);
+
                     if( tempDist < fDist )
                     {
+                        nextTarget = i;
                         fDist = tempDist;
-
-                        if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
-                        {
-                            nextTarget = i;
-                        }
-                        else
-                        {
-                            nextTarget = L4D_GetPinnedSurvivor(i);
-                        }
                     }			
                 }
             }
         }
-        case 1:
+        else
         {
-            for( int i = 1; i <= MaxClients; i++ )
+            nextTarget = owner;
+        }
+    }
+    else
+    {
+        if(GetPlayerCarry(pet) != -1)
+            EndCarryBetweenPlayers(pet, GetPlayerCarry(pet));
+
+        switch(g_iPetTargetMethod)
+        {
+            case 0:
             {
-                if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && L4D_GetPinnedSurvivor(i) != 0 && g_iOwner[i] == 0)
-                {
-                    GetClientAbsOrigin(i, vTarget);
-                    float tempDist = GetVectorDistance(vOwner, vTarget, true);
-                    if( tempDist < fDist )
-                    {
-                        fDist = tempDist;
-
-                        if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
-                        {
-                            nextTarget = i;
-                        }
-                        else
-                        {
-                            nextTarget = L4D_GetPinnedSurvivor(i);
-                        }
-                    }			
-                }
-            }
-
-            if(nextTarget == 0)
-            {
-                fDist = g_fPetDist;
-
-                int closestIncapped = 0;
-
-                for( int i = 1; i <= MaxClients; i++ )
-                {
-                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && L4D_IsPlayerIncapacitated(i))
-                    {
-                        GetClientAbsOrigin(i, vTarget);
-                        float tempDist = GetVectorDistance(vOwner, vTarget, true);
-                        if( tempDist < fDist )
-                        {
-                            fDist = tempDist;
-                            closestIncapped = i;
-                        }	
-                    }
-                }
-
-                // This is the closest incapped survivor. Find closest SI to it.
-                if(closestIncapped != 0)
-                {
-                    fDist = g_fPetDist;
-
-                    float vIncapped[3];
-                    GetClientAbsOrigin(closestIncapped, vIncapped);
-                    for( int i = 1; i <= MaxClients; i++ )
-                    {
-                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
-                        {
-                            GetClientAbsOrigin(i, vTarget);
-
-                            float tempDist = GetVectorDistance(vIncapped, vTarget, true);
-                            if( tempDist < fDist )
-                            {
-                                fDist = tempDist;
-                                nextTarget = i;
-                            }			
-                        }
-                    }
-                }
-            }
-            if(nextTarget == 0)
-            {
-                fDist = g_fPetDist;
                 for( int i = 1; i <= MaxClients; i++ )
                 {
                     if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
@@ -784,14 +818,106 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                         if( tempDist < fDist )
                         {
                             fDist = tempDist;
-                            nextTarget = i;
+
+                            if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
+                            {
+                                nextTarget = i;
+                            }
+                            else
+                            {
+                                nextTarget = L4D_GetPinnedSurvivor(i);
+                            }
                         }			
+                    }
+                }
+            }
+            case 1:
+            {
+                for( int i = 1; i <= MaxClients; i++ )
+                {
+                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && L4D_GetPinnedSurvivor(i) != 0 && g_iOwner[i] == 0)
+                    {
+                        GetClientAbsOrigin(i, vTarget);
+                        float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                        if( tempDist < fDist )
+                        {
+                            fDist = tempDist;
+
+                            if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
+                            {
+                                nextTarget = i;
+                            }
+                            else
+                            {
+                                nextTarget = L4D_GetPinnedSurvivor(i);
+                            }
+                        }			
+                    }
+                }
+
+                if(nextTarget == 0)
+                {
+                    fDist = g_fPetDist;
+
+                    int closestIncapped = 0;
+
+                    for( int i = 1; i <= MaxClients; i++ )
+                    {
+                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && L4D_IsPlayerIncapacitated(i))
+                        {
+                            GetClientAbsOrigin(i, vTarget);
+                            float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                            if( tempDist < fDist )
+                            {
+                                fDist = tempDist;
+                                closestIncapped = i;
+                            }	
+                        }
+                    }
+
+                    // This is the closest incapped survivor. Find closest SI to it.
+                    if(closestIncapped != 0)
+                    {
+                        fDist = g_fPetDist;
+
+                        float vIncapped[3];
+                        GetClientAbsOrigin(closestIncapped, vIncapped);
+                        for( int i = 1; i <= MaxClients; i++ )
+                        {
+                            if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                            {
+                                GetClientAbsOrigin(i, vTarget);
+
+                                float tempDist = GetVectorDistance(vIncapped, vTarget, true);
+                                if( tempDist < fDist )
+                                {
+                                    fDist = tempDist;
+                                    nextTarget = i;
+                                }			
+                            }
+                        }
+                    }
+                }
+                if(nextTarget == 0)
+                {
+                    fDist = g_fPetDist;
+                    for( int i = 1; i <= MaxClients; i++ )
+                    {
+                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                        {
+                            GetClientAbsOrigin(i, vTarget);
+                            float tempDist = GetVectorDistance(vOwner, vTarget, true);
+                            if( tempDist < fDist )
+                            {
+                                fDist = tempDist;
+                                nextTarget = i;
+                            }			
+                        }
                     }
                 }
             }
         }
     }
-
 
     g_iTarget[pet] = nextTarget;
     g_hPetVictimTimer[pet] = CreateTimer(g_fPetUpdateRate, ChangeVictim_Timer, pet);
@@ -1100,6 +1226,87 @@ void ResetInfectedAbility(int client, float time)
     }
 }
 
+int GetPlayerCarry(int client)
+{
+    for(int i=1;i <= MaxClients;i++)
+    {
+        if(g_iCarrier[i] == client)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+stock void EndCarryBetweenPlayers(int carrier, int carried)
+{
+    g_iCarrier[carried] = -1;
+
+    float fOrigin[3];
+    GetEntPropVector(carried, Prop_Data, "m_vecOrigin", fOrigin);
+
+    if(IsPlayerStuck(carried, fOrigin))
+    {
+        // -1 * CARRY_OFFSET to teleport the carried back to the carrier, and not vise versa.
+        if(IsPlayerStuck(carried, fOrigin, -1 * CARRY_OFFSET))
+        {
+            float fCarrierOrigin[3];
+            GetEntPropVector(carrier, Prop_Data, "m_vecOrigin", fCarrierOrigin);
+
+            TeleportEntity(carried, fCarrierOrigin);
+        }
+        else
+        {
+            // decrease offset to teleport the carried back to the carrier, and not vise versa.
+            fOrigin[2] -= CARRY_OFFSET;
+
+            TeleportEntity(carried, fOrigin);
+
+            int zclass = GetEntProp(carrier, Prop_Send, "m_zombieClass");
+
+            int owner = g_iOwner[carrier];
+
+            ForcePlayerSuicide(carrier);
+
+            if(owner != 0)
+            {
+                SpawnPet(owner, zclass);
+            }
+        }
+    }
+}
+
+
+stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
+{
+    float vecMin[3], vecMax[3], vecOrigin[3];
+    
+    GetClientMins(client, vecMin);
+    GetClientMaxs(client, vecMax);
+    
+    if(UC_IsNullVector(Origin))
+        GetClientAbsOrigin(client, vecOrigin);
+        
+    else
+    {
+        vecOrigin = Origin;
+        vecOrigin[2] += HeightOffset;
+    }
+    
+    TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
+    return TR_DidHit();
+}
+
+public bool TraceRayDontHitPlayers(int entityhit, int mask) 
+{
+    return (entityhit>MaxClients || entityhit == 0);
+}
+
+stock bool UC_IsNullVector(const float Vector[3])
+{
+    return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
+}
 /*============================================================================================
                                     Changelog
 ----------------------------------------------------------------------------------------------

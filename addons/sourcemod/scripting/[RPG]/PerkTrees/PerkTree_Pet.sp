@@ -87,6 +87,7 @@ int g_iPetReqs[] =
     0
 };
 
+float g_fDamagePercentTank = 10.0;
 
 public void OnLibraryAdded(const char[] name)
 {
@@ -103,6 +104,8 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
+    HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
+
     AutoExecConfig_SetFile("GunXP-PetPerkTree.cfg");
 
     g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_pet_damage_priority", "-2", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
@@ -119,6 +122,76 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
+public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(event.GetInt("userid"));
+
+    if(client == 0)
+        return Plugin_Continue;
+
+    int owner = GetEntPropEnt(client, Prop_Send, "m_hOwnerEntity");
+
+    if(!IsPlayer(owner))
+        return Plugin_Continue;
+
+    else if(RPG_Perks_GetZombieType(owner) != ZombieType_NotInfected)
+        return Plugin_Continue;
+
+    CreateTimer(1.0, Timer_RespawnPet, GetClientUserId(owner), TIMER_FLAG_NO_MAPCHANGE);
+
+    return Plugin_Continue;
+}
+
+
+public Action Timer_RespawnPet(Handle Timer, int userid)
+{
+    int client = GetClientOfUserId(userid);
+
+    if(client == 0)
+        return Plugin_Continue;
+
+    else if(GunXP_RPGShop_IsPerkTreeUnlocked(client, petIndex) == PERK_TREE_NOT_UNLOCKED)
+        return Plugin_Continue;
+    
+    FakeClientCommand(client, "sm_pet");
+
+    return Plugin_Continue;
+}
+
+public void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLevel, bool bAutoRPG)
+{
+    if(perkIndex != petIndex)
+        return;
+
+    int pet = RPG_FindClientPet(client);
+
+    if(pet == 0)
+        FakeClientCommand(client, "sm_pet");
+}
+
+public void GunXP_RPGShop_OnResetRPG(int client)
+{
+    if(GunXP_RPGShop_IsPerkTreeUnlocked(client, petIndex) == PERK_TREE_NOT_UNLOCKED)
+        return;
+
+    int pet = RPG_FindClientPet(client);
+
+    if(pet != 0)
+        ForcePlayerSuicide(pet);
+
+}
+
+// Must add natives for after a player spawns for incap hidden pistol.
+public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
+{
+    if(priority != 0)
+        return;
+
+    else if(GunXP_RPGShop_IsPerkTreeUnlocked(client, petIndex) == PERK_TREE_NOT_UNLOCKED)
+        return;
+
+    FakeClientCommand(client, "sm_pet");
+}
 public void RPG_Perks_OnZombiePlayerSpawned(int client)
 {
     int owner = GetEntPropEnt(client, Prop_Send, "m_hOwnerEntity");
@@ -154,7 +227,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
             {
                 g_bSpam[client] = true;
             
-                CreateTimer(5.0, Timer_SpamOff, client);
+                CreateTimer(0.3, Timer_SpamOff, client);
                 
                 FakeClientCommand(client, "sm_pet");
             }
@@ -221,11 +294,11 @@ public Action L4D2_Pets_OnCanHavePets(int client, L4D2ZombieClassType zclass, bo
     {
         int flags = cvar.Flags;
 
-    	cvar.Flags = (flags & ~FCVAR_NOTIFY);
+        cvar.Flags = (flags & ~FCVAR_NOTIFY);
 
-    	cvar.SetFloat(1.0, true);
+        cvar.SetFloat(1.0, true);
 
-    	cvar.Flags = flags;
+        cvar.Flags = flags;
     }
 
     cvar = FindConVar("l4d2_pets_global_limit");
@@ -234,11 +307,11 @@ public Action L4D2_Pets_OnCanHavePets(int client, L4D2ZombieClassType zclass, bo
     {
         int flags = cvar.Flags;
 
-    	cvar.Flags = (flags & ~FCVAR_NOTIFY);
+        cvar.Flags = (flags & ~FCVAR_NOTIFY);
 
-    	cvar.SetInt(8, true);
+        cvar.SetInt(8, true);
 
-    	cvar.Flags = flags;
+        cvar.Flags = flags;
     }
 
     return Plugin_Handled;
@@ -285,6 +358,11 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
         perkLevel = 0;
 
     damage = g_fPetDamages[perkLevel];
+
+    if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
+    {
+        damage = damage * (g_fDamagePercentTank / 100.0);
+    }
 }
 
 public void RegisterPerkTree()
@@ -298,7 +376,7 @@ public void RegisterPerkTree()
     {
         char TempFormat[128];
 
-        FormatEx(TempFormat, sizeof(TempFormat), "Use command sm_pet [remove] to spawn / despawn Pet\nPet deals %.0f damage.\nTriple press SHIFT to teleport charger to your aim.", g_fPetDamages[i]);
+        FormatEx(TempFormat, sizeof(TempFormat), "Triple press SHIFT spawn / teleport charger to you\nPet deals %.0f damage, %.0f{PERCENT} to Tank", g_fPetDamages[i], g_fDamagePercentTank);
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iPetCosts[i]);
@@ -332,94 +410,94 @@ stock int RPG_FindClientPet(int client, int startPos=0)
 // This function is perfect but I need to conduct tests to ensure no bugs occur.
 stock bool UC_GetAimPositionBySize(int client, int target, float outputOrigin[3])
 {
-	float BrokenOrigin[3];
-	float vecMin[3], vecMax[3], eyeOrigin[3], eyeAngles[3], Result[3], FakeOrigin[3], clientOrigin[3];
+    float BrokenOrigin[3];
+    float vecMin[3], vecMax[3], eyeOrigin[3], eyeAngles[3], Result[3], FakeOrigin[3], clientOrigin[3];
 
-	GetClientMins(target, vecMin);
-	GetClientMaxs(target, vecMax);
+    GetClientMins(target, vecMin);
+    GetClientMaxs(target, vecMax);
 
-	GetEntPropVector(target, Prop_Data, "m_vecOrigin", BrokenOrigin);
+    GetEntPropVector(target, Prop_Data, "m_vecOrigin", BrokenOrigin);
 
-	GetClientEyePosition(client, eyeOrigin);
-	GetClientEyeAngles(client, eyeAngles);
+    GetClientEyePosition(client, eyeOrigin);
+    GetClientEyeAngles(client, eyeAngles);
 
-	GetEntPropVector(client, Prop_Data, "m_vecOrigin", clientOrigin);
+    GetEntPropVector(client, Prop_Data, "m_vecOrigin", clientOrigin);
 
-	TR_TraceRayFilter(eyeOrigin, eyeAngles, MASK_PLAYERSOLID, RayType_Infinite, TraceRayDontHitPlayers);
+    TR_TraceRayFilter(eyeOrigin, eyeAngles, MASK_PLAYERSOLID, RayType_Infinite, TraceRayDontHitPlayers);
 
-	TR_GetEndPosition(FakeOrigin);
+    TR_GetEndPosition(FakeOrigin);
 
-	Result = FakeOrigin;
+    Result = FakeOrigin;
 
-	if (TR_PointOutsideWorld(Result))
-		return false;
+    if (TR_PointOutsideWorld(Result))
+        return false;
 
-	float fwd[3];
+    float fwd[3];
 
-	GetAngleVectors(eyeAngles, fwd, NULL_VECTOR, NULL_VECTOR);
+    GetAngleVectors(eyeAngles, fwd, NULL_VECTOR, NULL_VECTOR);
 
-	NegateVector(fwd);
+    NegateVector(fwd);
 
-	float clientHeight = eyeOrigin[2] - clientOrigin[2];
-	float OffsetFix    = eyeOrigin[2] - Result[2];
+    float clientHeight = eyeOrigin[2] - clientOrigin[2];
+    float OffsetFix    = eyeOrigin[2] - Result[2];
 
-	if (OffsetFix < 0.0)
-		OffsetFix = 0.0;
+    if (OffsetFix < 0.0)
+        OffsetFix = 0.0;
 
-	else if (OffsetFix > clientHeight + 1.3)
-		OffsetFix = clientHeight + 1.3;
+    else if (OffsetFix > clientHeight + 1.3)
+        OffsetFix = clientHeight + 1.3;
 
-	ScaleVector(fwd, 1.3);
+    ScaleVector(fwd, 1.3);
 
-	int Timeout = 0;
+    int Timeout = 0;
 
-	while (IsPlayerStuck(target, Result, (-1 * clientHeight) + OffsetFix))
-	{
-		AddVectors(Result, fwd, Result);
+    while (IsPlayerStuck(target, Result, (-1 * clientHeight) + OffsetFix))
+    {
+        AddVectors(Result, fwd, Result);
 
-		Timeout++;
+        Timeout++;
 
-		if (Timeout > 8192)
-			return false;
-	}
+        if (Timeout > 8192)
+            return false;
+    }
 
-	Result[2] += (-1 * clientHeight) + OffsetFix;
+    Result[2] += (-1 * clientHeight) + OffsetFix;
 
-	outputOrigin = Result;
+    outputOrigin = Result;
 
-	return true;
+    return true;
 }
 
 stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
 {
-	float vecMin[3], vecMax[3], vecOrigin[3];
+    float vecMin[3], vecMax[3], vecOrigin[3];
 
-	GetClientMins(client, vecMin);
-	GetClientMaxs(client, vecMax);
+    GetClientMins(client, vecMin);
+    GetClientMaxs(client, vecMax);
 
-	if (UC_IsNullVector(Origin))
-	{
-		GetClientAbsOrigin(client, vecOrigin);
+    if (UC_IsNullVector(Origin))
+    {
+        GetClientAbsOrigin(client, vecOrigin);
 
-		vecOrigin[2] += HeightOffset;
-	}
-	else
-	{
-		vecOrigin = Origin;
+        vecOrigin[2] += HeightOffset;
+    }
+    else
+    {
+        vecOrigin = Origin;
 
-		vecOrigin[2] += HeightOffset;
-	}
+        vecOrigin[2] += HeightOffset;
+    }
 
-	TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
-	return TR_DidHit();
+    TR_TraceHullFilter(vecOrigin, vecOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
+    return TR_DidHit();
 }
 
 stock bool UC_IsNullVector(const float Vector[3])
 {
-	return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
+    return (Vector[0] == NULL_VECTOR[0] && Vector[0] == NULL_VECTOR[1] && Vector[2] == NULL_VECTOR[2]);
 }
 
 public bool TraceRayDontHitPlayers(int entityhit, int mask)
 {
-	return (entityhit > MaxClients || entityhit == 0);
+    return (entityhit > MaxClients || entityhit == 0);
 }

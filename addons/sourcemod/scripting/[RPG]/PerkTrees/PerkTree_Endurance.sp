@@ -121,14 +121,6 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLevel, bool bAutoRPG)
-{
-    if(perkIndex != enduranceIndex)
-        return;
-
-    RPG_Perks_RecalculateMaxHP(client);
-}
-
 public void RPG_Perks_OnGetMaxHP(int priority, int client, int &maxHP)
 {
     if(priority != 0)
