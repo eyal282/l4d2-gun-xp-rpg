@@ -421,6 +421,9 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 
 public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 {
+	if(XPReward < 0)
+		return;
+		
 	AddClientXP(attacker, XPReward);
 }
 
