@@ -685,7 +685,7 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
             g_iTarget[specialInfected] = 0;	// Remove target
         }
 
-       // PrintToChatAll("Target: %N", curTarget);
+    // PrintToChatAll("Target: %N", curTarget);
         return Plugin_Changed;
     }
     if( g_iOwner[specialInfected] != 0 )
@@ -885,13 +885,20 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                         {
                             fDist = tempDist;
 
-                            if(L4D_GetPinnedSurvivor(i) != 0 && GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
+                            if(L4D_GetPinnedSurvivor(i) == 0)
                             {
                                 nextTarget = i;
                             }
                             else
                             {
-                                nextTarget = L4D_GetPinnedSurvivor(i);
+                                if(GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker) || L4D_HasReachedSmoker(L4D_GetPinnedSurvivor(i)))
+                                {
+                                    nextTarget = i;
+                                }
+                                else
+                                {
+                                    nextTarget = L4D_GetPinnedSurvivor(i);   
+                                }
                             }
                         }			
                     }
@@ -909,7 +916,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                         {
                             fDist = tempDist;
 
-                            if(GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker))
+                            if(GetEntProp(i, Prop_Send, "m_zombieClass") != view_as<int>(L4D2ZombieClass_Smoker) || L4D_HasReachedSmoker(L4D_GetPinnedSurvivor(i)))
                             {
                                 nextTarget = i;
                             }
@@ -1061,9 +1068,9 @@ Action CmdSayPet(int client, int args)
         {
             bResult = SpawnPet(client, view_as<int>(L4D2ZombieClass_Charger));
         }
-        else if(bCanCharger)
+        else if(bCanJockey)
         {
-            bResult = SpawnPet(client, view_as<int>(L4D2ZombieClass_Charger));
+            bResult = SpawnPet(client, view_as<int>(L4D2ZombieClass_Jockey));
         }
         else
         {
@@ -1169,7 +1176,7 @@ bool SpawnPet(int client, int zClass)
             ResetInfectedAbility(i, 9999.9);
             bReturn = true;
             delete g_hPetVictimTimer[i];
-            g_hPetVictimTimer[i] = CreateTimer(3.0, ChangeVictim_Timer, i);
+            g_hPetVictimTimer[i] = CreateTimer(g_hPetUpdateRate.FloatValue, ChangeVictim_Timer, i);
 
             break;
         }
@@ -1395,7 +1402,7 @@ stock bool UC_IsNullVector(const float Vector[3])
 
 stock int GetEntityHealth(int entity)
 {
-	return GetEntProp(entity, Prop_Data, "m_iHealth");
+    return GetEntProp(entity, Prop_Data, "m_iHealth");
 }
 
 /*============================================================================================

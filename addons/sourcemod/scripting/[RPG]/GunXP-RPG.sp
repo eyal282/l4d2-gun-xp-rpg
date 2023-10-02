@@ -423,7 +423,7 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 {
 	if(XPReward < 0)
 		return;
-		
+
 	AddClientXP(attacker, XPReward);
 }
 
@@ -715,7 +715,10 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	int skillIndex = GetNativeCell(2);
 
-	if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+	if(!g_bLoadedFromDB[client])
+		return PERK_TREE_NOT_UNLOCKED;
+
+	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
 		return false;
 
 	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
@@ -851,7 +854,10 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 
 	int perkIndex = GetNativeCell(2);
 
-	if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+	if(!g_bLoadedFromDB[client])
+		return PERK_TREE_NOT_UNLOCKED;
+
+	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
 		return PERK_TREE_NOT_UNLOCKED;
 
 	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
@@ -1304,7 +1310,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 
 		if(IsPlayerAlive(i) && GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) > 0.0)
 		{
-			FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "[Adrenaline : %i sec]", RoundFloat(Terror_GetAdrenalineTime(i)));
+			FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "[Adrenaline : %i sec]", RoundToFloor(Terror_GetAdrenalineTime(i)));
 		}
 
 		if(bestTank != 0)

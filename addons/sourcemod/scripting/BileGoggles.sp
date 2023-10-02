@@ -94,6 +94,9 @@ public Action Event_Boom(Handle hEvent, const char[] sEventName, bool bDontBroad
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	
+	if(victim == 0)
+		return Plugin_Continue;
+		
 	Call_StartForward(g_fwOnDoesHaveBileGoggles);
 
 	bool bHasGoggles;

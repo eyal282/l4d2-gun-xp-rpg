@@ -519,6 +519,16 @@ stock void GunXP_GiveClientHealth(int client, int permanentHP = 0, int temporary
 	}
 }
 
+stock void GunXP_RegenerateTankHealth(int client, int amount)
+{
+	RPG_Perks_SetClientHealth(client, RPG_Perks_GetClientHealth(client) + amount);
+
+	if(RPG_Perks_GetClientHealth(client) > RPG_Perks_GetClientMaxHealth(client))
+	{
+		RPG_Perks_SetClientHealth(client, RPG_Perks_GetClientMaxHealth(client));
+	}
+}
+
 stock void ExecuteFullHeal(int client)
 {
 	if (GetClientTeam(client) == view_as<int>(L4DTeam_Survivor))

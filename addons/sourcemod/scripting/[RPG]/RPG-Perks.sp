@@ -831,6 +831,9 @@ public void OnMapStart()
 
 	g_fRoundStartTime = 0.0;
 
+	g_aLimitedAbilities.Clear();
+	g_aTimedAttributes.Clear();
+
 	TriggerTimer(CreateTimer(1.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 
 	char mapname[64];
@@ -982,6 +985,7 @@ public void OnPluginStart()
 		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
 
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Pre);
 	HookEvent("player_hurt", Event_PlayerHurt);
@@ -1217,6 +1221,8 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	// Not possible to transfer to common or witch...
 	SetEntityMoveType(newClient, MOVETYPE_NONE);
 	SetEntityMoveType(oldClient, MOVETYPE_WALK);
+
+	g_fLastStunOrigin[newClient] = g_fLastStunOrigin[oldClient];
 }
 
 // Must add natives for after a player spawns for incap hidden pistol.
@@ -1407,10 +1413,19 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 
 	return Plugin_Continue;	
 }
+
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	g_fRoundStartTime = GetGameTime();
 
+	g_aLimitedAbilities.Clear();
+	g_aTimedAttributes.Clear();
+
+	return Plugin_Continue;
+}
+
+public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
+{
 	g_aLimitedAbilities.Clear();
 	g_aTimedAttributes.Clear();
 

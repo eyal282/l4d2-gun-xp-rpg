@@ -10,8 +10,6 @@
 
 #define PLUGIN_VERSION "1.0"
 
-#define MODEL_EXPLOSIVE		"models/props_junk/propanecanister001a.mdl"
-
 public Plugin myinfo =
 {
 	name        = "Shaman Tank --> Gun XP - RPG",
@@ -23,10 +21,9 @@ public Plugin myinfo =
 
 int tankIndex;
 
-int stunIndex, hunterIndex, mutationIndex;
+int infernoIndex, vomitIndex, jockeyIndex, mutationIndex, regenIndex;
 
-float g_fExplosionRange = 512.0;
-
+float g_fVomitRadius;
 
 public void OnLibraryAdded(const char[] name)
 {
@@ -45,11 +42,13 @@ public void OnConfigsExecuted()
 public void OnPluginStart()
 {
 	RegisterTank();
+
+	HookEvent("player_now_it", Event_Boom, EventHookMode_Post);
 }
 
 public void OnMapStart()
 {
-	TriggerTimer(CreateTimer(1.0, Timer_TrollTank, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+	TriggerTimer(CreateTimer(1.0, Timer_ShamanTank, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
 public Action L4D_OnCThrowActivate(int ability)
@@ -65,7 +64,22 @@ public Action L4D_OnCThrowActivate(int ability)
 	return Plugin_Handled;
 }
 
-public Action Timer_TrollTank(Handle hTimer)
+public Action Event_Boom(Handle hEvent, const char[] sEventName, bool bDontBroadcast)
+{
+	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	
+	if(victim == 0)
+		return Plugin_Continue;
+
+	else if(!RPG_Tanks_IsTankInPlay(tankIndex))
+		return Plugin_Continue;
+
+	RPG_Perks_ApplyEntityTimedAttribute(victim, "Nightmare", 30.0, COLLISION_SET_IF_LOWER, ATTRIBUTE_NEGATIVE);
+
+	return Plugin_Continue;
+}
+
+public Action Timer_ShamanTank(Handle hTimer)
 {
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -81,13 +95,13 @@ public Action Timer_TrollTank(Handle hTimer)
 		else if(RPG_Tanks_GetClientTank(i) != tankIndex)
 			continue;
 
-		OnTrollTankTimer(i);
+		OnShamanTankTimer(i);
 	}
 
 	return Plugin_Continue;
 }
 
-public void OnTrollTankTimer(int client)
+public void OnShamanTankTimer(int client)
 {
 	int weapon = L4D_GetPlayerCurrentWeapon(client);
 
@@ -96,17 +110,6 @@ public void OnTrollTankTimer(int client)
 		SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", 2000000000.0);
 		SetEntPropFloat(weapon, Prop_Data, "m_flNextSecondaryAttack", 2000000000.0);
 	}
-
-	for(int i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
-
-		else if(RPG_Perks_GetZombieType(i) != ZombieType_NotInfected)
-			continue;
-
-		RPG_Tanks_SetDamagePercent(i, client, 100.0);
-	}
 }
 
 public void GunXP_OnReloadRPGPlugins()
@@ -114,47 +117,123 @@ public void GunXP_OnReloadRPGPlugins()
 	GunXP_ReloadPlugin();
 }
 
-public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker)
+public Action SDKEvent_NeverTransmit(int victim, int viewer)
 {
-	if(RPG_Tanks_GetClientTank(victim) != tankIndex)
+	return Plugin_Handled;
+}
+public void RegisterTank()
+{
+	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Shaman", "A wizard Tank that uses magical abilities to kill survivors.", 5000000, 180, 0.3, 2500, 4000, DAMAGE_IMMUNITY_BURN);
+
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Phyisique", "Tank deals less damage when punching\nTank cannot throw rocks.\nTank attacks slower");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Confusion and Horror", "No matter the source, Survivors gain NIGHTMARE for 30 seconds when Biled.");
+
+	regenIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Regeneration", "Tank heals 100k HP", 30, 30);
+
+	infernoIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Inferno", "Spawns an Inferno on the Tank's location", 40, 50);
+
+	char TempFormat[256];
+	FormatEx(TempFormat, sizeof(TempFormat), "Biles all survivors in a %.0f unit radius", g_fVomitRadius);
+
+	vomitIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Vomit", TempFormat, 20, 30);
+
+	jockeyIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Summon Minion Jesters", "Spawns 2 Jockeys that pin closest 2 survivors\nThis always works no matter how far the survivors are.", 30, 45);
+
+	if(LibraryExists("GunXP-RPG"))
+	{
+		mutationIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Mutation", "Mutates all survivors for 10 seconds", 120, 120);
+	}
+}
+
+public void RPG_Perks_OnGetTankSwingSpeed(int priority, int client, float &delay)
+{
+	if(priority != 0)
+		return;
+
+	if(RPG_Tanks_GetClientTank(client) != tankIndex)
+		return;
+
+	delay += 1.0;
+}
+
+public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
+{  
+	if(RPG_Tanks_GetClientTank(client) != tankIndex)
+		return;
+
+	if(abilityIndex == jockeyIndex)
+		CastJockey(client);
+
+	else if(abilityIndex == vomitIndex)
+		CastVomit(client);
+
+	else if(abilityIndex == mutationIndex)
+		CastMutation(client);
+
+	else if(abilityIndex == regenIndex)
+		CastRegen(client);
+
+	else if(abilityIndex == infernoIndex)
+		CastInferno(client);
+}
+
+public void CastJockey(int client)
+{
+	int survivor1 = FindRandomSurvivorNearby(client, 65535.0);
+
+	if(survivor1 == -1)
 		return;
 
 	float fOrigin[3];
-	GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
-	int entity = CreateEntityByName("prop_physics");
-	if( entity != -1 )
-	{
-		DispatchKeyValue(entity, "model", MODEL_EXPLOSIVE);
+	GetClientAbsOrigin(survivor1, fOrigin);
 
-		// Hide from view (multiple hides still show the gascan/propane tank for a split second sometimes, but works better than only using 1 of them)
-		SDKHook(entity, SDKHook_SetTransmit, SDKEvent_NeverTransmit);
+	fOrigin[2] += 512.0;
 
-		// Hide from view
-		int flags = GetEntityFlags(entity);
-		SetEntityFlags(entity, flags|FL_EDICT_DONTSEND);
+	int jockey = L4D2_SpawnSpecial(view_as<int>(L4D2ZombieClass_Jockey), fOrigin, view_as<float>({0.0, 0.0, 0.0}));
 
-		// Make invisible
-		SetEntityRenderMode(entity, RENDER_TRANSALPHAADD);
-		SetEntityRenderColor(entity, 0, 0, 0, 0);
+	DataPack DP;
+	CreateDataTimer(0.1, Timer_ForceJockey, DP, TIMER_FLAG_NO_MAPCHANGE);
 
-		// Prevent collision and movement
-		SetEntProp(entity, Prop_Send, "m_CollisionGroup", 1, 1);
-		SetEntityMoveType(entity, MOVETYPE_NONE);
+	WritePackCell(DP, GetClientUserId(survivor1));
+	WritePackCell(DP, GetClientUserId(jockey));
 
-		// Teleport
-		TeleportEntity(entity, fOrigin, NULL_VECTOR, NULL_VECTOR);
+	int survivor2 = FindRandomSurvivorNearby(client, 65535.0, survivor1);
 
-		// Spawn
-		DispatchSpawn(entity);
+	if(survivor2 == -1)
+		return;
 
-		// Set attacker
-		SetEntPropEnt(entity, Prop_Data, "m_hPhysicsAttacker", victim);
-		SetEntPropFloat(entity, Prop_Data, "m_flLastPhysicsInfluenceTime", GetGameTime());
+	GetClientAbsOrigin(survivor2, fOrigin);
 
-		// Explode
-		AcceptEntityInput(entity, "Break", victim);
-	}
+	fOrigin[2] += 512.0;
+
+	jockey = L4D2_SpawnSpecial(view_as<int>(L4D2ZombieClass_Jockey), fOrigin, view_as<float>({0.0, 0.0, 0.0}));
+
+	DataPack DP2;
+	CreateDataTimer(0.1, Timer_ForceJockey, DP2, TIMER_FLAG_NO_MAPCHANGE);
+
+	WritePackCell(DP, GetClientUserId(survivor2));
+	WritePackCell(DP, GetClientUserId(jockey));
+}
+public Action Timer_ForceJockey(Handle hTimer, DataPack DP)
+{
+	ResetPack(DP);
+
+	int survivor = GetClientOfUserId(ReadPackCell(DP));
+	int jockey = GetClientOfUserId(ReadPackCell(DP));
+
+	if(survivor == 0 || jockey == 0)
+		return Plugin_Continue;
+
+	L4D2_ForceJockeyVictim(survivor, jockey);
+
+	return Plugin_Continue;
+}
+
+public void CastVomit(int client)
+{
+	float fOrigin[3];
+	GetClientAbsOrigin(client, fOrigin);
 
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -170,171 +249,49 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker)
 		float fSurvivorOrigin[3];
 		GetClientAbsOrigin(i, fSurvivorOrigin);
 
-		if (GetVectorDistance(fOrigin, fSurvivorOrigin) < g_fExplosionRange)
+		if (GetVectorDistance(fOrigin, fSurvivorOrigin) < g_fVomitRadius && !IsPlayerBoomerBiled(i))
 		{
-			RPG_Perks_InstantKill(i, victim, victim, DMG_BLAST);
+			L4D_CTerrorPlayer_OnVomitedUpon(i, client);
 		}
 	}
 }
 
-public Action SDKEvent_NeverTransmit(int victim, int viewer)
+public void CastInferno(int client)
 {
-	return Plugin_Handled;
-}
-public void RegisterTank()
-{
-	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Shaman", "A wizard Tank that uses magical abilities to kill survivors.", 250000, 180, 0.4, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
-
-	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Phyisique", "Tank deals less damage when punching\nTank cannot throw rocks.");
-
-	stunIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Stun", "Stuns 2 closest survivors for 30 seconds in a 512 unit radius\nThis can stack freely.", 20, 40);
-	hunterIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Tactical Stun", "Spawns a Hunter that pins closest survivor\nThis always works no matter how far the survivor is.", 30, 45);
-
-	if(LibraryExists("GunXP-RPG"))
-	{
-		mutationIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Mutation", "Mutates all survivors for 15 seconds\nThe tank always deals 0 damage to mutated survivors.", 120, 120);
-	}
-}
-
-public void RPG_Perks_OnGetTankSwingSpeed(int priority, int client, float &delay)
-{
-	if(priority != -2)
-		return;
-
-	if(RPG_Tanks_GetClientTank(client) != tankIndex)
-		return;
-
-	delay = 0.0;
-}
-
-public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
-{  
-	if(RPG_Tanks_GetClientTank(client) != tankIndex)
-		return;
-
-	if(abilityIndex == stunIndex)
-		CastStun(client);
-
-	else if(abilityIndex == hunterIndex)
-		CastHunter(client);
-
-	else if(abilityIndex == mutationIndex)
-		CastMutation(client);
-}
-
-public void CastStun(int client)
-{
-	int survivor1 = FindRandomSurvivorNearby(client, 512.0);
-
-	if(survivor1 == -1)
-		return;
-
-	float fDuration = 30.0;
-
-	RPG_Perks_ApplyEntityTimedAttribute(survivor1, "Stun", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-
-	int survivor2 = FindRandomSurvivorNearby(client, 512.0, survivor1);
-
-	if(survivor2 == -1)
-	{
-		PrintToChatAll("%N is stunned for %.0f seconds.", survivor1, fDuration);
-	}
-	else
-	{
-		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Stun", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-
-		PrintToChatAll("%N & %N are stunned for %.0f seconds.", survivor1, survivor2, fDuration);
-	}
-}
-
-
-public void CastHunter(int client)
-{
-	int survivor = FindRandomSurvivorNearby(client, 65535.0);
-
-	if(survivor == -1)
-		return;
-
 	float fOrigin[3];
+	GetClientAbsOrigin(client, fOrigin);
 
-	GetClientAbsOrigin(survivor, fOrigin);
-
-	fOrigin[2] += 512.0;
-
-	int hunter = L4D2_SpawnSpecial(view_as<int>(L4D2ZombieClass_Hunter), fOrigin, view_as<float>({0.0, 0.0, 0.0}));
-
-	DataPack DP;
-	CreateDataTimer(0.1, Timer_ForceHunter, DP, TIMER_FLAG_NO_MAPCHANGE);
-
-	WritePackCell(DP, GetClientUserId(survivor));
-	WritePackCell(DP, GetClientUserId(hunter));
-}
-
-public Action Timer_ForceHunter(Handle hTimer, DataPack DP)
-{
-	ResetPack(DP);
-
-	int survivor = GetClientOfUserId(ReadPackCell(DP));
-	int hunter = GetClientOfUserId(ReadPackCell(DP));
-
-	if(survivor == 0 || hunter == 0)
-		return Plugin_Continue;
-
-	L4D_ForceHunterVictim(survivor, hunter);
-
-	return Plugin_Continue;
+	L4D_DetonateProjectile(L4D_MolotovPrj(client, fOrigin, view_as<float>({0.0, 0.0, 0.0})));
 }
 
 
 public void CastMutation(int client)
 {
-	int survivor1 = FindRandomSurvivorNearby(client, 512.0);
+	float fDuration = 10.0;
 
-	if(survivor1 == -1)
-		return;
-
-	float fDuration = 15.0;
-
-	RPG_Perks_ApplyEntityTimedAttribute(survivor1, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-
-	int survivor2 = FindRandomSurvivorNearby(client, 512.0, survivor1);
-
-
-	int survivor3 = FindRandomSurvivorNearby(client, 512.0, survivor1, survivor2);
-
-
-	int survivor4 = FindRandomSurvivorNearby(client, 512.0, survivor1, survivor2, survivor3);
-
-	if(survivor2 == -1)
+	for(int i=1;i <= MaxClients;i++)
 	{
-		PrintToChatAll("%N is mutated for %.0f seconds.", survivor1, fDuration);
-	}
-	else if(survivor3 == -1)
-	{
-		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
+		if(!IsClientInGame(i))
+			continue;
 
-		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-	}
-	else if(survivor4 == -1)
-	{
-		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
-		PrintToChatAll("%N is mutated for %.0f seconds.", survivor3, fDuration);
+		else if(!IsPlayerAlive(i))
+			continue;
 
-		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-		RPG_Perks_ApplyEntityTimedAttribute(survivor3, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-	}
-	else
-	{
-		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor1, survivor2, fDuration);
-		PrintToChatAll("%N & %N are mutated for %.0f seconds.", survivor3, survivor4, fDuration);
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
 
-		RPG_Perks_ApplyEntityTimedAttribute(survivor2, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-		RPG_Perks_ApplyEntityTimedAttribute(survivor3, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
-		RPG_Perks_ApplyEntityTimedAttribute(survivor4, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(i, "Mutated", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
 	}
 
+	PrintToChatAll("All survivors are mutated for %.0f seconds.", fDuration);
 	PrintToChatAll("Mutated players lose all abilities");
 }
+
+public void CastRegen(int client)
+{
+	GunXP_RegenerateTankHealth(client, 100000);
+}
+
 
 stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception=0, int exception2=0, int exception3=0)
 {
@@ -373,4 +330,9 @@ stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception
 	}
 
 	return winner;
+}
+
+stock bool IsPlayerBoomerBiled(int iClient)
+{
+    return (GetGameTime() <= GetEntPropFloat(iClient, Prop_Send, "m_itTimer", 1));
 }

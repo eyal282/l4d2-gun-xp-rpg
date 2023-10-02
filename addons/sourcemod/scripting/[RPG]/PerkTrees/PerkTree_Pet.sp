@@ -327,6 +327,19 @@ public Action L4D2_Pets_OnCanHavePets(int client, L4D2ZombieClassType zclass, bo
         cvar.Flags = flags;
     }
 
+    cvar = FindConVar("l4d2_pets_target_update_rate");
+
+    if(cvar != null)
+    {
+        int flags = cvar.Flags;
+
+        cvar.Flags = (flags & ~FCVAR_NOTIFY);
+
+        cvar.SetFloat(1.0, true);
+
+        cvar.Flags = flags;
+    }
+
     return Plugin_Handled;
 }
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
