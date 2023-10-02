@@ -716,7 +716,7 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 	int skillIndex = GetNativeCell(2);
 
 	if(!g_bLoadedFromDB[client])
-		return PERK_TREE_NOT_UNLOCKED;
+		return false;
 
 	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
 		return false;

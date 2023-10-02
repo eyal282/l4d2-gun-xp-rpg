@@ -128,16 +128,16 @@ public void RegisterTank()
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Phyisique", "Tank deals less damage when punching\nTank cannot throw rocks.\nTank attacks slower");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Confusion and Horror", "No matter the source, Survivors gain NIGHTMARE for 30 seconds when Biled.");
 
-	regenIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Regeneration", "Tank heals 100k HP", 30, 30);
+	regenIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Regeneration", "Tank heals 100k HP", 60, 60);
 
-	infernoIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Inferno", "Spawns an Inferno on the Tank's location", 40, 50);
+	infernoIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Inferno", "Spawns an Inferno on the Tank's location", 20, 30);
 
 	char TempFormat[256];
 	FormatEx(TempFormat, sizeof(TempFormat), "Biles all survivors in a %.0f unit radius", g_fVomitRadius);
 
-	vomitIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Vomit", TempFormat, 20, 30);
+	vomitIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Vomit", TempFormat, 30, 40);
 
-	jockeyIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Summon Minion Jesters", "Spawns 2 Jockeys that pin closest 2 survivors\nThis always works no matter how far the survivors are.", 30, 45);
+	jockeyIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Summon Minion Jesters", "Spawns 2 Jockeys that pin closest 2 survivors\nThis always works no matter how far the survivors are.", 75, 90);
 
 	if(LibraryExists("GunXP-RPG"))
 	{

@@ -2284,7 +2284,9 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 		fDelay = 0.1;
 
 	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", GetGameTime() + fDelay);
-	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
+
+	// To allow ourselves to check fOriginalDelay
+	//SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
 
 	SetEntPropFloat(client, Prop_Data, "m_flNextAttack", GetGameTime() + fDelay);
 	SetEntPropFloat(weapon, Prop_Data, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
