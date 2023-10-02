@@ -357,6 +357,7 @@ public void OnPluginStart()
 
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
 	HookEvent("player_entered_checkpoint", Event_EnterCheckpoint, EventHookMode_Post);
+	HookEvent("finale_start", Event_FinaleStart, EventHookMode_PostNoCopy);
 	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
@@ -1299,6 +1300,24 @@ public Action Event_EnterCheckpoint(Handle hEvent, char[] Name, bool dontBroadca
 	return Plugin_Continue;
 }
 
+
+public Action Event_FinaleStart(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int entity = FindEntityByClassname(-1, "trigger_finale");
+
+	if(entity != -1)
+	{
+		int type = GetEntProp(entity, Prop_Data, "m_type");
+		
+		if(type == 2)
+		{
+			PrintToChatAll("Rescue vehicle is here. Either leave or defeat the Tanks.");
+			L4D2_SendInRescueVehicle();
+		}
+	}
+
+	return Plugin_Continue;
+}
 
 public Action Event_FinaleWin(Handle hEvent, char[] Name, bool dontBroadcast)
 {

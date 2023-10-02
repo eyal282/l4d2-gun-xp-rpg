@@ -36,10 +36,6 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    HookEvent("heal_success", Event_HealSuccess);
-    HookEvent("adrenaline_used", Event_AdrenalineUsed);
-    HookEvent("pills_used", Event_PillsUsed);
-
     RegisterSkill();
 }
 
@@ -48,96 +44,68 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
+int g_iClusterCombo[2048];
 
-public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
+float g_fChanceMultiplier = 4.0;
+
+public void L4D_PipeBomb_Detonate_Post(int entity, int client)
 {
-    int client = GetClientOfUserId(event.GetInt("userid"));
+    if(!GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
+        return;
 
-    int healed = GetClientOfUserId(GetEventInt(event, "subject"));
+    float fOrigin[3];
+    GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
-    if(client == 0)
-        return Plugin_Continue;
-    
-    TryClearDebuffs(healed, client, true);
+    float fChance = (0.01 * g_fChanceMultiplier * float(GunXP_RPG_GetClientLevel(client))) / Pow(2.0, float(g_iClusterCombo[entity]));
 
-    return Plugin_Continue;
-}
+    if(fChance * 100.0 < float(GunXP_RPG_GetClientLevel(client)))
+        fChance = (0.01 * float(GunXP_RPG_GetClientLevel(client)));
 
-public Action Event_AdrenalineUsed(Event event, const char[] name, bool dontBroadcast)
-{
-    int client = GetClientOfUserId(event.GetInt("userid"));
+    float fGamble = GetRandomFloat(0.0, 1.0);
 
-    if(client == 0)
-        return Plugin_Continue;
-
-    TryClearDebuffs(client, client);
-
-    return Plugin_Continue;
-}
-
-
-public Action Event_PillsUsed(Event event, const char[] name, bool dontBroadcast)
-{
-    int client = GetClientOfUserId(event.GetInt("userid"));
-
-    if(client == 0)
-        return Plugin_Continue;
-
-    TryClearDebuffs(client, client);
-
-    return Plugin_Continue;
-}
-
-stock void TryClearDebuffs(int victim, int healer, bool bCertain = false)
-{
-    float fDuration = -1.0;
-
-    bool bSkillActive = false;
-
-    if(RPG_Perks_IsEntityTimedAttribute(healer, "Mutated", fDuration))
+    if(fGamble < fChance)
     {
-        RPG_Perks_ApplyEntityTimedAttribute(healer, "Mutated", 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
-    }
+        float fVelocity[3], fAngle[3];
 
-    bSkillActive = GunXP_RPGShop_IsSkillUnlocked(healer, skillIndex);    
+        fVelocity[0] = GetRandomFloat(30.0, 50.0);
+        fVelocity[1] = GetRandomFloat(30.0, 50.0);
+        fVelocity[2] = GetRandomFloat(250.0, 300.0);
 
-    if(!bCertain)
-    {
-        float fChance = g_fChancePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(victim)) / float(g_iChanceLevels)));
-
-        float fGamble = GetRandomFloat(0.0, 1.0);
-
-        if(fGamble >= fChance)
-            bSkillActive = false;
-    }
-
-    if(fDuration != -1.0)
-    {
-        RPG_Perks_ApplyEntityTimedAttribute(healer, "Mutated", fDuration, COLLISION_SET, ATTRIBUTE_NEGATIVE);
-    }
-
-    if(bSkillActive)
-    {
-        ArrayList aAttributes = RPG_Perks_GetEntityTimedAttributes(victim, ATTRIBUTE_NEGATIVE);
-
-        for(int i=0;i < aAttributes.Length;i++)
+        for(int i=0;i < 2;i++)
         {
-            char attributeName[64];
-            aAttributes.GetString(i, attributeName, sizeof(attributeName));
-
-            RPG_Perks_ApplyEntityTimedAttribute(victim, attributeName, 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+            if(GetRandomInt(0, 1) == 1)
+            {
+                fVelocity[i] *= -1.0;
+            }
         }
+        
+        fAngle[0] = GetRandomFloat(300.0, 500.0);
+        fAngle[1] = GetRandomFloat(300.0, 500.0);
+        fAngle[2] = GetRandomFloat(-500.0, 500.0);
 
-        delete aAttributes;
+        int weapon = L4D_PipeBombPrj(client, fOrigin, fAngle, true);
+
+        TeleportEntity(weapon, NULL_VECTOR, fAngle, fVelocity);
+
+        L4D_AngularVelocity(entity, fAngle);
+
+        g_iClusterCombo[weapon] = g_iClusterCombo[entity] + 1;
+
+        PrintToChat(client, "Pipe Cluster Combo #%i ( %.0f%% )", g_iClusterCombo[weapon], fChance * 100.0);
+    }
+    else if(g_iClusterCombo[entity] > 0)
+    {
+        PrintToChat(client, "Pipe Cluster Combo Ended #%i ( %.0f%% )", g_iClusterCombo[entity], fChance * 100.0);
     }
 }
 
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit clears all debuffs.\nUsing Adrenaline or Pills has a chance to clear all debuffs.\nChance is %.1f{PERCENT} per %i Levels\nThis skill is active even under MUTATED debuff.", g_fChancePerLevels * 100.0, g_iChanceLevels);
-    skillIndex = GunXP_RPGShop_RegisterSkill("Medkit Clears Debuffs", "Special First Aid", sDescription,
-    40000, 0);
+    FormatEx(sDescription, sizeof(sDescription), "Whenever a pipe bomb detonates, another may spawn.\nChance equals your level x%.0f.\nEach cluster, chance halves capped at your level.\nStacks infinitely.", g_fChanceMultiplier);
+
+    skillIndex = GunXP_RPGShop_RegisterSkill("Cluster Pipe Bombs", "Cluster Pipe Bombs", sDescription,
+    27000, 0);
 }
 
 

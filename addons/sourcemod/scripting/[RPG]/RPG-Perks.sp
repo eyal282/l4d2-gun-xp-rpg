@@ -2262,7 +2262,12 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 	if(weapon == -1)
 		return Plugin_Continue;
 
+
+	else if(RPG_Perks_IsEntityTimedAttribute(client, "Punch Cooldown Live"))
+		return Plugin_Continue;
+
 	float fOriginalDelay = GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - GetGameTime();
+
 	float fDelay = fOriginalDelay;
 
 	for(int a=-10;a <= 10;a++)
@@ -2283,10 +2288,10 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 	if(fDelay <= 0.1)
 		fDelay = 0.1;
 
-	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", GetGameTime() + fDelay);
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Punch Cooldown Live", fDelay, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
-	// To allow ourselves to check fOriginalDelay
-	//SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
+	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", GetGameTime() + fDelay);
+	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + fDelay);
 
 	SetEntPropFloat(client, Prop_Data, "m_flNextAttack", GetGameTime() + fDelay);
 	SetEntPropFloat(weapon, Prop_Data, "m_flNextPrimaryAttack", GetGameTime() + fDelay);

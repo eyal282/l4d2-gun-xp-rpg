@@ -685,7 +685,6 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
             g_iTarget[specialInfected] = 0;	// Remove target
         }
 
-    // PrintToChatAll("Target: %N", curTarget);
         return Plugin_Changed;
     }
     if( g_iOwner[specialInfected] != 0 )
@@ -881,6 +880,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                     {
                         GetClientAbsOrigin(i, vTarget);
                         float tempDist = GetVectorDistance(vOwner, vTarget, true);
+
                         if( tempDist < fDist )
                         {
                             fDist = tempDist;
@@ -971,6 +971,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                         }
                     }
                 }
+
                 if(nextTarget == 0)
                 {
                     fDist = g_fPetDist;
@@ -1307,7 +1308,7 @@ bool IsNotCarryable(int client)
     int door = L4D_GetCheckpointLast();
 
     if(door == -1)
-        return true;
+        return false;
 
     float fOrigin[3], fDoorOrigin[3];
     GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
