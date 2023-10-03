@@ -1848,7 +1848,7 @@ public void ShowPerkTreeInfo(int client, int item)
 
 	AddMenuItem(hMenu, sInfo, "Upgrade Perk Tree", client != target || g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1 || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1) > GetClientLevel(target) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	AddMenuItem(hMenu, sInfo, "Upgrade to MAX", client != target || g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1 || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1) > GetClientLevel(target) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
-	AddMenuItem(hMenu, sInfo, "Sell 1 Level", client != target || g_iUnlockedPerkTrees[target][item] == PERK_TREE_NOT_UNLOCKED ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	AddMenuItem(hMenu, sInfo, "Refund 1 Level", client != target || g_iUnlockedPerkTrees[target][item] == PERK_TREE_NOT_UNLOCKED ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 	if(g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1)
 	{
@@ -2140,7 +2140,7 @@ public void ShowSkillInfo(int client, int item)
 	IntToString(item, sInfo, sizeof(sInfo));
 
 	AddMenuItem(hMenu, sInfo, "Purchase Skill", client != target || g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
-	AddMenuItem(hMenu, sInfo, "Sell Skill", client != target || !g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	AddMenuItem(hMenu, sInfo, "Refund Skill", client != target || !g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 	FormatEx(TempFormat, sizeof(TempFormat), "%s can buy this Skill to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (%s)\nDescription: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), skill.levelReq, skill.name, skill.cost, g_bUnlockedSkills[target][item] ? "Bought" : "Not Bought", skill.description);
 	SetMenuTitle(hMenu, TempFormat);
