@@ -202,6 +202,8 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 
 // This is called while the player still has their current perk tree and skills.
 // Also called when player begins mutating.
+// You must check if the perk tree / skill is unlocked before you act with the player. This is because upon selling a talent, only that talent is shown with IsPerkTreeUnlocked or IsSkillUnlocked
+// DO NOT UNDER ANY CIRCUMSTANCE SELL OR RESET A PLAYER IN THIS FORWARD IN ANY WAY SHAPE OR FORM ABLE TO.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 
 
@@ -357,11 +359,12 @@ enum ZombieType
 };
 
 // If the entity is dead, returns invalid.
-stock ZombieType RPG_Perks_GetZombieType(int entity)
+// You can pass anything as long as it's a valid edict.
+stock ZombieType RPG_Perks_GetZombieType(int entity, bool bAllowDead = false)
 {
 	if(IsPlayer(entity))
 	{
-		if(!IsPlayerAlive(entity))
+		if(!IsPlayerAlive(entity) && !bAllowDead)
 			return ZombieType_Invalid;
 
 		switch(L4D_GetClientTeam(entity))
@@ -376,16 +379,22 @@ stock ZombieType RPG_Perks_GetZombieType(int entity)
 		char sClassname[64];
 		GetEdictClassname(entity, sClassname, sizeof(sClassname));
 
-		if(GetEntProp(entity, Prop_Data, "m_lifeState") != 0)
-		{
-			return ZombieType_Invalid;
-		}
 		if(StrEqual(sClassname, "infected"))
 		{
+			if(GetEntProp(entity, Prop_Data, "m_lifeState") != 0 && !bAllowDead)
+			{
+				return ZombieType_Invalid;
+			}
+
 			return ZombieType_CommonInfected;
 		}
 		else if(StrEqual(sClassname, "witch"))
 		{
+			if(GetEntProp(entity, Prop_Data, "m_lifeState") != 0 && !bAllowDead)
+			{
+				return ZombieType_Invalid;
+			}
+
 			return ZombieType_Witch;
 		}
 

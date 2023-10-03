@@ -108,6 +108,8 @@ bool g_bLoadedFromDB[MAXPLAYERS+1];
 
 int g_iRPGTarget[MAXPLAYERS+1];
 
+int g_iMidSell[MAXPLAYERS+1] = { -1, ... };
+
 Database dbGunXP;
 
 bool dbFullConnected;
@@ -186,7 +188,6 @@ GlobalForward g_fwOnReloadRPGPlugins;
 GlobalForward g_fwOnResetRPG;
 GlobalForward g_fwOnSkillBuy;
 GlobalForward g_fwOnPerkTreeBuy;
-
 /*
 new const String:FORBIDDEN_WEAPONS[][] =
 {
@@ -718,6 +719,15 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 	if(!g_bLoadedFromDB[client])
 		return false;
 
+	else if(g_iMidSell[client] != -1)
+	{
+		if(g_iMidSell[client] == skillIndex)
+			return g_bUnlockedSkills[client][skillIndex];
+
+		else
+			return false;
+	}
+
 	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
 		return false;
 
@@ -856,6 +866,15 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 
 	if(!g_bLoadedFromDB[client])
 		return PERK_TREE_NOT_UNLOCKED;
+
+	else if(g_iMidSell[client] != -1)
+	{
+		if(g_iMidSell[client] == perkIndex)
+			return g_iUnlockedPerkTrees[client][perkIndex];
+
+		else
+			return PERK_TREE_NOT_UNLOCKED;
+	}
 
 	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
 		return PERK_TREE_NOT_UNLOCKED;
@@ -1183,6 +1202,8 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 		else if(!g_bLoadedFromDB[i])
 			continue;
+
+		g_iMidSell[i] = -1;
 
 		// If XP Currency is below 0, it means that an admin stole his XP.
 		if(GetClientXPCurrency(i) < 0 || GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) > GetClientXP(i))
@@ -1827,6 +1848,7 @@ public void ShowPerkTreeInfo(int client, int item)
 
 	AddMenuItem(hMenu, sInfo, "Upgrade Perk Tree", client != target || g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1 || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1) > GetClientLevel(target) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	AddMenuItem(hMenu, sInfo, "Upgrade to MAX", client != target || g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1 || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1) > GetClientLevel(target) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	AddMenuItem(hMenu, sInfo, "Sell 1 Level", client != target || g_iUnlockedPerkTrees[target][item] == PERK_TREE_NOT_UNLOCKED ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 	if(g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1)
 	{
@@ -1893,24 +1915,33 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 
 		int perkIndex = StringToInt(sInfo);
 
-		if(item == 1)
+		switch(item)
 		{
-			Transaction transaction = SQL_CreateTransaction();
-
-			bool bFound = false;
-			while(TryPurchasePerkTree(client, perkIndex, transaction))
+			case 0:
 			{
-				bFound = true;
+				TryPurchasePerkTree(client, perkIndex);
 			}
+			case 1:
+			{
+				if(item == 1)
+				{
+					Transaction transaction = SQL_CreateTransaction();
 
-			if(bFound)
-				dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
-		}
-		else
-		{
-			TryPurchasePerkTree(client, perkIndex);
-		}
+					bool bFound = false;
+					while(TryPurchasePerkTree(client, perkIndex, transaction))
+					{
+						bFound = true;
+					}
 
+					if(bFound)
+						dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+				}
+			}
+			case 2:
+			{
+				TrySellPerkTree(client, perkIndex);
+			}
+		}
 		if(!(GetClientButtons(client) & IN_SPEED))
 		{
 			ShowPerkTreeInfo(client, perkIndex);
@@ -1955,7 +1986,7 @@ stock bool TryPurchasePerkTree(int client, int perkIndex, Transaction transactio
 	else if(IsClientAutoRPG(client))
 	{
 		if(transaction == null)
-			PrintToChat(client, "\x04[Gun-XP] \x01You must have auto RPG disabled to purhcase Perk Trees!");
+			PrintToChat(client, "\x04[Gun-XP] \x01You must have auto RPG disabled to purchase Perk Trees!");
 
 		return false;
 	}
@@ -1974,6 +2005,38 @@ stock bool TryPurchasePerkTree(int client, int perkIndex, Transaction transactio
 	Call_PushCell(false);
 
 	Call_Finish();
+
+	return true;
+}
+
+stock bool TrySellPerkTree(int client, int perkIndex, Transaction transaction = null)
+{
+	enPerkTree perkTree;
+
+	g_aPerkTrees.GetArray(perkIndex, perkTree);
+
+	if(g_iUnlockedPerkTrees[client][perkIndex] == PERK_TREE_NOT_UNLOCKED)
+	{
+		if(transaction == null)
+			PrintToChat(client, "\x04[Gun-XP] \x03You don't have any levels for this Perk Tree.");
+
+		return false;
+	}
+
+
+	SellPerkTreeLevel(client, perkIndex, perkTree, false, transaction);
+
+	PrintToChat(client, "\x04[Gun-XP]\x03 Successfully downgraded Perk Tree\x04 %s\x03 to level\x04 %i\x03!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
+
+	g_iMidSell[client] = perkIndex;
+
+	Call_StartForward(g_fwOnResetRPG);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
+	g_iMidSell[client] = -1;
 
 	return true;
 }
@@ -2077,6 +2140,7 @@ public void ShowSkillInfo(int client, int item)
 	IntToString(item, sInfo, sizeof(sInfo));
 
 	AddMenuItem(hMenu, sInfo, "Purchase Skill", client != target || g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	AddMenuItem(hMenu, sInfo, "Sell Skill", client != target || !g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
 	FormatEx(TempFormat, sizeof(TempFormat), "%s can buy this Skill to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (%s)\nDescription: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), skill.levelReq, skill.name, skill.cost, g_bUnlockedSkills[target][item] ? "Bought" : "Not Bought", skill.description);
 	SetMenuTitle(hMenu, TempFormat);
@@ -2122,36 +2186,67 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 
 		g_aSkills.GetArray(skillIndex, skill);
 
-		if(skill.levelReq > GetClientLevel(client))
+		switch(item)
 		{
-			PrintToChat(client, "\x04[Gun-XP] You need to reach Level %i to unlock this Perk Tree Level!", skill.levelReq);
-			return 0;
-		}
-		else if(skill.cost > GetClientXPCurrency(client))
-		{
-			PrintToChat(client, "\x04[Gun-XP] You need %i more XP Currency to unlock this skill!", skill.cost - GetClientXPCurrency(client));
-			return 0;
-		}
-		else if(IsClientAutoRPG(client))
-		{
-			PrintToChat(client, "\x04[Gun-XP] You must have auto RPG disabled to purhcase Perk Trees!");
-			return 0;
-		}
-		else
-		{
-			PurchaseSkill(client, skillIndex, skill, false);
+			case 0:
+			{
+				if(skill.levelReq > GetClientLevel(client))
+				{
+					PrintToChat(client, "\x04[Gun-XP] You need to reach Level %i to unlock this Perk Tree Level!", skill.levelReq);
+					return 0;
+				}
+				else if(skill.cost > GetClientXPCurrency(client))
+				{
+					PrintToChat(client, "\x04[Gun-XP] You need %i more XP Currency to unlock this skill!", skill.cost - GetClientXPCurrency(client));
+					return 0;
+				}
+				else if(IsClientAutoRPG(client))
+				{
+					PrintToChat(client, "\x04[Gun-XP] You must have auto RPG disabled to purchase Perk Trees!");
+					return 0;
+				}
+				else
+				{
+					PurchaseSkill(client, skillIndex, skill, false);
 
-			PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked the Skill\x04 %s\x03!", skill.name);
+					PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked the Skill\x04 %s\x03!", skill.name);
 
-			Call_StartForward(g_fwOnSkillBuy);
+					Call_StartForward(g_fwOnSkillBuy);
 
-			Call_PushCell(client);
-			Call_PushCell(skillIndex);
+					Call_PushCell(client);
+					Call_PushCell(skillIndex);
 
-			// Auto RPG?
-			Call_PushCell(false);
+					// Auto RPG?
+					Call_PushCell(false);
 
-			Call_Finish();
+					Call_Finish();
+				}
+			}
+
+			case 1:
+			{
+				if(!g_bUnlockedSkills[client][skillIndex])
+				{
+					PrintToChat(client, "\x04[Gun-XP]\x03 You do not own this Skill!");
+					return 0;
+				}
+
+				SellSkill(client, skillIndex, skill, false);
+
+				PrintToChat(client, "\x04[Gun-XP]\x03 Successfully sold the Skill\x04 %s\x03!", skill.name);
+
+				g_iMidSell[client] = skillIndex;
+
+				Call_StartForward(g_fwOnResetRPG);
+
+				Call_PushCell(client);
+
+				Call_Finish();
+
+				g_iMidSell[client] = -1;
+
+				return 0;
+			}
 		}
 
 		if(!(GetClientButtons(client) & IN_SPEED))
@@ -2960,6 +3055,45 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree,
 		ShowPerkTreeInfo(client, perkIndex);
 }
 
+stock void SellPerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, bool bAuto, Transaction transaction = null)
+{
+	int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex]);
+	g_iXPCurrency[client] += cost;
+
+	g_iUnlockedPerkTrees[client][perkIndex]--;
+
+	bool bExecute = false;
+	
+	if(transaction == null)
+	{
+		transaction = SQL_CreateTransaction();
+
+		bExecute = true;
+	}
+
+	char AuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
+
+	char sQuery[256];
+	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", cost, AuthId);
+	SQL_AddQuery(transaction, sQuery);
+
+	// PerkTreeLevel to -1 to immediately increment it.
+	dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO GunXP_PerkTrees (AuthId, PerkTreeIdentifier, PerkTreeLevel) VALUES ('%s', '%s', -1)", AuthId, perkTree.identifier);
+	SQL_AddQuery(transaction, sQuery);
+	
+	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_PerkTrees SET PerkTreeLevel = PerkTreeLevel - 1 WHERE AuthId = '%s' AND PerkTreeIdentifier = '%s'", AuthId, perkTree.identifier);
+	SQL_AddQuery(transaction, sQuery);
+
+	if(bExecute)
+	{
+		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	}
+
+	if(!bAuto && transaction == null)
+		ShowPerkTreeInfo(client, perkIndex);
+}
+
 stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
 {
 	g_bUnlockedSkills[client][skillIndex] = true;
@@ -2995,6 +3129,44 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, 
 	//if(!bAuto)
 	//	ShowSkillInfo(client, skillIndex);
 }
+
+
+stock void SellSkill(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
+{
+	g_bUnlockedSkills[client][skillIndex] = false;
+
+	g_iXPCurrency[client] += skill.cost;
+
+	bool bExecute = false;
+
+	if(transaction == null)
+	{
+		transaction = SQL_CreateTransaction();
+
+		bExecute = true;
+	}
+
+	char AuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
+
+	char sQuery[256];
+	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", skill.cost, AuthId);
+	SQL_AddQuery(transaction, sQuery);
+
+	// INSERT INTO will guarantee an error if we give someone the same skill twice.
+	dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_Skills WHERE AuthId = '%s' AND SkillIdentifier = '%s'", AuthId, skill.identifier);
+	SQL_AddQuery(transaction, sQuery);
+
+	if(bExecute)
+	{
+		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	}
+
+	// To make buying skills faster, the function jumps back to list of skills instead.
+	//if(!bAuto)
+	//	ShowSkillInfo(client, skillIndex);
+}
+
 
 public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
 {

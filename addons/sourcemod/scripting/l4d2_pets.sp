@@ -32,6 +32,8 @@
 #include <dhooks>
 #include <left4dhooks>
 
+#tryinclude <actions>
+
 #define CARRY_OFFSET 55.0
 
 #define FCVAR_FLAGS FCVAR_NOTIFY
@@ -772,7 +774,7 @@ Action OnCalculateDamage(int priority, int victim, int attacker, int inflictor, 
     bDontStagger = true;
     bImmune = true;
 
-    if(g_iPetCarrySlowSurvivors != 0 && GetPlayerCarry(attacker) == -1 && L4D_GetClientTeam(victim) == L4DTeam_Survivor && IsNotCarryable(g_iOwner[attacker]) && !IsNotCarryable(victim) && !IsNotCarryable(attacker))
+    if(g_iPetCarrySlowSurvivors != 0 && GetPlayerCarry(attacker) == -1 && L4D_GetClientTeam(victim) == L4DTeam_Survivor && IsNotCarryable(g_iOwner[attacker]) && !IsNotCarryable(victim))
     {
         g_iCarrier[victim] = attacker;
     }
@@ -788,8 +790,30 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
     else if(g_iOwner[client] == 0)
         return;
     
-    //  L4D2ZombieClass_Charger or L4D2ZombieClass_Jocke6
+    //  L4D2ZombieClass_Charger or L4D2ZombieClass_Jockey
     zclass = view_as<L4D2ZombieClassType>(GetEntProp(client, Prop_Send, "m_zombieClass"));
+}
+
+public void RPG_Perks_OnZombiePlayerSpawned(int client)
+{
+    if(g_iOwner[client] == 0)
+        return;
+
+    ResetInfectedAbility(client, 9999.9);
+}
+
+public void OnActionCreated( BehaviorAction action, int actor, const char[] name )
+{
+    if(!IsPlayer(actor))
+        return;
+
+    else if(g_iOwner[actor] == 0)
+        return;
+
+    else if(StrContains(name, "Retreat", false) == -1)
+        return;
+
+    action.IsSuspended = true;
 }
 
 bool IsPlayer(int entity)
@@ -836,7 +860,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
 
     GetClientAbsOrigin(owner, vOwner);
 
-    if(IsNotCarryable(owner) && L4D_GetPinnedInfected(owner) == 0 && g_iPetCarrySlowSurvivors != 0)
+    if(IsNotCarryable(owner) && !IsFakeClient(owner) && L4D_GetPinnedInfected(owner) == 0 && g_iPetCarrySlowSurvivors != 0)
     {
         fDist = Pow(131071.0, 2.0);
 
@@ -1309,6 +1333,9 @@ bool IsNotCarryable(int client)
 
     if(door == -1)
         return false;
+
+    else if(IsFakeClient(client))
+        return true;
 
     float fOrigin[3], fDoorOrigin[3];
     GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);

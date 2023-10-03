@@ -623,8 +623,23 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 	SetClientName(client, sName);
 
+
 	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 has spawned.", winnerTank.tier, winnerTank.name);
 
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		if(winnerTank.tier == 1)
+			ClientCommand(i, "play ui/survival_medal.wav");
+
+		else
+			ClientCommand(i, "play ui/critical_event_1.wav");
+	}
 	int size = winnerTank.aActiveAbilities.Length;
 
 	for(int i=0;i < size;i++)
@@ -1313,6 +1328,7 @@ public Action Event_FinaleStart(Handle hEvent, char[] Name, bool dontBroadcast)
 		{
 			PrintToChatAll("Rescue vehicle is here. Either leave or defeat the Tanks.");
 			L4D2_SendInRescueVehicle();
+			L4D2_ChangeFinaleStage(FINALE_GAUNTLET_ESCAPE, "");
 		}
 	}
 

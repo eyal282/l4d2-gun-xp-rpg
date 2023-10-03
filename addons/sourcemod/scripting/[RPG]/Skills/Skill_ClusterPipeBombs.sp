@@ -95,14 +95,27 @@ public void L4D_PipeBomb_Detonate_Post(int entity, int client)
     }
     else if(g_iClusterCombo[entity] > 0)
     {
-        PrintToChat(client, "Pipe Cluster Combo Ended #%i ( %.0f%% )", g_iClusterCombo[entity], fChance * 100.0);
+        float fTotalChance = 1.0;
+        for(int i=1;i < g_iClusterCombo[entity];i++)
+        {
+            float fCurChance = (0.01 * g_fChanceMultiplier * float(GunXP_RPG_GetClientLevel(client))) / Pow(2.0, float(i));
+
+            if(fCurChance * 100.0 < float(GunXP_RPG_GetClientLevel(client)))
+                fCurChance = (0.01 * float(GunXP_RPG_GetClientLevel(client)));
+
+            if(fCurChance < 1.0)
+            {
+                fTotalChance *= fCurChance;
+            }
+        }
+        PrintToChat(client, "Pipe Cluster Combo Ended #%i ( Σ%.7f%% )", g_iClusterCombo[entity], fTotalChance * 100.0);
     }
 }
 
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Whenever a pipe bomb detonates, another may spawn.\nChance equals your level x%.0f.\nEach cluster, chance halves capped at your level.\nStacks infinitely.", g_fChanceMultiplier);
+    FormatEx(sDescription, sizeof(sDescription), "Whenever a pipe bomb detonates, another may spawn.\nChance equals your level x%.0f.\nEach cluster, chance halves capped at your level.\nAn infinite recursion may occur with this Skill.", g_fChanceMultiplier);
 
     skillIndex = GunXP_RPGShop_RegisterSkill("Cluster Pipe Bombs", "Cluster Pipe Bombs", sDescription,
     27000, 0);
