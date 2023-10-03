@@ -641,7 +641,11 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
     if( g_iTarget[client] != 0 ) return Plugin_Continue;
     
     if( buttons & IN_ATTACK ) buttons &= ~IN_ATTACK;	// Main ability, always block
-
+    
+	int iTimer = FindSendPropInfo("CTerrorPlayer", "m_noAvoidanceTimer");
+	SetEntData(client, iTimer + 4, GetGameTime() + 65535.0);
+	SetEntData(client, iTimer + 8, GetGameTime() + 65535.0);
+    
     // Check survivor target position, if its very close block melee, if not is blocked and is trying to break a door or something
     if( buttons & IN_ATTACK2 ) // Allow pet to use is melee if is targetting another client (zombie)
     {
@@ -674,6 +678,11 @@ Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH
 }
 
 public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
+{   
+    return OnChooseVictim(specialInfected, curTarget);
+}
+
+Action OnChooseVictim(int specialInfected, int &curTarget)
 {
     if( g_iTarget[specialInfected] != 0 ) // Pet has an attack target different than its owner
     {
@@ -694,9 +703,9 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
         curTarget = g_iOwner[specialInfected];
         return Plugin_Changed;
     }
+
     return Plugin_Continue;
 }
-
 Action OnShootPet(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {
     if(LibraryExists("RPG_Perks"))
@@ -801,21 +810,39 @@ public void RPG_Perks_OnZombiePlayerSpawned(int client)
 
     ResetInfectedAbility(client, 9999.9);
 }
+/*
+BehaviorAction g_attackAction;
 
 public void OnActionCreated( BehaviorAction action, int actor, const char[] name )
 {
     if(!IsPlayer(actor))
         return;
 
+    if(StrEqual(name, "ChargerAttack"))
+    {
+        g_attackAction = view_as<BehaviorAction>(CloneHandle(action));
+        return;
+    }
     else if(g_iOwner[actor] == 0)
         return;
 
-    else if(StrContains(name, "Retreat", false) == -1)
+    // ChargerEvade
+    if(StrContains(name, "Retreat", false) == -1 && StrContains(name, "Evade", false) == -1)
         return;
 
-    action.IsSuspended = true;
+    action.OnStart = OnStart_ChangeToAttack;
 }
 
+public Action OnStart_ChangeToAttack(BehaviorAction action, int actor, BehaviorAction priorAction, ActionResult result)
+{
+    if(g_attackAction)
+    {
+        return action.ChangeTo(g_attackAction, "Charger Pet");
+    }
+
+    return Plugin_Continue;
+}
+*/
 bool IsPlayer(int entity)
 {
     if(entity >= 1 && entity <= MaxClients)
