@@ -808,7 +808,7 @@ public Action Command_TankHP(int client, int args)
 
 		PrintToChat(client, "Damage dealt to %N:", bestTank);
 
-		char PlayerFormat[256];
+		char PlayerFormat[512];
 
 		int count = 0;
 
@@ -823,18 +823,20 @@ public Action Command_TankHP(int client, int args)
 			else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 				continue;
 
+			float fDamageRatio, fMinDamageRatio;
+			CalculateIsEnoughDamage(i, bestTank, fDamageRatio, fMinDamageRatio);
+
 			if(count % 2 == 1)
 			{
-				Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%.1f{PERCENT}]", PlayerFormat, i, RPG_Tanks_GetDamagePercent(i, bestTank));
+				Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%s%.1f{PERCENT}{NORMAL}]", PlayerFormat, i, fDamageRatio >= fMinDamageRatio ? "{OLIVE}" : "", RPG_Tanks_GetDamagePercent(i, bestTank));
 
-				ReplaceString(PlayerFormat, sizeof(PlayerFormat), "{PERCENT}", "%%");
-				PrintToChat(client, PlayerFormat);
+				UC_PrintToChat(client, PlayerFormat);
 
 				PlayerFormat[0] = EOS;
 			}
 			else
 			{
-				Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%.1f{PERCENT}] | ", PlayerFormat, i, RPG_Tanks_GetDamagePercent(i, bestTank));
+				Format(PlayerFormat, sizeof(PlayerFormat), "%s%N [%s%.1f{PERCENT}{NORMAL}] | ", PlayerFormat, i, fDamageRatio >= fMinDamageRatio ? "{OLIVE}" : "", RPG_Tanks_GetDamagePercent(i, bestTank));
 			}
 
 			count++;
@@ -843,9 +845,8 @@ public Action Command_TankHP(int client, int args)
 		if(count % 2 == 1)
 		{
 			PlayerFormat[strlen(PlayerFormat) - 2] = EOS;
-
-			ReplaceString(PlayerFormat, sizeof(PlayerFormat), "{PERCENT}", "%%");
-			PrintToChat(client, PlayerFormat);
+			
+			UC_PrintToChat(client, PlayerFormat);
 		}
 	}
 	return Plugin_Handled;
@@ -1456,25 +1457,19 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
 
-		
-		float fDamageRatio = RPG_Tanks_GetDamagePercent(i, victim) / 100.0;
+		float fDamageRatio, fMinDamageRatio;
+		CalculateIsEnoughDamage(i, victim, fDamageRatio, fMinDamageRatio);
 
 		if(LibraryExists("GunXP-RPG"))
 		{
 			PrintToChat(i, "You dealt\x03 %.1f%%\x01 of %N's max HP as damage", fDamageRatio * 100.0, victim);
 		}
 
-		float fMinDamageRatio = 0.05;
-
-		if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientLevel(i) <= 21)
-			fMinDamageRatio = 0.01;
-
 		if(LibraryExists("GunXP-RPG") && fDamageRatio < fMinDamageRatio)
 		{
-			PrintToChat(i, "This is not enough to gain XP rewards. (Min. %.0f%%)", victim, fMinDamageRatio * 100.0);
+			PrintToChat(i, "This is not enough to gain XP rewards. (Min. %.0f%%)", fMinDamageRatio * 100.0);
 
 			Call_StartForward(g_fwOnRPGTankKilled);
-
 			
 			Call_PushCell(victim);
 			
@@ -1584,4 +1579,14 @@ stock int AbilityNameToAbilityIndex(char name[64], int tankIndex, bool passive)
 
 
 	return -1;
+}
+
+stock void CalculateIsEnoughDamage(int survivor, int tank, float &fDamageRatio, float &fMinDamageRatio )
+{
+	fDamageRatio = RPG_Tanks_GetDamagePercent(survivor, tank) / 100.0;
+
+	fMinDamageRatio = 0.05;
+
+	if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientLevel(survivor) <= 21)
+		fMinDamageRatio = 0.01;
 }

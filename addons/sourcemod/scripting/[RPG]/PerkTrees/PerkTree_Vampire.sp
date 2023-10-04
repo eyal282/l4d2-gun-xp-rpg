@@ -24,7 +24,6 @@ int vampireIndex = -1;
 
 int g_iCommonKills[MAXPLAYERS+1];
 
-
 int g_iSIValues[] =
 {
     3,
@@ -193,7 +192,7 @@ public void RegisterPerkTree()
             FormatEx(TempFormat, sizeof(TempFormat), "+%i Temp HP & +%i Perm HP per %i commons killed.\nSI are equal to %i commons.", g_iTemporaryHealthReward[i], g_iPermanentHealthReward[i], g_iCommonRequirements[i], g_iSIValues[i]);
 
         else
-            FormatEx(TempFormat, sizeof(TempFormat), "+%i Temp HP per %i commons killed.\nSI are equal to %i commons.", g_iPermanentHealthReward[i], g_iCommonRequirements[i], g_iSIValues[i]);
+            FormatEx(TempFormat, sizeof(TempFormat), "+%i Temp HP per %i commons killed.\nSI are equal to %i commons.", g_iTemporaryHealthReward[i], g_iCommonRequirements[i], g_iSIValues[i]);
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iVampireCosts[i]);

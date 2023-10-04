@@ -2251,8 +2251,6 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 				Call_Finish();
 
 				g_iMidSell[client] = -1;
-
-				return 0;
 			}
 		}
 

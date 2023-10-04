@@ -114,6 +114,14 @@ public Action TimerCreate(Handle timer, any target)
 {
 	if( (target = EntRefToEntIndex(target)) != INVALID_ENT_REFERENCE )
 	{
+		int owner = GetEntPropEnt(target, Prop_Send, "m_hOwnerEntity");
+
+		if(owner == -1)
+			return Plugin_Continue;
+
+		else if(!RPG_Perks_IsEntityTimedAttribute(owner, "Sticky Bile Pool Owner"))
+			return Plugin_Continue;
+
 		int index = -1;
 
 		for( int i = 0; i < MAX_LIGHTS; i++ )
@@ -242,6 +250,7 @@ bool IsValidEntRef(int entity)
 {
 	if( entity && EntRefToEntIndex(entity) != INVALID_ENT_REFERENCE )
 		return true;
+
 	return false;
 }
 public Action L4D2_CInsectSwarm_CanHarm(int acid, int spitter, int entity)

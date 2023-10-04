@@ -407,10 +407,21 @@ stock void UC_ReplyToCommand(int client, const char[] format, any ...)
 	char buffer[256];
 
 	VFormat(buffer, sizeof(buffer), format, 3);
+
+	char sReplaceFrom[2], sReplaceTo[32];
+
+	sReplaceFrom[0] = buffer[0]
+	sReplaceFrom[1] = EOS;
+	FormatEx(sReplaceTo, sizeof(sReplaceTo), "{GREEN}{NORMAL}%s", sReplaceFrom);
+	
+	ReplaceStringEx(buffer, sizeof(buffer), sReplaceFrom, sReplaceTo);
+
 	for(int i=0;i < sizeof(Colors);i++)
 	{
 		ReplaceString(buffer, sizeof(buffer), Colors[i], ColorEquivalents[i]);
 	}
+	
+	ReplaceString(buffer, sizeof(buffer), "{PERCENT}", "%%");
 	
 	ReplyToCommand(client, buffer);
 }
@@ -422,10 +433,21 @@ stock void UC_PrintToChat(int client, const char[] format, any ...)
 	char buffer[256];
 	
 	VFormat(buffer, sizeof(buffer), format, 3);
+
+	char sReplaceFrom[2], sReplaceTo[32];
+
+	sReplaceFrom[0] = buffer[0]
+	sReplaceFrom[1] = EOS;
+	FormatEx(sReplaceTo, sizeof(sReplaceTo), "{GREEN}{NORMAL}%s", sReplaceFrom);
+	
+	ReplaceStringEx(buffer, sizeof(buffer), sReplaceFrom, sReplaceTo);
+
 	for(int i=0;i < sizeof(Colors);i++)
 	{
 		ReplaceString(buffer, sizeof(buffer), Colors[i], ColorEquivalents[i]);
 	}
+	
+	ReplaceString(buffer, sizeof(buffer), "{PERCENT}", "%%");
 	
 	PrintToChat(client, buffer);
 }
@@ -611,6 +633,7 @@ stock void PrintToChatEyal(const char[] format, any ...)
 {
 	char buffer[291];
 	VFormat(buffer, sizeof(buffer), format, 2);
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))

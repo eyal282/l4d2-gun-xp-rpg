@@ -112,7 +112,7 @@ public void RegisterPerkTree()
     {
         char TempFormat[128];
 
-        FormatEx(TempFormat, sizeof(TempFormat), "+%.0f%% Medkit Heal Speed", g_fSpeedPercents[i]);
+        FormatEx(TempFormat, sizeof(TempFormat), "+%.0f{PERCENT} Medkit Heal Speed", g_fSpeedPercents[i]);
         descriptions.PushString(TempFormat);
         costs.Push(g_iEmpathyCosts[i]);
         xpReqs.Push(g_iEmpathyReqs[i]);
