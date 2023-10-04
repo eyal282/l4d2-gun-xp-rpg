@@ -430,7 +430,7 @@ public int Native_SetClientHealth(Handle caller, int numParams)
 public int Native_GetClientHealth(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
-
+	
 	if(g_iHealth[client] <= 65535)
 	{
 		// An incapped tank is dead.

@@ -696,11 +696,22 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 {   
 	if(priority == 10 && RPG_Perks_GetZombieType(victim) == ZombieType_Tank && g_iCurrentTank[victim] >= 0)
 	{
+		if(RPG_Perks_GetClientHealth(victim) > RPG_Perks_GetClientMaxHealth(victim))
+		{
+			PrintToChatAll(" \x03%N\x01 had more HP than max HP. It will be converted to a normal Tank now.", victim);
+
+			SetClientName(victim, "Tank");
+
+			RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+			//RPG_Perks_SetClientMaxHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+			g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
+		}
 		char sClassname[64];
 		if(attacker != 0)
 			GetEdictClassname(attacker, sClassname, sizeof(sClassname));
 
-		if(IsPlayer(victim) && damage >= 200 && (attacker == victim || attacker == 0 || strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0))
+		if(damage >= 200 && (attacker == victim || attacker == 0 || strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0))
 		{
 			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
 
@@ -710,6 +721,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 			//RPG_Perks_SetClientMaxHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
 			g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
+
+			return;
 		}
 	}
 	if(priority != g_hPriorityImmunities.IntValue)
