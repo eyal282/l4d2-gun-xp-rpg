@@ -63,5 +63,6 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier1_JockeyTank.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier1_TrollTank.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier2_PsychicTank.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier2_ShamanTank.smx"
 
 }
