@@ -642,9 +642,9 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
     
     if( buttons & IN_ATTACK ) buttons &= ~IN_ATTACK;	// Main ability, always block
     
-	int iTimer = FindSendPropInfo("CTerrorPlayer", "m_noAvoidanceTimer");
-	SetEntData(client, iTimer + 4, GetGameTime() + 65535.0);
-	SetEntData(client, iTimer + 8, GetGameTime() + 65535.0);
+    int iTimer = FindSendPropInfo("CTerrorPlayer", "m_noAvoidanceTimer");
+    SetEntData(client, iTimer + 4, GetGameTime() + 65535.0);
+    SetEntData(client, iTimer + 8, GetGameTime() + 65535.0);
     
     // Check survivor target position, if its very close block melee, if not is blocked and is trying to break a door or something
     if( buttons & IN_ATTACK2 ) // Allow pet to use is melee if is targetting another client (zombie)

@@ -23,7 +23,7 @@ int tankIndex;
 
 int infernoIndex, vomitIndex, jockeyIndex, mutationIndex, regenIndex, bulletReleaseIndex;
 
-float g_fVomitRadius;
+float g_fVomitRadius = 256.0;
 
 int g_iBulletRelease[MAXPLAYERS+1];
 
