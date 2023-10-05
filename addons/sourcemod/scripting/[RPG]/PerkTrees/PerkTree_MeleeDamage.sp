@@ -34,7 +34,7 @@ int g_iMeleeDamages[] =
     500,
     600,
     700,
-    800,
+    800
 };
 
 int g_iMeleeCosts[] =

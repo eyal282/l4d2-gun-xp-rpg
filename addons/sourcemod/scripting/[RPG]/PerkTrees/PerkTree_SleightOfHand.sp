@@ -30,7 +30,8 @@ float g_fReloadSpeedsIncrease[] =
     0.4,
     0.6,
     0.9,
-    1.2
+    1.2,
+    1.5
 };
 
 int g_iReloadCosts[] =
@@ -39,7 +40,8 @@ int g_iReloadCosts[] =
     1500,
     2500,
     5000,
-    12500
+    12500,
+    75000
 };
 
 int g_iReloadReqs[] =
@@ -48,7 +50,8 @@ int g_iReloadReqs[] =
     3000,
     5000,
     10000,
-    25000
+    25000,
+    750000
 };
 
 public void OnLibraryAdded(const char[] name)
