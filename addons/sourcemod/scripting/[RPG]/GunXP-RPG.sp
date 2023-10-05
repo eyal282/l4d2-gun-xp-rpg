@@ -1047,6 +1047,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_perk", Command_PerkTrees, "sm_perk [#userid|name] - Checks your / another player's RPG Perk Trees");
 	RegConsoleCmd("sm_perks", Command_PerkTrees, "sm_perks [#userid|name] - Checks your / another player's RPG Perk Trees");
 
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
 
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
@@ -1168,11 +1169,6 @@ public void OnClientConnected(int client)
 	CalculateStats(client);
 }
 
-
-public void OnMapEnd()
-{
-	g_bMapStarted = false;
-}
 public void OnMapStart()
 {
 	g_bMapStarted = true;
@@ -2492,6 +2488,19 @@ public void GiveGuns(int client)
 	g_bTookWeapons[client] = true;
 }
 
+public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	/*
+	if(g_iRestartsLeft > 0)
+	{
+		char MapName[128];
+		GetCurrentMap(MapName, sizeof(MapName));
+
+		L4D_RestartScenarioFromVote(MapName);
+	}*/
+
+	return Plugin_Continue;
+}
 public Action Event_WeaponFire(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));

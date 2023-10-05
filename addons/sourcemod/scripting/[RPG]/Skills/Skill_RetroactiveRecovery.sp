@@ -54,6 +54,52 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 	else if(!GunXP_RPGShop_IsSkillUnlocked(attacker, skillIndex))
 		return;
 
+	CreateTimer(0.1, Timer_RetroactiveRecover, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsPlayerAlive(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+		
+		float fChance = 0.01 * float(GunXP_RPG_GetClientLevel(attacker));
+
+		float fGamble = GetRandomFloat(0.0, 1.0);
+
+		// If gamble fails or succeeds, break to prevent respawning everybody...
+		if(fGamble >= fChance)
+			break;
+
+		L4D2_VScriptWrapper_ReviveByDefib(i);
+
+		float fOrigin[3];
+		GetClientAbsOrigin(attacker, fOrigin);
+
+		TeleportEntity(attacker, fOrigin, NULL_VECTOR, NULL_VECTOR);
+
+		RPG_Perks_RecalculateMaxHP(i);
+
+		SetEntityHealth(i, 1);
+		RPG_Perks_SetClientTempHealth(i, 0);
+
+		PrintToChatAll("%N was revived by %N's Retroactive Recovery", i, attacker);
+
+		break;
+	}
+}
+
+public Action Timer_RetroactiveRecover(Handle hTimer, int userid)
+{
+	int attacker = GetClientOfUserId(userid);
+
+	if(attacker == 0)
+		return Plugin_Continue;
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -64,7 +110,7 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
-
+		
 		else if(L4D_IsPlayerIncapacitated(i))
 			continue;
 
@@ -72,11 +118,13 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 
 		GunXP_GiveClientHealth(i, hpToAdd);
 	}
+
+	return Plugin_Continue;
 }
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "When a tiered Tank dies, all survivors heal %.1f{PERCENT} of max HP\nThis skill stacks across all survivors.", g_fHealPercent);
+	FormatEx(sDescription, sizeof(sDescription), "When a tiered Tank dies, random survivor may respawn\nChance to respawn equals your level\nAfter all respawns are done, survivors heal for %.1f{PERCENT} of max HP\nThis skill stacks across all survivors.\nDead players cannot activate this skill.", g_fHealPercent);
 
 	skillIndex = GunXP_RPGShop_RegisterSkill("Heal Team when Tank dies", "Retroactive Recovery", sDescription,
 	30000, 100000);

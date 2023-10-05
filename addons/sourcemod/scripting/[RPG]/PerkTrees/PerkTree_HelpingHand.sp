@@ -22,6 +22,49 @@ public Plugin myinfo =
 
 int helpingHandIndex = -1;
 
+float g_fSpeedPercents[] =
+{
+    40.0,
+    70.0,
+    90.0,
+    110.0,
+    150.0,
+    175.0,
+    200.0,
+    350.0,
+    500.0,
+    1000.0
+};
+
+int g_iHelpingHandCosts[] =
+{
+    30,
+    80,
+    200,
+    700,
+    1000,
+    3000,
+    5000,
+    8000,
+    20000,
+    50000
+
+};
+
+int g_iHelpingHandReqs[] =
+{
+    0,
+    0,
+    0,
+    40000,
+    70000,
+    100000,
+    200000,
+    400000,
+    1000000,
+    2500000
+};
+
 public void OnLibraryAdded(const char[] name)
 {
     if (StrEqual(name, "GunXP_PerkTreeShop"))
@@ -64,25 +107,15 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+40%% revive speed.");
-    costs.Push(300);
-    xpReqs.Push(1000);
+    for(int i=0;i < sizeof(g_iHelpingHandCosts);i++)
+    {
+        char TempFormat[128];
 
-    descriptions.PushString("+80%% revive speed.");
-    costs.Push(1000);
-    xpReqs.Push(2000);
-
-    descriptions.PushString("+120%% revive speed.");
-    costs.Push(5000);
-    xpReqs.Push(10000);
-
-    descriptions.PushString("+160%% revive speed.");
-    costs.Push(10000);
-    xpReqs.Push(25000);
-
-    descriptions.PushString("+200%% revive speed.");
-    costs.Push(50000);
-    xpReqs.Push(200000);
+        FormatEx(TempFormat, sizeof(TempFormat), "+%.0f{PERCENT} Revive Speed", g_fSpeedPercents[i]);
+        descriptions.PushString(TempFormat);
+        costs.Push(g_iHelpingHandCosts[i]);
+        xpReqs.Push(g_iHelpingHandReqs[i]);
+    }
 
     helpingHandIndex = GunXP_RPGShop_RegisterPerkTree("Revive Speed", "Helping Hand", descriptions, costs, xpReqs);
 }

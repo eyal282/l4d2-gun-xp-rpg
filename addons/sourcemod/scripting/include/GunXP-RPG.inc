@@ -231,9 +231,9 @@ forward void RPG_Perks_OnIgniteWithOwnership(int victim, int attacker);
 // It is recommended in general that you only add and don't multiply.
 forward void RPG_Perks_OnGetMaxLimitedAbility(int priority, int client, char identifier[32], int &maxUses);
 
-forward void RPG_Perks_OnTimedAttributeStart(int client, char attributeName[64], float fDuration);
+forward void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration);
 
-forward void RPG_Perks_OnTimedAttributeExpired(int client, char attributeName[64]);
+forward void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]);
 
 // if oldClient == newClient, the duration was modified.
 forward void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64]);

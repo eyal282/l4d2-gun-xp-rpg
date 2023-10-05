@@ -41,6 +41,53 @@ public void OnConfigsExecuted()
 
 }
 
+
+public void OnMapStart()
+{
+    TriggerTimer(CreateTimer(0.5, Timer_MonitorHyperactive, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+}
+
+public Action Timer_MonitorHyperactive(Handle hTimer)
+{
+    for(int i=1;i <= MaxClients;i++)
+    {
+        if(!IsClientInGame(i))
+            continue;
+
+        else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+            continue;
+
+        else if(!IsPlayerAlive(i))
+            continue;
+
+        else if(!GunXP_RPGShop_IsSkillUnlocked(i, hyperactiveIndex))
+            continue;
+
+        else if(!RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive") && !GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) <= 0.0)
+        {
+            if(RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music"))
+            {
+                RPG_Perks_ApplyEntityTimedAttribute(i, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+                ClientCommand(i, "play *");
+            }
+
+            continue;
+        }
+
+
+        float fDuration;
+
+        PrintToChatIfEyal(i, "%i, %.1f", RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music", fDuration), fDuration);
+        if(!RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music"))
+        {
+            RPG_Perks_ApplyEntityTimedAttribute(i, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+            ClientCommand(i, "play *music/wam_music.mp3");
+        }
+    }
+
+    return Plugin_Continue;
+}
+
 public void OnPluginStart()
 {
     g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_hyperactive_damage_priority", "0", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
@@ -67,6 +114,47 @@ public void WH_OnGetRateOfFire(int client, int weapon, int weapontype, float &sp
     speedmodifier += g_fFireRate;
 }
 
+public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
+{
+	if(StrEqual(attributeName, "Hyperactive Music"))
+    {
+        int client = attributeEntity;
+
+        if(!RPG_Perks_IsEntityTimedAttribute(client, "Hyperactive") && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(client) <= 0.0)
+            return;
+
+        ClientCommand(client, "play *music/wam_music.mp3");
+        RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+    }
+    else if(StrEqual(attributeName, "Hyperactive"))
+    {
+        int client = attributeEntity;
+
+        if(GetEntProp(client, Prop_Send, "m_bAdrenalineActive") || Terror_GetAdrenalineTime(client) > 0.0)
+            return;
+
+        if(RPG_Perks_IsEntityTimedAttribute(client, "Hyperactive Music"))
+        {
+            RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+            ClientCommand(client, "play *");
+        }
+    }
+}
+
+
+public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
+{
+    if(!StrEqual(attributeName, "Hyperactive Music"))
+        return;
+
+    ClientCommand(oldClient, "play *");
+
+    if(!IsFakeClient(newClient))
+    {
+        RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+        ClientCommand(newClient, "play *music/wam_music.mp3");
+    }
+}
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
     if(priority != g_hDamagePriority.IntValue)
@@ -106,6 +194,7 @@ public Action Event_AdrenOrPillsUsed(Event event, const char[] name, bool dontBr
 
     return Plugin_Continue;
 }
+
 public void RegisterSkill()
 {
     char sDescription[512];

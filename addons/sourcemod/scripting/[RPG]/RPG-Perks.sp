@@ -58,11 +58,13 @@ float g_fAbsCustomSpeed[MAXPLAYERS+1];		// Player speed while under custom condi
 int g_iAbsLimpHealth[MAXPLAYERS+1];
 int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 
-float g_fRoundStartTime;
+bool g_bLate;
+
 float g_fSpawnPoint[3];
 float g_fLastStunOrigin[MAXPLAYERS+1][3];
 
 bool g_bTeleported[MAXPLAYERS+1];
+bool g_bRoundStarted = false;
 
 Handle g_hCheckAttributeExpire;
 
@@ -223,6 +225,9 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_ApplyEntityTimedAttribute", Native_ApplyEntityTimedAttribute);
 	CreateNative("RPG_Perks_GetClientLimitedAbility", Native_GetClientLimitedAbility);
 	CreateNative("RPG_Perks_UseClientLimitedAbility", Native_UseClientLimitedAbility);
+
+	g_bLate = bLate;
+
 	return APLRes_Success;
 }
 
@@ -827,9 +832,12 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 public void OnMapStart()
 {
-	g_hCheckAttributeExpire = INVALID_HANDLE;
+	for(int i=1;i < sizeof(g_bTeleported);i++)
+	{
+		g_bTeleported[i] = false;
+	}
 
-	g_fRoundStartTime = 0.0;
+	g_hCheckAttributeExpire = INVALID_HANDLE;
 
 	g_aLimitedAbilities.Clear();
 	g_aTimedAttributes.Clear();
@@ -884,23 +892,9 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 		if(!L4D_HasAnySurvivorLeftSafeArea())
 		{
-			if(IsPlayerStuck(i) && !g_bTeleported[i])
+			if(IsPlayerSpawnStuck(i) && !g_bTeleported[i])
 			{
-				if(UC_IsNullVector(g_fSpawnPoint))
-				{
-					int spawn = FindEntityByClassname(-1, "info_survivor_position");
-
-					if(spawn != -1)
-					{	
-						GetEntPropVector(spawn, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
-					}
-				}
-
-				if(!UC_IsNullVector(g_fSpawnPoint))
-				{
-					TeleportEntity(i, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
-					g_bTeleported[i] = true;
-				}
+				TeleportToStartArea(i);
 			}
 
 			ExecuteFullHeal(i);
@@ -974,6 +968,9 @@ public Action Command_NightmareTest(int client, int args)
 
 public void OnPluginStart()
 {
+	if(g_bLate)
+		g_bRoundStarted = true;
+
 	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_nightmaretest", Command_NightmareTest, ADMFLAG_ROOT);
@@ -986,6 +983,7 @@ public void OnPluginStart()
 
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("player_first_spawn", Event_PlayerFirstSpawn);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Pre);
 	HookEvent("player_hurt", Event_PlayerHurt);
@@ -1416,7 +1414,12 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
-	g_fRoundStartTime = GetGameTime();
+	for(int i=1;i < sizeof(g_bTeleported);i++)
+	{
+		g_bTeleported[i] = false;
+	}
+	
+	g_bRoundStarted = true;
 
 	g_aLimitedAbilities.Clear();
 	g_aTimedAttributes.Clear();
@@ -1428,6 +1431,32 @@ public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	g_aLimitedAbilities.Clear();
 	g_aTimedAttributes.Clear();
+
+	g_bRoundStarted = false;
+
+	return Plugin_Continue;
+}
+
+
+public Action Event_PlayerFirstSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	else if(!IsPlayerAlive(client))
+		return Plugin_Continue;
+
+	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
+		return Plugin_Continue;
+
+	DataPack DP = CreateDataPack();
+
+	WritePackCell(DP, GetEventInt(hEvent, "userid"));
+	WritePackCell(DP, true);
+	
+	RequestFrame(Event_PlayerSpawnFrame, DP);
 
 	return Plugin_Continue;
 }
@@ -1442,9 +1471,17 @@ public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
 	else if(!IsPlayerAlive(client))
 		return Plugin_Continue;
 
-	int UserId = GetEventInt(hEvent, "userid");
+	DataPack DP = CreateDataPack();
+
+	WritePackCell(DP, GetEventInt(hEvent, "userid"));
+
+	if(!g_bRoundStarted)
+		WritePackCell(DP, true);
+
+	else
+		WritePackCell(DP, false);
 	
-	RequestFrame(Event_PlayerSpawnFrame, UserId);
+	RequestFrame(Event_PlayerSpawnFrame, DP);
 
 	return Plugin_Continue;
 }
@@ -1534,25 +1571,34 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 	return Plugin_Continue;
 }
 
-public void Event_PlayerSpawnFrame(int UserId)
+public void Event_PlayerSpawnFrame(DataPack DP)
 {
-	RequestFrame(Event_PlayerSpawnTwoFrames, UserId);
+	RequestFrame(Event_PlayerSpawnTwoFrames, DP);
 }
-public void Event_PlayerSpawnTwoFrames(int UserId)
+public void Event_PlayerSpawnTwoFrames(DataPack DP)
 {
-	RequestFrame(Event_PlayerSpawnThreeFrames, UserId);
+	RequestFrame(Event_PlayerSpawnThreeFrames, DP);
 }
-public void Event_PlayerSpawnThreeFrames(int UserId)
+
+public void Event_PlayerSpawnThreeFrames(DataPack DP)
 {
-	int client = GetClientOfUserId(UserId);
+	ResetPack(DP);
+
+	int userid = ReadPackCell(DP);
+
+	bool bFirstSpawn = ReadPackCell(DP);
+
+	CloseHandle(DP);
+	
+	int client = GetClientOfUserId(userid);
+	
+	if(client == 0)
+		return;
 
 	g_iHealth[client] = -1;
 	g_iMaxHealth[client] = -1;
 
-	if(client == 0)
-		return;
-	
-	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
+	if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
 	{
 		// Fake Client because humans spawn as ghosts.
 		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected || !IsFakeClient(client))
@@ -1648,13 +1694,9 @@ public void Event_PlayerSpawnThreeFrames(int UserId)
 		return;
 	}
 
-	else if(!IsPlayerAlive(client))
+	else if(!IsPlayerAlive(client) && bFirstSpawn)
 	{
-		if(GetGameTime() < g_fRoundStartTime + 25.0)
-			L4D_RespawnPlayer(client);
-
-		else
-			return;
+		L4D_RespawnPlayer(client);
 	}
 
 	int maxHP = 100;
@@ -1683,35 +1725,16 @@ public void Event_PlayerSpawnThreeFrames(int UserId)
 		Call_PushCell(a);
 		Call_PushCell(client);
 
-		if(GetGameTime() < g_fRoundStartTime + 25.0 || !L4D_HasAnySurvivorLeftSafeArea())
-			Call_PushCell(true);
-
-		else
-			Call_PushCell(false);
+		Call_PushCell(bFirstSpawn);
 
 		Call_Finish();	
 	}
 
-	if(GetGameTime() < g_fRoundStartTime + 25.0 || !L4D_HasAnySurvivorLeftSafeArea())
+	if(bFirstSpawn)
 	{
-		if(IsPlayerStuck(client) && !g_bTeleported[client])
+		if(IsPlayerSpawnStuck(client))
 		{
-			if(UC_IsNullVector(g_fSpawnPoint))
-			{
-				int spawn = FindEntityByClassname(-1, "info_survivor_position");
-
-				if(spawn != -1)
-				{	
-					GetEntPropVector(spawn, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
-				}
-			}
-
-			if(!UC_IsNullVector(g_fSpawnPoint))
-			{
-				TeleportEntity(client, g_fSpawnPoint, NULL_VECTOR, NULL_VECTOR);
-
-				g_bTeleported[client] = true;
-			}
+			TeleportToStartArea(client);
 		}
 
 		ExecuteFullHeal(client);
@@ -1782,7 +1805,12 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 
 	RPG_Perks_RecalculateMaxHP(newPlayer);
 
-	RequestFrame(Event_PlayerSpawnFrame, GetClientUserId(newPlayer));
+	DataPack DP = CreateDataPack();
+
+	WritePackCell(DP, GetClientUserId(newPlayer));
+	WritePackCell(DP, false);
+	
+	RequestFrame(Event_PlayerSpawnFrame, DP);
 
 	return Plugin_Continue;
 }
@@ -1801,7 +1829,12 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 
 	RPG_Perks_RecalculateMaxHP(newPlayer);
 
-	RequestFrame(Event_PlayerSpawnFrame, GetClientUserId(newPlayer));
+	DataPack DP = CreateDataPack();
+
+	WritePackCell(DP, GetClientUserId(newPlayer));
+	WritePackCell(DP, false);
+	
+	RequestFrame(Event_PlayerSpawnFrame, DP);
 
 	return Plugin_Continue;
 }
@@ -3005,10 +3038,8 @@ public bool TraceRayDontHitPlayers(int entityhit, int mask)
 
 
 
-stock bool IsPlayerStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
+stock bool IsPlayerSpawnStuck(int client, const float Origin[3] = NULL_VECTOR, float HeightOffset = 0.0)
 {
-	return false;
-
 	if(!GameRules_GetProp("m_bInIntro") && ClosestSpawnPointDistance(client) > 256.0)
 		return true;
 
@@ -3168,4 +3199,36 @@ stock int RPG_GetPlayerUsingATarget(int victim)
 	}
 
 	return -1;
+}
+
+stock void TeleportToStartArea(int client)
+{	
+	ArrayList aAreas = CreateArray(1);
+	L4D_GetAllNavAreas(aAreas);
+
+	Address winnerArea = Address_Null;
+	float fWinnerFlow;
+
+	for(int i=0;i < aAreas.Length;i++)
+	{
+		float fFlow = L4D2Direct_GetTerrorNavAreaFlow(aAreas.Get(i));
+
+		if(fFlow < 0.0)
+			continue;
+
+		if(winnerArea == Address_Null || fWinnerFlow > fFlow)
+		{
+			fWinnerFlow = fFlow;
+			winnerArea = aAreas.Get(i);
+		}
+	}
+
+	CloseHandle(aAreas);
+
+	float fOrigin[3];
+	L4D_FindRandomSpot(view_as<int>(winnerArea), fOrigin);
+
+	TeleportEntity(client, fOrigin, NULL_VECTOR, NULL_VECTOR);
+
+	g_bTeleported[client] = true;
 }

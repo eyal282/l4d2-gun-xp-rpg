@@ -637,8 +637,11 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 		if(winnerTank.tier == 1)
 			ClientCommand(i, "play ui/survival_medal.wav");
 
-		else
+		else if(winnerTank.tier == 2)
 			ClientCommand(i, "play ui/critical_event_1.wav");
+
+		else if(winnerTank.tier == 3)
+			ClientCommand(i, "@#music/terror/clingingtohell4.wav");
 	}
 	int size = winnerTank.aActiveAbilities.Length;
 
