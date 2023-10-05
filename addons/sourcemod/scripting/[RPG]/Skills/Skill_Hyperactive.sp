@@ -152,6 +152,10 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
     if(!StrEqual(attributeName, "Hyperactive Music"))
         return;
 
+    // Infinite loop otherwise
+    else if(oldClient == newClient)
+        return;
+
     StopHyperactiveSound(oldClient);
     RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
