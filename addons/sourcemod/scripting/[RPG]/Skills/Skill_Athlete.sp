@@ -38,7 +38,8 @@ public void OnPluginStart()
     HookEvent("tongue_release", Event_PinEnded);
     HookEvent("pounce_end", Event_PinEnded);
     HookEvent("jockey_ride_end", Event_PinEnded);
-    HookEvent("charger_carry_end", Event_PinEnded);
+    // Carry end has no animation, and it messes with pummel
+    //HookEvent("charger_carry_end", Event_PinEnded);
     HookEvent("charger_pummel_end", Event_PinEnded);
 
     RegisterSkill();
