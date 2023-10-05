@@ -74,10 +74,6 @@ public Action Timer_MonitorHyperactive(Handle hTimer)
             continue;
         }
 
-
-        float fDuration;
-
-        PrintToChatIfEyal(i, "%i, %.1f", RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music", fDuration), fDuration);
         if(!RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music"))
         {
             RPG_Perks_ApplyEntityTimedAttribute(i, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
@@ -116,7 +112,7 @@ public void WH_OnGetRateOfFire(int client, int weapon, int weapontype, float &sp
 
 public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
 {
-	if(StrEqual(attributeName, "Hyperactive Music"))
+    if(StrEqual(attributeName, "Hyperactive Music"))
     {
         int client = attributeEntity;
 
