@@ -153,12 +153,7 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
         return;
 
     StopHyperactiveSound(oldClient);
-
-    if(!IsFakeClient(newClient))
-    {
-        RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-        EmitHyperactiveSound(newClient);
-    }
+    RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
