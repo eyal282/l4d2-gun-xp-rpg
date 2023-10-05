@@ -10,6 +10,13 @@
 
 #define PLUGIN_VERSION "1.0"
 
+#define SOUND_CHANNEL 7284
+
+#define HYPERACTIVE_SOUND "*music/wam_music.mp3"
+
+// How much times to play the sound?
+#define HYPERACTIVE_SOUND_MULTIPLIER 100
+
 public Plugin myinfo =
 {
     name        = "Hyperactive Skill --> Gun XP - RPG",
@@ -45,6 +52,8 @@ public void OnConfigsExecuted()
 public void OnMapStart()
 {
     TriggerTimer(CreateTimer(0.5, Timer_MonitorHyperactive, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+
+    PrecacheSound(HYPERACTIVE_SOUND);
 }
 
 public Action Timer_MonitorHyperactive(Handle hTimer)
@@ -68,7 +77,7 @@ public Action Timer_MonitorHyperactive(Handle hTimer)
             if(RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music"))
             {
                 RPG_Perks_ApplyEntityTimedAttribute(i, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-                ClientCommand(i, "play *");
+                StopHyperactiveSound(i);
             }
 
             continue;
@@ -77,7 +86,7 @@ public Action Timer_MonitorHyperactive(Handle hTimer)
         if(!RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music"))
         {
             RPG_Perks_ApplyEntityTimedAttribute(i, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-            ClientCommand(i, "play *music/wam_music.mp3");
+            EmitHyperactiveSound(i);
         }
     }
 
@@ -119,7 +128,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
         if(!RPG_Perks_IsEntityTimedAttribute(client, "Hyperactive") && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(client) <= 0.0)
             return;
 
-        ClientCommand(client, "play *music/wam_music.mp3");
+        EmitHyperactiveSound(client);
         RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
     }
     else if(StrEqual(attributeName, "Hyperactive"))
@@ -132,7 +141,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
         if(RPG_Perks_IsEntityTimedAttribute(client, "Hyperactive Music"))
         {
             RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-            ClientCommand(client, "play *");
+            StopHyperactiveSound(client);
         }
     }
 }
@@ -143,12 +152,12 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
     if(!StrEqual(attributeName, "Hyperactive Music"))
         return;
 
-    ClientCommand(oldClient, "play *");
+    StopHyperactiveSound(oldClient);
 
     if(!IsFakeClient(newClient))
     {
         RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-        ClientCommand(newClient, "play *music/wam_music.mp3");
+        EmitHyperactiveSound(newClient);
     }
 }
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
@@ -200,3 +209,19 @@ public void RegisterSkill()
     50000, 100000);
 }
 
+
+stock void EmitHyperactiveSound(int client)
+{
+    for(int i=0;i < HYPERACTIVE_SOUND_MULTIPLIER;i++)
+    {
+        EmitSoundToClient(client, HYPERACTIVE_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 100);
+    }
+}
+
+stock void StopHyperactiveSound(int client)
+{
+    for(int i=0;i < HYPERACTIVE_SOUND_MULTIPLIER;i++)
+    {
+        StopSound(client, SOUND_CHANNEL + i, HYPERACTIVE_SOUND);
+    }
+}

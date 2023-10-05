@@ -969,7 +969,14 @@ public Action Command_NightmareTest(int client, int args)
 public void OnPluginStart()
 {
 	if(g_bLate)
+	{
 		g_bRoundStarted = true;
+		
+		for(int i=0;i < sizeof(g_bTeleported);i++)
+		{
+			g_bTeleported[i] = true;
+		}
+	}
 
 	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
@@ -1591,9 +1598,14 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 	CloseHandle(DP);
 	
 	int client = GetClientOfUserId(userid);
-	
+
 	if(client == 0)
 		return;
+
+	else if(g_bTeleported[client])
+	{
+		bFirstSpawn = false;
+	}
 
 	g_iHealth[client] = -1;
 	g_iMaxHealth[client] = -1;
@@ -1800,6 +1812,7 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	int newPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
 
 	g_iLastTemporaryHealth[newPlayer] = 0;
+	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
@@ -1824,6 +1837,7 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_bLastSecondaryDual[newPlayer] = false;
 
 	g_iLastTemporaryHealth[newPlayer] = 0;
+	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
