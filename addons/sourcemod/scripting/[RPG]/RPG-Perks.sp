@@ -832,9 +832,12 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 public void OnMapStart()
 {
-	for(int i=1;i < sizeof(g_bTeleported);i++)
+	if(!g_bLate)
 	{
-		g_bTeleported[i] = false;
+		for(int i=1;i < sizeof(g_bTeleported);i++)
+		{
+			g_bTeleported[i] = false;
+		}
 	}
 
 	g_hCheckAttributeExpire = INVALID_HANDLE;
@@ -1421,7 +1424,7 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
-	for(int i=1;i < sizeof(g_bTeleported);i++)
+	for(int i=0;i < sizeof(g_bTeleported);i++)
 	{
 		g_bTeleported[i] = false;
 	}
