@@ -95,7 +95,7 @@ public void RPG_Perks_OnGetReviveDuration(int reviver, int victim, bool bLedge, 
     if(perkLevel == -1)
         return;
 
-    float percent = (40.0 * (float(perkLevel) + 1.0));
+    float percent = g_fSpeedPercents[perkLevel];
 
     fDuration -= (percent * fDuration) / (percent + 100.0);
 }
