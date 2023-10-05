@@ -1179,13 +1179,16 @@ public void OnMapStart()
 		
 	CreateTimer(150.0, Timer_TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
-	for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
+	if(g_bLate)
 	{
-		int entity = -1;
-
-		while((entity = FindEntityByClassname(entity, g_sForbiddenMapWeapons[i])) != -1)
+		for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
 		{
-			OnShouldSpawn_ConvertSpawn(entity);
+			int entity = -1;
+
+			while((entity = FindEntityByClassname(entity, g_sForbiddenMapWeapons[i])) != -1)
+			{
+				OnShouldSpawn_ConvertSpawn(entity);
+			}
 		}
 	}
 }
