@@ -1169,6 +1169,11 @@ public void OnClientConnected(int client)
 	CalculateStats(client);
 }
 
+public void OnMapEnd()
+{
+	g_bMapStarted = false;
+}
+
 public void OnMapStart()
 {
 	g_bMapStarted = true;
@@ -1381,7 +1386,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 			StringToKMB(GetClientDisplayXP(i), sXP, sizeof(sXP));
 			StringToKMB(GetClientXPCurrency(i), sXPCurrency, sizeof(sXPCurrency));
 
-			PrintHintText(i, "[Level : %i] | [XP : %s/∞]\n[XP Currency : %s] | [Weapon : %s]%s", g_iLevel[i], sXP, sXPCurrency, GUNS_NAMES[g_iLevel[i]], extraFormat);
+			PrintHintText(i, "[Level : %i] | [XP : %s/∞]\n[XP Currency : %s]%s%s", g_iLevel[i], sXP, sXPCurrency, weaponFormat, extraFormat);
 		}
 	}
 

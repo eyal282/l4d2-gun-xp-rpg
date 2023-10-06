@@ -52,6 +52,7 @@ public void OnMapStart()
 {
 	TriggerTimer(CreateTimer(1.0, Timer_ShamanTank, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 
+	PrecacheParticle("error");
 
 	for(int i=0;i < sizeof(g_iBulletRelease);i++)
 	{
@@ -274,6 +275,24 @@ public void CastInferno(int client)
 	GetClientAbsOrigin(client, fOrigin);
 
 	L4D_DetonateProjectile(L4D_MolotovPrj(client, fOrigin, view_as<float>({0.0, 0.0, 0.0})));
+
+	int entity = CreateEntityByName("info_particle_system");
+
+	DispatchKeyValue(entity, "effect_name", "error");
+
+	DispatchSpawn(entity);
+	ActivateEntity(entity);
+
+	TeleportEntity(entity, fOrigin, NULL_VECTOR, NULL_VECTOR);
+
+	AcceptEntityInput(entity, "Start");
+
+	//SetVariantString("!activator");
+	//AcceptEntityInput(entity, "SetParent", target);
+
+	//if( type == 0 )	SetVariantString("fuse");
+	//else			SetVariantString("pipebomb_light");
+	//AcceptEntityInput(entity, "SetParentAttachment", target);
 }
 
 
@@ -418,4 +437,20 @@ stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception
 stock bool IsPlayerBoomerBiled(int iClient)
 {
     return (GetGameTime() <= GetEntPropFloat(iClient, Prop_Send, "m_itTimer", 1));
+}
+
+void PrecacheParticle(const char[] sEffectName)
+{
+	static int table = INVALID_STRING_TABLE;
+	if( table == INVALID_STRING_TABLE )
+	{
+		table = FindStringTable("ParticleEffectNames");
+	}
+
+	if( FindStringIndex(table, sEffectName) == INVALID_STRING_INDEX )
+	{
+		bool save = LockStringTables(false);
+		AddToStringTable(table, sEffectName);
+		LockStringTables(save);
+	}
 }
