@@ -213,6 +213,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 {	
 	CreateNative("RPG_Perks_InstantKill", Native_InstantKill);
 	CreateNative("RPG_Perks_TakeDamage", Native_TakeDamage);
+	CreateNative("RPG_Perks_UseAdrenaline", Native_UseAdrenaline);
 	CreateNative("RPG_Perks_IgniteWithOwnership", Native_IgniteWithOwnership);
 	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
@@ -337,6 +338,66 @@ public int Native_IgniteWithOwnership(Handle caller, int numParams)
 
 	return 0;
 }
+
+public any Native_UseAdrenaline(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+	float fDuration = GetNativeCell(2);
+
+	bool bHeal = GetNativeCell(3);
+
+	bool bStacks = GetNativeCell(4);
+
+	if(bHeal)
+	{
+		int percentToHeal = g_hRPGAdrenalineHealPercent.IntValue;
+
+		Call_StartForward(g_fwOnGetRPGMedsHealPercent);
+
+		Call_PushCell(client);
+		Call_PushCell(true);
+		Call_PushCellRef(percentToHeal);
+
+		Call_Finish();
+
+		if(percentToHeal > 0)
+		{
+			GunXP_GiveClientHealth(client, 0, RoundToFloor(GetEntityMaxHealth(client) * (float(percentToHeal) / 100)));
+		}
+	}
+
+	Call_StartForward(g_fwOnGetRPGAdrenalineDuration);
+
+	Call_PushCell(client);
+	Call_PushFloatRef(fDuration);
+
+	Call_Finish();
+
+	if(bStacks)
+	{
+		if(Terror_GetAdrenalineTime(client) == -1.0)
+		{
+			L4D2_UseAdrenaline(client, fDuration, false, false);
+		}
+		else
+		{
+			fDuration += Terror_GetAdrenalineTime(client);
+			
+			Terror_SetAdrenalineTime(client, 0.0);
+
+			L4D2_UseAdrenaline(client, fDuration, false, false);
+		}
+	}
+	else if(fDuration > Terror_GetAdrenalineTime(client))
+	{
+		Terror_SetAdrenalineTime(client, 0.0);
+
+		L4D2_UseAdrenaline(client, fDuration, false, false);	
+	}
+
+	return 0;
+}
+
 public int Native_RecalculateMaxHP(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);

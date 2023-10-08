@@ -36,6 +36,7 @@ public void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &over
 		}
 	}
 }
+
 public void OnLibraryAdded(const char[] name)
 {
 	if (StrEqual(name, "GunXP_SkillShop"))

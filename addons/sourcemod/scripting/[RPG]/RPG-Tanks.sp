@@ -121,6 +121,9 @@ public int Native_IsDamageImmuneTo(Handle caller, int numParams)
 
 	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
 		return false;
+
+	else if(damageType & DMG_DIRECT)
+		return false;
 		
 	if(g_iCurrentTank[client] < 0)
 	{

@@ -99,8 +99,13 @@ native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 // Returns true if player died, false otherwise.
 native bool RPG_Perks_InstantKill(int victim, int attacker, int inflictor, int damagetype);
 
+// damagetypes:
+// DMG_DIRECT protects from Damage Reflect and bypasses protection.
 // Returns damage dealt after all modifiers.
 native float RPG_Perks_TakeDamage(int victim, int attacker, int inflictor, float damage, int damagetype, int hitbox=0, int hitgroup=0);
+
+// L4D2_UseAdrenaline does not let you calculate duration increasers.
+native void RPG_Perks_UseAdrenaline(int client, float fDuration, bool bHeal=false, bool bStacks = true);
 
 native void RPG_Perks_IgniteWithOwnership(int victim, int attacker);
 
@@ -329,6 +334,8 @@ forward void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker,
 // fCustomSpeed will only work if overrideSpeedState is set to custom.
 forward void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &overrideSpeedState, int &iLimpHealth, float &fRunSpeed, float &fWalkSpeed, float &fCrouchSpeed, float &fLimpSpeed, float &fCriticalSpeed, float &fWaterSpeed, float &fAdrenalineSpeed, float &fScopeSpeed, float &fCustomSpeed);
 
+forward void RPG_Perks_OnGetAdrenalineDuration(int client, float &fDuration);
+forward void RPG_Perks_OnGetMedsHealPercent(int client, bool bAdrenaline, float &percentToHeal);
 forward void RPG_Perks_OnGetKitHealPercent(int reviver, int victim, int &percent);
 forward void RPG_Perks_OnGetReviveHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);
 forward void RPG_Perks_OnGetDefibHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);

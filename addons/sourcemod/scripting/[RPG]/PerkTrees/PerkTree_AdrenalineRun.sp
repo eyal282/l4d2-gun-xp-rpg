@@ -81,8 +81,11 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void L4D_OnSpawnTank_Post(int client, const float vecPos[3], const float vecAng[3])
+public void RPG_Perks_OnZombiePlayerSpawned(int client)
 {
+    if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+        return;
+
     for(int i=1;i <= MaxClients;i++)
     {
         if(!IsClientInGame(i))
@@ -95,11 +98,8 @@ public void L4D_OnSpawnTank_Post(int client, const float vecPos[3], const float 
 
         if(perkTree == -1)
             continue;
-            
-        else if(GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) >= float(g_iAdrenalineTimes[perkTree]))
-            continue;
 
-        L4D2_UseAdrenaline(i, float(g_iAdrenalineTimes[perkTree]), false, false);
+        RPG_Perks_UseAdrenaline(i, float(g_iAdrenalineTimes[perkTree]), false, true);
     }
 }
 
@@ -114,7 +114,7 @@ public void RegisterPerkTree()
     for(int i=0;i < sizeof(g_iAdrenalineTimes);i++)
     {
         char TempFormat[128];
-        FormatEx(TempFormat, sizeof(TempFormat), "%i seconds of adrenaline when a tank spawns.", g_iAdrenalineTimes[i]);
+        FormatEx(TempFormat, sizeof(TempFormat), "%i sec of Adrenaline when a Tank spawns.\nStacks across other Adrenaline sources.", g_iAdrenalineTimes[i]);
         descriptions.PushString(TempFormat);
         costs.Push(g_iAdrenalineCosts[i]);
         xpReqs.Push(g_iAdrenalineReqs[i]);

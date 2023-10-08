@@ -149,7 +149,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(i, client, iFakeWeapon, 80.0, DMG_BULLET);
+            RPG_Perks_TakeDamage(i, client, iFakeWeapon, 80.0, DMG_BULLET|DMG_DIRECT);
 
             if(!RPG_Tanks_IsDamageImmuneTo(i, DAMAGE_IMMUNITY_BURN))
             {
@@ -166,7 +166,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET|DMG_DIRECT);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
@@ -179,7 +179,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET|DMG_DIRECT);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
@@ -203,7 +203,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to 1 magnum shot\nThis ignores burn immunity, treated as bullet damage instead.", g_fRadius);
+	FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to 1 magnum shot\nDamage is boosted by Marksman, and bypasses all protection", g_fRadius);
    	immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
 	150000, 0);
 }

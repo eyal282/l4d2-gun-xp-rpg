@@ -1591,7 +1591,7 @@ public Action Command_GiveXP(int client, int args)
 		ReplyToCommand(client, "[SM] Usage: sm_givexp <#userid|name> [number of xp]");
 		return Plugin_Handled;
 	}
-	char arg[MAX_NAME_LENGTH], arg2[10];
+	char arg[MAX_NAME_LENGTH], arg2[16];
 	GetCmdArg(1, arg, sizeof(arg));
 
 	if (args > 1)

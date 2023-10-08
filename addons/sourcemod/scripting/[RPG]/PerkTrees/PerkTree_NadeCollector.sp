@@ -21,8 +21,31 @@ public Plugin myinfo =
 #define MAX_INT 2147483647
 
 int nadeCollectorIndex = -1;
+int nadeSelectorIndex = -1;
 
 int g_iCommonKillsLeft[MAXPLAYERS+1] = {MAX_INT, ...};
+
+L4D2WeaponId g_iSelectorWeapon[] =
+{
+    L4D2WeaponId_Vomitjar,
+    L4D2WeaponId_Molotov,
+    L4D2WeaponId_PipeBomb
+};
+
+int g_iSelectorCosts[] =
+{
+    100000,
+    0,
+    0,
+
+};
+
+int g_iSelectorReqs[] =
+{
+    900000,
+    0,
+    0
+};
 
 int g_iCollectorGoals[] =
 {
@@ -164,11 +187,23 @@ public Action Event_PlayerOrCommonDeath(Handle hEvent, const char[] name, bool d
             return Plugin_Continue;
         }
         
-        switch(GetRandomInt(0, 2))
+        int perkLevelSelector = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, nadeSelectorIndex);
+
+        if(perkLevelSelector == PERK_TREE_NOT_UNLOCKED)
         {
-            case 0: GivePlayerItem(attacker, "weapon_vomitjar");
-            case 1: GivePlayerItem(attacker, "weapon_molotov");
-            case 2: GivePlayerItem(attacker, "weapon_pipebomb");
+            switch(GetRandomInt(0, 2))
+            {
+                case 0: GivePlayerItem(attacker, "weapon_vomitjar");
+                case 1: GivePlayerItem(attacker, "weapon_molotov");
+                case 2: GivePlayerItem(attacker, "weapon_pipebomb");
+            }
+        }
+        else
+        {
+            char sClassname[64];
+            L4D2_GetWeaponNameByWeaponId(g_iSelectorWeapon[perkLevelSelector], sClassname, sizeof(sClassname));
+
+            GivePlayerItem(attacker, sClassname);
         }
 
         g_iCommonKillsLeft[attacker] = MAX_INT;
@@ -194,6 +229,35 @@ public void RegisterPerkTree()
     }
 
     nadeCollectorIndex = GunXP_RPGShop_RegisterPerkTree("Nade every X Kills", "Nade Collector", descriptions, costs, xpReqs);
+
+    RegisterPerkTree2();
+}
+
+public void RegisterPerkTree2()
+{
+    ArrayList descriptions, costs, xpReqs;
+    descriptions = new ArrayList(128);
+    costs = new ArrayList(1);
+    xpReqs = new ArrayList(1);
+
+    for(int i=0;i < sizeof(g_iSelectorCosts);i++)
+    {
+        char TempFormat[128];
+        char sClassname[64];
+        L4D2_GetWeaponNameByWeaponId(g_iSelectorWeapon[i], sClassname, sizeof(sClassname));
+
+        ReplaceStringEx(sClassname, sizeof(sClassname), "weapon_", "");
+
+        sClassname[0] = CharToUpper(sClassname[0]);
+        
+        FormatEx(TempFormat, sizeof(TempFormat), "Nade Collector grenade becomes %s instead of random\nUpgrade / Refund this Perk Tree to change that grenade", sClassname);
+
+        descriptions.PushString(TempFormat);
+        costs.Push(g_iSelectorCosts[i]);
+        xpReqs.Push(g_iSelectorReqs[i]);
+    }
+
+    nadeSelectorIndex = GunXP_RPGShop_RegisterPerkTree("Nade Selector every X Kills", "Nade Selector", descriptions, costs, xpReqs, null, true);
 }
 
 public void GunXP_RPGShop_OnResetRPG(int client)

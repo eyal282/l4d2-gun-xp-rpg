@@ -445,8 +445,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 		else if(g_fEndDamageReflect[victim] < GetGameTime())
 			return;
-			
-		else if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw || damagetype & DMG_BURN || damagetype & DMG_BLAST)
+		
+		else if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw || damagetype & DMG_BURN || damagetype & DMG_BLAST || damagetype & DMG_DIRECT)
 			return;
 
 		// Damage the attacker by the victim ( damage reflect )

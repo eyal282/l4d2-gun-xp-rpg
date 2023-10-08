@@ -192,6 +192,7 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 
     FakeClientCommand(client, "sm_pet");
 }
+
 public void RPG_Perks_OnZombiePlayerSpawned(int client)
 {
     int owner = GetEntPropEnt(client, Prop_Send, "m_hOwnerEntity");
