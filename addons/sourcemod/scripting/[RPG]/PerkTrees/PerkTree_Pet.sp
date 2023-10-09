@@ -62,6 +62,18 @@ float g_fPetDamages[] =
 
 };
 
+float g_fPetReviveDurations[] =
+{
+    20.0,
+    14.0,
+    10.0,
+    8.0,
+    7.0,
+    6.0,
+    4.0,
+    2.0
+};
+
 int g_iPetCosts[] =
 {
     50000,
@@ -273,6 +285,17 @@ public Action Timer_SpamOff(Handle Timer, int client)
     return Plugin_Continue;
 }
 
+public Action L4D2_Pets_OnCanPetReviveIncap(int victim, int pet, int owner, float &fDuration)
+{
+    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(owner, petIndex);
+
+    if(perkLevel == PERK_TREE_NOT_UNLOCKED)
+        return Plugin_Continue;
+
+    fDuration = g_fPetReviveDurations[perkLevel];
+
+    return Plugin_Continue;
+}
 public Action L4D2_Pets_OnCanHavePets(int client, L4D2ZombieClassType zclass, bool &bCanHave)
 {
     if(zclass != L4D2ZombieClass_Charger)
@@ -386,7 +409,7 @@ public void RegisterPerkTree()
     {
         char TempFormat[128];
 
-        FormatEx(TempFormat, sizeof(TempFormat), "Triple press SHIFT spawn / teleport charger to you\nPet deals %.0f damage, %.0f{PERCENT} to Tank", g_fPetDamages[i], g_fDamagePercentTank);
+        FormatEx(TempFormat, sizeof(TempFormat), "Triple press SHIFT to spawn / teleport charger to you\nPet deals %.0f damage, %.0f{PERCENT} to Tank, %.0f sec to revive incap", g_fPetDamages[i], g_fDamagePercentTank, g_fPetReviveDurations[i]);
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iPetCosts[i]);
