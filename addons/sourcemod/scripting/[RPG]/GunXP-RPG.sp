@@ -552,6 +552,21 @@ public Action PointSystemAPI_OnGetParametersProduct(int buyer, const char[] sAli
 	return Plugin_Continue;
 }
 
+
+// product is a copyback value.
+public Action PointSystemAPI_OnProductCreated(enProduct product)
+{
+	if (StrEqual(product.sInfo, "upgrade_add 2") || StrEqual(product.sInfo, "give shotgun_spas"))
+	{
+		product.iBuyFlags |= BUYFLAG_HUMANTEAM;
+
+		return Plugin_Changed;
+	}
+
+	return Plugin_Continue;
+}
+
+
 public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, const char[] sAliases, const char[] sName, int target, float fCost, float fDelay, float fCooldown)
 {
 	if(L4D_IsPlayerIncapacitated(target))
@@ -2203,7 +2218,7 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 			{
 				if(skill.levelReq > GetClientLevel(client))
 				{
-					PrintToChat(client, "\x04[Gun-XP] You need to reach Level %i to unlock this Perk Tree Level!", skill.levelReq);
+					PrintToChat(client, "\x04[Gun-XP] You need to reach Level %i to unlock this Skill!", skill.levelReq);
 					return 0;
 				}
 				else if(skill.cost > GetClientXPCurrency(client))

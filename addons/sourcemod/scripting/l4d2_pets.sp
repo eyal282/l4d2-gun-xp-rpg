@@ -1102,6 +1102,11 @@ Action ChangeVictim_Timer(Handle timer, int pet)
         g_iLastCommand[pet] = g_iTarget[pet];
         L4D2_CommandABot(pet, g_iTarget[pet], BOT_CMD_ATTACK);
     }
+    else if(g_iLastCommand[pet] != -1)
+    {
+        g_iLastCommand[pet] = -1;
+        L4D2_CommandABot(pet, g_iTarget[pet], BOT_CMD_RESET);
+    }
     g_hPetVictimTimer[pet] = CreateTimer(g_fPetUpdateRate, ChangeVictim_Timer, pet);
     
     return Plugin_Continue;

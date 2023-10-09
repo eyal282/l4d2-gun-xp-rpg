@@ -12,12 +12,15 @@
 
 public Plugin myinfo =
 {
-	name        = "Immolation Skill --> Gun XP - RPG",
-	author      = "Eyal282",
-	description = "Skill that makes you ignite yourself for x seconds when you throw molotov on yourself",
-	version     = PLUGIN_VERSION,
-	url         = ""
+    name        = "Immolation Skill --> Gun XP - RPG",
+    author      = "Eyal282",
+    description = "Skill that makes you ignite yourself for x seconds when you throw molotov on yourself",
+    version     = PLUGIN_VERSION,
+    url         = ""
 };
+
+int g_iMagnumShots = 2;
+#define DAMAGE_IMMOLATION 80.0 * float(g_iMagnumShots)
 
 Handle g_hTimer[MAXPLAYERS+1];
 
@@ -29,10 +32,10 @@ float g_fRadius = 512.0;
 
 public void OnLibraryAdded(const char[] name)
 {
-	if (StrEqual(name, "GunXP_SkillShop"))
-	{
-		RegisterSkill();
-	}
+    if (StrEqual(name, "GunXP_SkillShop"))
+    {
+        RegisterSkill();
+    }
 }
 
 public void OnConfigsExecuted()
@@ -42,8 +45,6 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    HookEvent("hegrenade_detonate", Event_MolotovDetonate);
-
     RegisterSkill();
 }
 
@@ -73,41 +74,54 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
     
     g_hTimer[newClient] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(newClient), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
-public Action Event_MolotovDetonate(Handle hEvent, const char[] Name, bool dontBroadcast)
+
+
+public void OnEntityDestroyed(int entity)
 {
-    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+    if(!IsValidEntityIndex(entity))
+        return;
+
+    char sClassname[64];
+    GetEdictClassname(entity, sClassname, sizeof(sClassname));
+    
+    if(!StrEqual(sClassname, "molotov_projectile"))
+        return;
+    
+    int owner = GetEntPropEnt(entity, Prop_Send, "m_hThrower");
+
+    if(owner == -1)
+        return;
+
+    else if(!GunXP_RPGShop_IsSkillUnlocked(owner, immolationIndex))
+        return;
 
     float fDetonationOrigin[3];
 
-    fDetonationOrigin[0] = GetEventFloat(hEvent, "x");
-    fDetonationOrigin[1] = GetEventFloat(hEvent, "y");
-    fDetonationOrigin[2] = GetEventFloat(hEvent, "z");
+    GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fDetonationOrigin);
 
     float fOrigin[3];
 
-    GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+    GetEntPropVector(owner, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
-    if(!GunXP_RPGShop_IsSkillUnlocked(client, immolationIndex))
-        return Plugin_Continue;
+    if(!GunXP_RPGShop_IsSkillUnlocked(owner, immolationIndex))
+        return;
 
     if(GetVectorDistance(fOrigin, fDetonationOrigin) < 128.0)
     {
-        float fDuration = g_fDurationPerLevel * float(GunXP_RPG_GetClientLevel(client));
+        float fDuration = g_fDurationPerLevel * float(GunXP_RPG_GetClientLevel(owner));
 
-        PrintToChat(client, "Immolation is active for %.1f seconds.", fDuration);
+        PrintToChat(owner, "Immolation is active for %.1f seconds.", fDuration);
 
-        RPG_Perks_ApplyEntityTimedAttribute(client, "Immolation", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
+        RPG_Perks_ApplyEntityTimedAttribute(owner, "Immolation", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
 
-        if(g_hTimer[client] != INVALID_HANDLE)
+        if(g_hTimer[owner] != INVALID_HANDLE)
         {
-            CloseHandle(g_hTimer[client]);
-            g_hTimer[client] = INVALID_HANDLE;
+            CloseHandle(g_hTimer[owner]);
+            g_hTimer[owner] = INVALID_HANDLE;
         }
 
-        g_hTimer[client] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+        g_hTimer[owner] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(owner), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
     }
-
-    return Plugin_Continue;
 }
 
 
@@ -149,7 +163,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(i, client, iFakeWeapon, 80.0, DMG_BULLET|DMG_DIRECT);
+            RPG_Perks_TakeDamage(i, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DIRECT);
 
             if(!RPG_Tanks_IsDamageImmuneTo(i, DAMAGE_IMMUNITY_BURN))
             {
@@ -166,7 +180,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET|DMG_DIRECT);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DIRECT);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
@@ -179,7 +193,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, 80.0, DMG_BULLET|DMG_DIRECT);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DIRECT);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
@@ -202,10 +216,13 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
 public void RegisterSkill()
 {
-	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to 1 magnum shot\nDamage is boosted by Marksman, and bypasses all protection", g_fRadius);
-   	immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
-	150000, 0);
+    char sDescription[512];
+    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection", g_fRadius, g_iMagnumShots);
+    immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
+    150000, 0);
 }
 
-
+bool IsValidEntityIndex(int entity)
+{
+    return (MaxClients+1 <= entity <= GetMaxEntities());
+}

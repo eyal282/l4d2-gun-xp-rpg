@@ -10,10 +10,6 @@
 
 #define PLUGIN_VERSION "1.0"
 
-int g_iLastButtons[MAXPLAYERS+1];
-float g_fNextExpireJump[MAXPLAYERS+1];
-int g_iJumpCount[MAXPLAYERS+1];
-
 public Plugin myinfo =
 {
     name        = "Full Auto Skill --> Gun XP - RPG",
@@ -25,7 +21,6 @@ public Plugin myinfo =
 
 bool g_bFullAuto[MAXPLAYERS+1];
 
-int g_iPerfActiveWeapon[MAXPLAYERS+1] = { -1, ... };
 int fullAutoIndex;
 
 public void OnLibraryAdded(const char[] name)
@@ -79,7 +74,10 @@ public void GunXP_OnReloadRPGPlugins()
 
 public void GunXP_RPGShop_OnResetRPG(int client)
 {
-   g_bFullAuto[client] = false;
+    if(!GunXP_RPGShop_IsSkillUnlocked(client, fullAutoIndex))
+        return;
+        
+    g_bFullAuto[client] = false;
 }
 
 public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
@@ -101,7 +99,7 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 public void RegisterSkill()
 {
     fullAutoIndex = GunXP_RPGShop_RegisterSkill("Full Auto", "Full Auto", "All weapons are fully automatic",
-    200000, 0);
+    90000, 0);
 }
 
 
@@ -110,28 +108,29 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
     if(!g_bFullAuto[client])
         return Plugin_Continue;
 
-	if (buttons & IN_ATTACK)
-	{
-		if(!IsClientInGame(client)
-			|| !IsPlayerAlive(client)
-			|| L4D_GetClientTeam(client) != L4DTeam_Survivor
-			|| IsUsingMinigun(client))
-		    return Plugin_Continue;
+    if (buttons & IN_ATTACK)
+    {
+        if(!IsClientInGame(client)
+            || !IsPlayerAlive(client)
+            || L4D_GetClientTeam(client) != L4DTeam_Survivor
+            || IsUsingMinigun(client))
+            return Plugin_Continue;
 
-		int iActiveWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-		bool bWeaponChanged = ((iActiveWeapon != g_iPerfActiveWeapon[client]) || (g_iPerfActiveWeapon[client] == -1));
-		g_iPerfActiveWeapon[client] = iActiveWeapon;
-		
-		if(!IsValidEntity(iActiveWeapon)
-				|| GetEntPropFloat(iActiveWeapon, Prop_Send, "m_flCycle") > 0
-				|| GetEntProp(iActiveWeapon, Prop_Send, "m_bInReload") > 0)
-		return Plugin_Continue;
+        int iActiveWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+        
+        if(!IsValidEntity(iActiveWeapon)
+                || GetEntPropFloat(iActiveWeapon, Prop_Send, "m_flCycle") > 0
+                || GetEntProp(iActiveWeapon, Prop_Send, "m_bInReload") > 0)
+        return Plugin_Continue;
 
-		// SetEntProp(CurrentWeapon, Prop_Send, "m_isHoldingFireButton", 1); //Is holding the IN_ATTACK
-		SetEntProp(iActiveWeapon, Prop_Send, "m_isHoldingFireButton", 0); //Is not holding the IN_ATTACK // LOOOOOOOOOOOOOOOL SEMS LEGIT
-		ChangeEdictState(iActiveWeapon, FindDataMapOffs(iActiveWeapon, "m_isHoldingFireButton"));
-			
-		//EmitSoundToClient(client,"^weapons/pistol/gunfire/pistol_fire.wav"); // The "Normal" Fire sound is little buggy...
-	}
-	return Plugin_Continue;
+        // SetEntProp(CurrentWeapon, Prop_Send, "m_isHoldingFireButton", 1); //Is holding the IN_ATTACK
+        SetEntProp(iActiveWeapon, Prop_Send, "m_isHoldingFireButton", 0); //Is not holding the IN_ATTACK // LOOOOOOOOOOOOOOOL SEMS LEGIT
+
+        int offset;
+        FindDataMapInfo(iActiveWeapon, "m_isHoldingFireButton", _, _, offset);
+        ChangeEdictState(iActiveWeapon, offset);
+            
+        //EmitSoundToClient(client,"^weapons/pistol/gunfire/pistol_fire.wav"); // The "Normal" Fire sound is little buggy...
+    }
+    return Plugin_Continue;
 }

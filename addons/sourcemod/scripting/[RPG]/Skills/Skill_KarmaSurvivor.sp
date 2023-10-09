@@ -204,7 +204,7 @@ public void RegisterSkill()
     char sDescription[512];
     FormatEx(sDescription, sizeof(sDescription), "You will respawn after getting karma killed, in your last grounded position\nYou only get 1 activation per round.\nYou get 1 extra activation per difficulty under Expert");
     karmaSurvivorIndex = GunXP_RPGShop_RegisterSkill("Karma Survivor", "Karma Survivor", sDescription,
-    250000, 0);
+    42000, 850000);
 }
 
 

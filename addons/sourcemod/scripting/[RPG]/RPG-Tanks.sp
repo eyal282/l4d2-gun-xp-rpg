@@ -758,29 +758,32 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[victim], tank);
 
-	if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && damagetype & DMG_BURN)
+	if(!(damagetype & DMG_DIRECT))
 	{
-		bImmune = true;
-	}
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && damagetype & DMG_BURN)
+		{
+			bImmune = true;
+		}
 
-	if(tank.damageImmunities & DAMAGE_IMMUNITY_EXPLOSIVES && damagetype & DMG_BLAST)
-	{
-		bImmune = true;
-	}
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_EXPLOSIVES && damagetype & DMG_BLAST)
+		{
+			bImmune = true;
+		}
 
-	if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
-	{
-		if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN || !(damagetype & DMG_BURN))
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
+		{
+			if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN || !(damagetype & DMG_BURN))
+			{
+				bImmune = true;
+			}
+		}
+
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS && damagetype & DMG_BULLET)
 		{
 			bImmune = true;
 		}
 	}
-
-	if(tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS && damagetype & DMG_BULLET)
-	{
-		bImmune = true;
-	}
-
+	
 	char sClassname[64];
 	GetEdictClassname(inflictor, sClassname, sizeof(sClassname));
 
