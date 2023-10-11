@@ -179,7 +179,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, marksmanIndex);
 
     if(perkLevel == -1)
-        perkLevel = 0;
+        return;
 
     damage += damage * g_fMarksmanDamageIncrease[perkLevel];
 }

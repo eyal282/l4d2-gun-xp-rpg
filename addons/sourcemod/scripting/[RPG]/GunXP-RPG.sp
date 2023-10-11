@@ -619,6 +619,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 {	
 
 	CreateNative("GunXP_RPG_GetClientLevel", Native_GetClientLevel);
+	CreateNative("GunXP_RPG_GetClientRealLevel", Native_GetClientRealLevel);
 
 	CreateNative("GunXP_RPG_AddClientXP", Native_AddClientXP);
 
@@ -647,6 +648,13 @@ public int Native_GetClientLevel(Handle caller, int numParams)
 
 	if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return 0;
+
+	return GetClientLevel(client);
+}
+
+public int Native_GetClientRealLevel(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
 
 	return GetClientLevel(client);
 }
@@ -3090,6 +3098,11 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree,
 
 	if(!bAuto && transaction == null)
 		ShowPerkTreeInfo(client, perkIndex);
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
 }
 
 stock void SellPerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, bool bAuto, Transaction transaction = null)
@@ -3129,6 +3142,11 @@ stock void SellPerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, boo
 
 	if(!bAuto && transaction == null)
 		ShowPerkTreeInfo(client, perkIndex);
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
 }
 
 stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
@@ -3165,6 +3183,11 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, 
 	// To make buying skills faster, the function jumps back to list of skills instead.
 	//if(!bAuto)
 	//	ShowSkillInfo(client, skillIndex);
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
 }
 
 
@@ -3202,6 +3225,11 @@ stock void SellSkill(int client, int skillIndex, enSkill skill, bool bAuto, Tran
 	// To make buying skills faster, the function jumps back to list of skills instead.
 	//if(!bAuto)
 	//	ShowSkillInfo(client, skillIndex);
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
 }
 
 

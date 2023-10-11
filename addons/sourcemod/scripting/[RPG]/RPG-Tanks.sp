@@ -440,6 +440,18 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 				}
 			}
 		}
+
+		if(L4D_IsFinaleEscapeInProgress())
+		{
+			PrintToChatAll(" The Finale was won. %N will be converted to a normal Tank now.", i);
+
+			SetClientName(i, "Tank");
+
+			RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+			//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+			g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+		}
 	}
 
 	return Plugin_Continue;
@@ -482,7 +494,15 @@ public void GunXP_OnReloadRPGPlugins()
 
 }
 
+public Action RPG_Perks_OnShouldClosetsRescue()
+{
+	if(L4D_IsMissionFinalMap(true) && L4D2_GetCurrentFinaleStage() == 18)
+	{
+		return Plugin_Handled;
+	}
 
+	return Plugin_Continue;
+}
 public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2ZombieClassType &zclass)
 {
 	if(priority != 0)
@@ -547,8 +567,6 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 	{
 		totalEntries += entries[i];	
 	}
-	
-
 	
 	int RNG = GetRandomInt(1, totalEntries);
 
@@ -783,7 +801,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 			bImmune = true;
 		}
 	}
-	
+
 	char sClassname[64];
 	GetEdictClassname(inflictor, sClassname, sizeof(sClassname));
 
@@ -1609,6 +1627,6 @@ stock void CalculateIsEnoughDamage(int survivor, int tank, float &fDamageRatio, 
 
 	fMinDamageRatio = 0.05;
 
-	if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientLevel(survivor) <= 21)
+	if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientRealLevel(survivor) <= 21)
 		fMinDamageRatio = 0.01;
 }

@@ -77,7 +77,10 @@ char ColorEquivalents[][] =
 
 
 native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
+
+// GetClientLevel is 0 if mutated, RealLevel ignores mutation.
 native int GunXP_RPG_GetClientLevel(int client);
+native int GunXP_RPG_GetClientRealLevel(int client);
 
 // Make identifier as descriptive as possible.
 // Use {PERCENT} to denote percentages in descriptions.

@@ -68,6 +68,11 @@ bool g_bRoundStarted = false;
 
 Handle g_hCheckAttributeExpire;
 
+ConVar g_hRPGRelayVersus;
+ConVar g_hGamemode;
+
+ConVar g_bRescueDisabled;
+
 ConVar g_hTankSwingInterval;
 ConVar g_hTankAttackInterval;
 
@@ -114,6 +119,8 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnShouldClosetsRescue;
+
 GlobalForward g_fwOnShouldInstantKill;
 
 GlobalForward g_fwOnGetTankSwingSpeed;
@@ -153,9 +160,12 @@ int g_iTemporaryHealth[MAXPLAYERS+1];
 int g_iMaxHealth[MAXPLAYERS+1];
 
 int g_iLastTemporaryHealth[MAXPLAYERS+1];
+int g_iLastPermanentHealth[MAXPLAYERS+1];
 char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
+
+char g_sLastGamemodeRelayed[MAXPLAYERS+1][64];
 
 enum struct enTimedAttribute
 {
@@ -925,11 +935,27 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	g_hAdrenalineDuration.FloatValue = 0.0;
 	g_hAdrenalineHealPercent.IntValue = 0;
 	g_hPainPillsHealPercent.IntValue = 0;
-	g_hPainPillsHealThreshold.IntValue = 65535;
+	g_hPainPillsHealThreshold.IntValue = 32767;
 
-	g_hKitMaxHeal.IntValue = 65535;
+	g_hKitMaxHeal.IntValue = 32767;
 	// Prediction error fix.
 	g_hCriticalSpeed.FloatValue = DEFAULT_RUN_SPEED;
+
+	Call_StartForward(g_fwOnShouldClosetsRescue);
+
+	Action rtn;
+
+	Call_Finish(rtn);
+
+	// L4D2_IsRealismMode is bugged for now...
+	if(rtn >= Plugin_Handled || view_as<int>(L4D2_IsRealismMode()) == 1)
+	{
+		g_bRescueDisabled.BoolValue = true;
+	}
+	else
+	{
+		g_bRescueDisabled.BoolValue = false;
+	}
 
 	bool g_bEndConditionMet = true;
 
@@ -944,6 +970,11 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		else if(!IsPlayerAlive(i))
 			continue;
 
+		if(!L4D_IsPlayerIncapacitated(i))
+		{
+			g_iLastTemporaryHealth[i] = RPG_Perks_GetClientTempHealth(i);
+			g_iLastPermanentHealth[i] = GetEntityHealth(i);
+		}
 		if(RPG_Perks_IsEntityTimedAttribute(i, "Stun"))
 		{
 			TeleportEntity(i, g_fLastStunOrigin[i], NULL_VECTOR, NULL_VECTOR);
@@ -1026,7 +1057,6 @@ public Action Command_MutationTest(int client, int args)
 public Action Command_NightmareTest(int client, int args)
 {
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Nightmare", 15.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
-
 	return Plugin_Handled;
 }
 
@@ -1077,6 +1107,9 @@ public void OnPluginStart()
 	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
 
+	// Plugin_Handled if not.
+	g_fwOnShouldClosetsRescue = CreateGlobalForward("RPG_Perks_OnShouldClosetsRescue", ET_Event);
+
 	g_fwOnShouldInstantKill = CreateGlobalForward("RPG_Perks_OnShouldInstantKill", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef);
 
 	g_fwOnGetTankSwingSpeed = CreateGlobalForward("RPG_Perks_OnGetTankSwingSpeed", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
@@ -1115,6 +1148,9 @@ public void OnPluginStart()
 
 	AutoExecConfig_SetFile("RPG-Perks");
 
+	g_hRPGRelayVersus = AutoExecConfig_CreateConVar("rpg_relay_versus", "0", "When set to 1, fixes bug where you can't vote kick. Might cause more problems than it solves.");
+	g_hGamemode = FindConVar("mp_gamemode");
+
 	g_hRPGDeathCheckMode = AutoExecConfig_CreateConVar("rpg_death_check_mode", "1", "0: Normal behaviour. 1: Round won't end until humans are dead. 2: Round won't end until survivors are dead.");
 
 	g_hRPGIncapPistolPriority = AutoExecConfig_CreateConVar("rpg_incap_pistol_priority", "0", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
@@ -1122,6 +1158,8 @@ public void OnPluginStart()
 	g_hRPGTriggerHurtMultiplier = AutoExecConfig_CreateConVar("rpg_trigger_hurt_multiplier", "10.0", "Multiplier of damage inflicted to ZOMBIES by trigger_hurt that has greater than 600 damage.\nOn rooftop finale if a charger doesn't instantly die from the trigger_hurt, bugs can easily occur.");
 
 	g_hRPGTankHealth = AutoExecConfig_CreateConVar("rpg_z_tank_health", "4000", "Default health of the Tank");
+
+	g_bRescueDisabled = FindConVar("sv_rescue_disabled");
 
 	g_hTankSwingInterval = FindConVar("tank_swing_interval");
 	g_hTankAttackInterval = FindConVar("z_tank_attack_interval");
@@ -1876,6 +1914,7 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	int newPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
 
 	g_iLastTemporaryHealth[newPlayer] = 0;
+	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
@@ -1901,6 +1940,7 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_bLastSecondaryDual[newPlayer] = false;
 
 	g_iLastTemporaryHealth[newPlayer] = 0;
+	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
@@ -1984,7 +2024,8 @@ public Action Event_HealBegin(Event event, const char[] name, bool dontBroadcast
 {
 	int healed = GetClientOfUserId(GetEventInt(event, "subject"));
 
-	g_iLastTemporaryHealth[healed] = L4D_GetPlayerTempHealth(healed);
+	g_iLastTemporaryHealth[healed] = RPG_Perks_GetClientTempHealth(healed);
+	g_iLastPermanentHealth[healed] = GetEntityHealth(healed);
 
 	return Plugin_Continue;
 }
@@ -1997,8 +2038,6 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 
 	if(client == 0)
 		return Plugin_Continue;
-	
-	int restored = event.GetInt("health_restored");
 
 	int percentToHeal = 0;
 
@@ -2012,11 +2051,15 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 	Call_Finish();
 
 	if(percentToHeal <= 0)
+	{
+		// No infinite HP from 32767 first_aid_kit_max_heal ( to enable using it at all times )
+		GunXP_GiveClientHealth(healed, 0, 0);
 		return Plugin_Continue;
-	
-	SetEntityHealth(healed, GetEntityHealth(healed) - restored);
+	}
 
-	GunXP_GiveClientHealth(healed, RoundToFloor(GetEntityMaxHealth(healed) * (float(percentToHeal) / 100)), g_iLastTemporaryHealth[healed]);
+	SetEntityHealth(healed, 0);
+
+	GunXP_GiveClientHealth(healed, g_iLastPermanentHealth[healed] + RoundToFloor(GetEntityMaxHealth(healed) * (float(percentToHeal) / 100.0)), g_iLastTemporaryHealth[healed]);
 
 	return Plugin_Continue;
 }
@@ -2336,8 +2379,35 @@ public void OnClientPutInServer(int client)
 	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
 
 	AnimHookEnable(client, INVALID_FUNCTION, OnTankStartSwingPost);
+
 }
 
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
+{
+	if(!g_hRPGRelayVersus.BoolValue)
+		return Plugin_Continue;
+
+	else if(L4D_GetGameModeType() != GAMEMODE_COOP)
+		return Plugin_Continue;
+
+	char modeToRelay[64];
+
+	if(buttons & IN_SCORE || !IsPlayerAlive(client))
+		g_hGamemode.GetString(modeToRelay, sizeof(modeToRelay));
+
+	else
+	{
+		modeToRelay = "versus";
+	}
+
+	if(!StrEqual(modeToRelay, g_sLastGamemodeRelayed[client]))
+	{
+		g_sLastGamemodeRelayed[client] = modeToRelay;
+		SendConVarValue(client, g_hGamemode, modeToRelay);
+	}
+
+	return Plugin_Continue;
+}
 public Action OnTankStartSwingPost(int client, int &sequence)
 {
 	// 0 Clue how the other two got here...
