@@ -26,6 +26,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_CombatMedic.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Empathy.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Endurance.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_ExtendedHand.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Friendly.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_HardToKill.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_HelpingHand.smx"
