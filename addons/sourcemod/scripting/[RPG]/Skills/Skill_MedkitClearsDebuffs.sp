@@ -51,6 +51,27 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
+public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &speedmodifier)
+{
+    if(!GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
+        return;
+
+    switch(L4D2_GetWeaponId(weapon))
+    {
+        case L4D2WeaponId_FirstAidKit:
+        {
+            speedmodifier = 10.0;
+        }
+
+        case L4D2WeaponId_PainPills, L4D2WeaponId_Adrenaline:
+        {
+            float fChance = g_fChancePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(client)) / float(g_iChanceLevels)));
+
+            if(fChance >= 1.0)
+                speedmodifier = 10.0;
+        }
+    }
+}
 
 public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
 {
@@ -138,7 +159,7 @@ stock void TryClearDebuffs(int victim, int healer, bool bCertain = false)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit clears all debuffs.\nUsing Adrenaline or Pills has a chance to clear all debuffs.\nChance is %.1f{PERCENT} per %i Levels\nThis skill is active even under MUTATED debuff.", g_fChancePerLevels * 100.0, g_iChanceLevels);
+    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit clears all debuffs.\nUsing Adrenaline or Pills has a chance to clear all debuffs.\nChance is %.1f{PERCENT} per %i Levels\nThis skill is active even under MUTATED debuff.\nInstantly deploy meds that have 100{PERCENT} to clear debuffs", g_fChancePerLevels * 100.0, g_iChanceLevels);
     skillIndex = GunXP_RPGShop_RegisterSkill("Medkit Clears Debuffs", "Special First Aid", sDescription,
     40000, 0);
 }

@@ -97,8 +97,10 @@ public void OnPluginStart()
 {
     g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_hyperactive_damage_priority", "0", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
 
+    HookEvent("heal_success", Event_HealSuccess);
     HookEvent("adrenaline_used", Event_AdrenOrPillsUsed);
     HookEvent("pills_used", Event_AdrenOrPillsUsed);
+
 
     RegisterSkill();
 }
@@ -182,6 +184,26 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     damage += damage * (1.0 + (g_fMeleeDamagePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(attacker)) / float(g_iMeleeDamageLevels)))));
 }
 
+
+public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(event.GetInt("userid"));
+
+    int healed = GetClientOfUserId(GetEventInt(event, "subject"));
+
+    if(client == 0)
+        return Plugin_Continue;
+    
+    else if(!GunXP_RPGShop_IsSkillUnlocked(client, hyperactiveIndex))
+        return Plugin_Continue;
+
+    float fDuration = float(GunXP_RPG_GetClientLevel(healed)) * g_fDurationPerLevel;
+
+    RPG_Perks_ApplyEntityTimedAttribute(healed, "Hyperactive", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
+
+    return Plugin_Continue;
+}
+
 public Action Event_AdrenOrPillsUsed(Event event, const char[] name, bool dontBroadcast)
 {
     int client = GetClientOfUserId(event.GetInt("userid"));
@@ -202,7 +224,7 @@ public Action Event_AdrenOrPillsUsed(Event event, const char[] name, bool dontBr
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Using Adrenaline or Pills gives you +%i{PERCENT} melee damage per %i levels.\nAlso always works while Adrenaline is active.\nIt also gives you +%i{PERCENT} weapon fire rate.\nThis lasts %.1f sec per level.", RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels, RoundFloat(g_fFireRate * 100.0), g_fDurationPerLevel);
+    FormatEx(sDescription, sizeof(sDescription), "Using Kit, Adrenaline or Pills gives you +%i{PERCENT} melee damage per %i levels.\nAlso always works while Adrenaline is active.\nIt also gives you +%i{PERCENT} weapon fire rate.\nThis lasts %.1f sec per level.", RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels, RoundFloat(g_fFireRate * 100.0), g_fDurationPerLevel);
 
     hyperactiveIndex = GunXP_RPGShop_RegisterSkill("Hyperactive", "Hyperactive", sDescription,
     50000, 100000);

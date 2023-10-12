@@ -91,6 +91,9 @@ ConVar g_hKitMaxHeal;
 ConVar g_hKitDuration;
 ConVar g_hRPGKitDuration;
 
+ConVar g_hDefibDuration;
+ConVar g_hRPGDefibDuration;
+
 ConVar g_hReviveDuration;
 ConVar g_hRPGReviveDuration;
 ConVar g_hRPGLedgeReviveDuration;
@@ -147,6 +150,7 @@ GlobalForward g_fwOnGetRPGReviveHealthPercent;
 GlobalForward g_fwOnGetRPGDefibHealthPercent;
 
 GlobalForward g_fwOnGetRPGKitDuration;
+GlobalForward g_fwOnGetRPGDefibDuration;
 GlobalForward g_fwOnGetRPGReviveDuration;
 
 GlobalForward g_fwOnGetRPGIncapWeapon;
@@ -1138,6 +1142,7 @@ public void OnPluginStart()
 	g_fwOnGetRPGDefibHealthPercent = CreateGlobalForward("RPG_Perks_OnGetDefibHealthPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef, Param_CellByRef);
 
 	g_fwOnGetRPGKitDuration = CreateGlobalForward("RPG_Perks_OnGetKitDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
+	g_fwOnGetRPGDefibDuration = CreateGlobalForward("RPG_Perks_OnGetDefibDuration", ET_Ignore, Param_Cell, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGReviveDuration = CreateGlobalForward("RPG_Perks_OnGetReviveDuration", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef);
 
 	g_fwOnGetRPGIncapHealth = CreateGlobalForward("RPG_Perks_OnGetIncapHealth", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
@@ -1170,6 +1175,9 @@ public void OnPluginStart()
 
 	g_hKitDuration = FindConVar("first_aid_kit_use_duration");
 	g_hRPGKitDuration = AutoExecConfig_CreateConVar("rpg_first_aid_kit_use_duration", "5", "Default time for use with first aid kit.");
+
+	g_hDefibDuration = FindConVar("defibrillator_use_duration");
+	g_hRPGDefibDuration = AutoExecConfig_CreateConVar("rpg_defibrillator_use_duration", "5", "Default time for use with defibrillator.");
 
 	g_hReviveDuration = FindConVar("survivor_revive_duration");
 	g_hRPGReviveDuration = AutoExecConfig_CreateConVar("rpg_survivor_revive_duration", "5", "Default time for reviving.");
@@ -2775,23 +2783,63 @@ public void Frame_FirePlayerHurtEvent(Handle DP)
 	FireEvent(hNewEvent);
 }
 
-public Action L4D2_BackpackItem_StartAction(int client, int entity)
+public Action L4D2_BackpackItem_StartAction(int client, int entity, any type)
 {
-	float fDuration = g_hRPGKitDuration.FloatValue;
+	switch(type)
+	{
+		case L4D2WeaponId_FirstAidKit:
+		{
+			float fDuration = g_hRPGKitDuration.FloatValue;
 
-	int target = 0;
+			int target = 0;
 
-	Call_StartForward(g_fwOnGetRPGKitDuration);
+			Call_StartForward(g_fwOnGetRPGKitDuration);
 
-	Call_PushCell(client);
-	Call_PushCell(target);
-	Call_PushFloatRef(fDuration);
+			Call_PushCell(client);
+			Call_PushCell(target);
+			Call_PushFloatRef(fDuration);
 
-	Call_Finish();
+			Call_Finish();
 
-	g_hKitDuration.FloatValue = fDuration;
+			g_hKitDuration.FloatValue = fDuration;
+		}
+
+		case L4D2WeaponId_Defibrillator:
+		{
+			float fDuration = g_hRPGDefibDuration.FloatValue;
+
+			int target = 0;
+
+			Call_StartForward(g_fwOnGetRPGDefibDuration);
+
+			Call_PushCell(client);
+			Call_PushCell(target);
+			Call_PushFloatRef(fDuration);
+
+			Call_Finish();
+
+			g_hDefibDuration.FloatValue = fDuration;
+		}
+	}
+
 
 	return Plugin_Continue;
+}
+
+public void L4D2_BackpackItem_StartAction_Post(int client, int entity, any type)
+{
+	switch(type)
+	{
+		case L4D2WeaponId_FirstAidKit:
+		{
+			g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
+		}
+
+		case L4D2WeaponId_Defibrillator:
+		{
+			g_hDefibDuration.FloatValue = g_hRPGDefibDuration.FloatValue;
+		}
+	}
 }
 
 public void L4D_OnEnterGhostState(int client)
@@ -2893,10 +2941,6 @@ public void Frame_GhostState(int userid)
 	Call_Finish();
 
 	return;
-}
-public void L4D2_BackpackItem_StartAction_Post(int client, int entity)
-{
-	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
 }
 
 

@@ -61,6 +61,18 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
+
+public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &speedmodifier)
+{
+	if(L4D2_GetWeaponId(weapon) != L4D2WeaponId_Molotov)
+        return;
+
+	else if(!GunXP_RPGShop_IsSkillUnlocked(client, immolationIndex))
+		return;
+
+	speedmodifier = 10.0;
+}
+
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
     if(!StrEqual(attributeName, "Immolation"))
@@ -74,7 +86,6 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
     
     g_hTimer[newClient] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(newClient), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
-
 
 public void OnEntityDestroyed(int entity)
 {
@@ -217,7 +228,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection", g_fRadius, g_iMagnumShots);
+    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection\nMolotov is instantly equipped.", g_fRadius, g_iMagnumShots);
     immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
     150000, 0);
 }

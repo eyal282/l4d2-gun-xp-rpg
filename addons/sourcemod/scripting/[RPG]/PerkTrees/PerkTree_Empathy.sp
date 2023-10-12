@@ -101,6 +101,18 @@ public void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration
 }
 
 
+public void RPG_Perks_OnGetDefibDuration(int reviver, int victim, float &fDuration)
+{
+    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, empathyIndex);
+
+    if(perkLevel == -1)
+        return;
+
+    float percent = g_fSpeedPercents[perkLevel];
+
+    fDuration -= (percent * fDuration) / (percent + 100.0);
+}
+
 public void RegisterPerkTree()
 {
     ArrayList descriptions, costs, xpReqs;
@@ -112,7 +124,7 @@ public void RegisterPerkTree()
     {
         char TempFormat[128];
 
-        FormatEx(TempFormat, sizeof(TempFormat), "+%.0f{PERCENT} Medkit Heal Speed", g_fSpeedPercents[i]);
+        FormatEx(TempFormat, sizeof(TempFormat), "+%.0f{PERCENT} Medkit & Defib Heal Speed", g_fSpeedPercents[i]);
         descriptions.PushString(TempFormat);
         costs.Push(g_iEmpathyCosts[i]);
         xpReqs.Push(g_iEmpathyReqs[i]);

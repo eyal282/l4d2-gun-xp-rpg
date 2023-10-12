@@ -34,6 +34,7 @@ public void OnConfigsExecuted()
     RegisterSkill();
 
 }
+
 public void OnPluginStart()
 {
     RegisterSkill();
@@ -42,6 +43,17 @@ public void OnPluginStart()
 public void GunXP_OnReloadRPGPlugins()
 {
     GunXP_ReloadPlugin();
+}
+
+public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &speedmodifier)
+{
+	if(L4D2_GetWeaponId(weapon) != L4D2WeaponId_PipeBomb)
+        return;
+
+	else if(!GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
+		return;
+
+	speedmodifier = 10.0;
 }
 
 int g_iClusterCombo[2048];
@@ -115,7 +127,7 @@ public void L4D_PipeBomb_Detonate_Post(int entity, int client)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Whenever a pipe bomb detonates, another may spawn.\nChance equals your level x%.0f.\nEach cluster, chance halves capped at your level.\nAn infinite recursion may occur with this Skill.", g_fChanceMultiplier);
+    FormatEx(sDescription, sizeof(sDescription), "Whenever a pipe bomb detonates, another may spawn.\nChance equals your level x%.0f.\nEach cluster, chance halves capped at your level.\nAn infinite recursion may occur with this Skill.\nInstantly deploy Pipe Bombs", g_fChanceMultiplier);
 
     skillIndex = GunXP_RPGShop_RegisterSkill("Cluster Pipe Bombs", "Cluster Pipe Bombs", sDescription,
     27000, 0);
