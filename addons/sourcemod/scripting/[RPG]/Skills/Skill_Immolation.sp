@@ -228,7 +228,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection\nMolotov is instantly equipped.", g_fRadius, g_iMagnumShots);
+    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection\nDeploy Molotov instantly.", g_fRadius, g_iMagnumShots);
     immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
     150000, 0);
 }

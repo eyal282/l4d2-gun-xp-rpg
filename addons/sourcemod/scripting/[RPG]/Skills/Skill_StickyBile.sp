@@ -68,6 +68,17 @@ public void GunXP_OnReloadRPGPlugins()
 	GunXP_ReloadPlugin();
 }
 
+public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &speedmodifier)
+{
+	if(L4D2_GetWeaponId(weapon) != L4D2WeaponId_Vomitjar)
+        return;
+
+	else if(!GunXP_RPGShop_IsSkillUnlocked(client, bileIndex))
+		return;
+
+	speedmodifier = 10.0;
+}
+
 public void OnEntityDestroyed(int entity)
 {
 	if(!IsValidEntityIndex(entity))
@@ -325,7 +336,7 @@ public void L4D2_Infected_HitByVomitJar_Post(int victim, int attacker)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Bile jar becomes extremely sticky\nStuns Common/Special/Tank for %.0f/%.0f/%.0f sec\nBile sticks to the ground, allowing to bile enemies that go through it.", g_fStunTimeCommons, g_fStunTimeSpecials, g_fStunTimeTanks);
+	FormatEx(sDescription, sizeof(sDescription), "Bile jar becomes extremely sticky\nStuns Common/Special/Tank for %.0f/%.0f/%.0f sec\nBile sticks to the ground, allowing to bile enemies that go through it.\nDeploy Bile jar instantly", g_fStunTimeCommons, g_fStunTimeSpecials, g_fStunTimeTanks);
 	bileIndex = GunXP_RPGShop_RegisterSkill("Sticky Bile", "Sticky Bile", sDescription,
 	500000, 0);
 }

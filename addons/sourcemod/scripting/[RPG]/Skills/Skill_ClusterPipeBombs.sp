@@ -127,7 +127,7 @@ public void L4D_PipeBomb_Detonate_Post(int entity, int client)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Whenever a pipe bomb detonates, another may spawn.\nChance equals your level x%.0f.\nEach cluster, chance halves capped at your level.\nAn infinite recursion may occur with this Skill.\nInstantly deploy Pipe Bombs", g_fChanceMultiplier);
+    FormatEx(sDescription, sizeof(sDescription), "Whenever a pipe bomb detonates, another may spawn.\nChance equals your level x%.0f.\nEach cluster, chance halves capped at your level.\nAn infinite recursion may occur with this Skill.\nDeploy Pipe Bombs instantly", g_fChanceMultiplier);
 
     skillIndex = GunXP_RPGShop_RegisterSkill("Cluster Pipe Bombs", "Cluster Pipe Bombs", sDescription,
     27000, 0);

@@ -159,7 +159,7 @@ stock void TryClearDebuffs(int victim, int healer, bool bCertain = false)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit clears all debuffs.\nUsing Adrenaline or Pills has a chance to clear all debuffs.\nChance is %.1f{PERCENT} per %i Levels\nThis skill is active even under MUTATED debuff.\nInstantly deploy meds that have 100{PERCENT} to clear debuffs", g_fChancePerLevels * 100.0, g_iChanceLevels);
+    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit clears all debuffs.\nUsing Adrenaline or Pills has a chance to clear all debuffs.\nChance is %.1f{PERCENT} per %i Levels\nThis skill is active even under MUTATED debuff.\nDeploy meds instantly if they have 100{PERCENT} chance to clear debuffs", g_fChancePerLevels * 100.0, g_iChanceLevels);
     skillIndex = GunXP_RPGShop_RegisterSkill("Medkit Clears Debuffs", "Special First Aid", sDescription,
     40000, 0);
 }
