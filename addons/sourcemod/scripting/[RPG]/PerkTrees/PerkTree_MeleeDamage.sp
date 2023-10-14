@@ -27,21 +27,21 @@ int meleeDamageIndex = -1;
 
 int g_iMeleeDamages[] =
 {
-    100,
-    200,
-    300,
-    400,
+    450,
     500,
     600,
     700,
-    800
+    800,
+    900,
+    1000,
+    1200
 };
 
 int g_iMeleeCosts[] =
 {
     0,
-    200,
-    400,
+    60,
+    180,
     600,
     800,
     1000,
@@ -81,7 +81,6 @@ public void OnPluginStart()
     AutoExecConfig_SetFile("GunXP-MeleeDamagePerkTree.cfg");
 
     g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_melee_damage_priority", "-2", "Don't be shy to account for this cvar when setting your priority.\nDo not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
-    g_hTankDamageMultiplier = AutoExecConfig_CreateConVar("gun_xp_rpgshop_melee_damage_tank_multiplier", "1.5", "Melee damage multiplier for tanks");
 
     AutoExecConfig_ExecuteFile();
 
@@ -135,11 +134,7 @@ public void RegisterPerkTree()
     {
         char TempFormat[128];
 
-        if(g_hTankDamageMultiplier.FloatValue == 1.0)
-            FormatEx(TempFormat, sizeof(TempFormat), "Base damage of melee becomes %i", g_iMeleeDamages[i]);
-
-        else
-            FormatEx(TempFormat, sizeof(TempFormat), "Base damage of melee becomes %i, but tanks take %.1fx damage", g_iMeleeDamages[i], g_hTankDamageMultiplier.FloatValue);
+        FormatEx(TempFormat, sizeof(TempFormat), "Base damage of melee becomes %i", g_iMeleeDamages[i]);
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iMeleeCosts[i]);

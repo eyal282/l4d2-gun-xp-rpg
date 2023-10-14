@@ -24,6 +24,8 @@
 
 #define MIN_FLOAT -2147483647.0 // I think -2147483648 is lowest but meh, same thing.
 
+char INSERT_OR_IGNORE_INTO[64];
+
 public Plugin myinfo = {
 	name = "Gun XP - RPG",
 	author = "Eyal282",
@@ -110,7 +112,7 @@ int g_iRPGTarget[MAXPLAYERS+1];
 
 int g_iMidSell[MAXPLAYERS+1] = { -1, ... };
 
-Database dbGunXP;
+Database g_dbGunXP;
 
 bool dbFullConnected;
 
@@ -1156,30 +1158,71 @@ public void ConnectDatabase()
 {
 	char     error[256];
 	Database hndl;
-	if ((hndl = SQLite_UseDatabase("GunXP-RPG", error, sizeof(error))) == null)
-		SetFailState(error);
 
+	if(SQL_CheckConfig("GunXP-RPG"))
+	{
+		SQL_TConnect(SQLCB_DatabaseConnected, "GunXP-RPG");
+	}
 	else
 	{
-		dbGunXP = hndl;
+		INSERT_OR_IGNORE_INTO = "OR IGNORE INTO";
 
-		dbGunXP.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GunXP_Players (AuthId VARCHAR(32) NOT NULL UNIQUE, LastName VARCHAR(64) NOT NULL, XP INT(11) NOT NULL, XPCurrency INT(11) NOT NULL, LastSecondary INT(11) NOT NULL, LastPrimary INT(11) NOT NULL)", 2, DBPrio_High);
-		dbGunXP.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GunXP_PerkTrees (AuthId VARCHAR(32) NOT NULL, PerkTreeIdentifier VARCHAR(32) NOT NULL, PerkTreeLevel INT(11) NOT NULL, UNIQUE(AuthId, PerkTreeIdentifier))", 2, DBPrio_High);
-		dbGunXP.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GunXP_Skills (AuthId VARCHAR(32) NOT NULL, SkillIdentifier VARCHAR(32) NOT NULL, UNIQUE(AuthId, SkillIdentifier))", 2, DBPrio_High);
+		hndl = SQLite_UseDatabase("GunXP-RPG", error, sizeof(error));
 
-		dbFullConnected = true;
-
-		for (int i = 1; i <= MaxClients; i++)
+		if(hndl == null)
 		{
-			if(!IsClientInGame(i))
-				continue;
-				
-			OnClientPutInServer(i);
+			SetFailState("Could not connect to SQLite. Error: %s", error);
+		}
+		else
+		{
+			g_dbGunXP = hndl;
+
+			OnDatabaseConnected();
+		}
+	}
+}
+
+
+public void SQLCB_DatabaseConnected(Handle owner, Database hndl, const char[] error, any data)
+{
+	if (hndl == INVALID_HANDLE)
+	{
+		SetFailState("Could not connect to database. Reason: %s", error);
+	}
+	else
+	{
+		char sIdentifier[11];
+		hndl.Driver.GetIdentifier(sIdentifier, sizeof(sIdentifier));
+
+		if(StrEqual(sIdentifier, "mysql", false))
+		{
+			INSERT_OR_IGNORE_INTO = "IGNORE INTO";
+		}
+
+		g_dbGunXP = hndl;
+
+		OnDatabaseConnected();
+	}
+}
+
+public void OnDatabaseConnected()
+{
+	g_dbGunXP.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GunXP_Players (AuthId VARCHAR(32) NOT NULL UNIQUE, LastName VARCHAR(64) NOT NULL, XP INT(11) NOT NULL, XPCurrency INT(11) NOT NULL, LastSecondary INT(11) NOT NULL, LastPrimary INT(11) NOT NULL)", 2, DBPrio_High);
+	g_dbGunXP.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GunXP_PerkTrees (AuthId VARCHAR(32) NOT NULL, PerkTreeIdentifier VARCHAR(32) NOT NULL, PerkTreeLevel INT(11) NOT NULL, UNIQUE(AuthId, PerkTreeIdentifier))", 2, DBPrio_High);
+	g_dbGunXP.Query(SQLCB_Error, "CREATE TABLE IF NOT EXISTS GunXP_Skills (AuthId VARCHAR(32) NOT NULL, SkillIdentifier VARCHAR(32) NOT NULL, UNIQUE(AuthId, SkillIdentifier))", 2, DBPrio_High);
+
+	dbFullConnected = true;
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
 			
-			if(IsClientAuthorized(i))
-			{
-				RequestFrame(FetchStats, i);
-			}
+		OnClientPutInServer(i);
+		
+		if(IsClientAuthorized(i))
+		{
+			RequestFrame(FetchStats, i);
 		}
 	}
 }
@@ -1313,7 +1356,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 	}
 
 	if(bFound)
-		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+		g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 
 	return Plugin_Continue;
 }
@@ -1968,7 +2011,7 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 					}
 
 					if(bFound)
-						dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+						g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 				}
 			}
 			case 2:
@@ -2874,20 +2917,20 @@ public void FetchStats(int client)
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGunXP.Format(sQuery, sizeof(sQuery), "SELECT * FROM GunXP_Players WHERE AuthId = '%s'", AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "SELECT * FROM GunXP_Players WHERE AuthId = '%s'", AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
-	dbGunXP.Format(sQuery, sizeof(sQuery), "SELECT * FROM GunXP_Skills WHERE AuthId = '%s'", AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "SELECT * FROM GunXP_Skills WHERE AuthId = '%s'", AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
-	dbGunXP.Format(sQuery, sizeof(sQuery), "SELECT * FROM GunXP_PerkTrees WHERE AuthId = '%s'", AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "SELECT * FROM GunXP_PerkTrees WHERE AuthId = '%s'", AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
 	Handle DP = CreateDataPack();
 
 	WritePackCell(DP, GetClientUserId(client));
 
-	dbGunXP.Execute(transaction, SQLTrans_PlayerLoaded, SQLTrans_SetFailState, DP);
+	g_dbGunXP.Execute(transaction, SQLTrans_PlayerLoaded, SQLTrans_SetFailState, DP);
 }
 
 stock void CalculateStats(int client)
@@ -2940,7 +2983,10 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 	{
 		if(g_iXP[client] >= LEVELS[i])
 		{
-			PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
+			if(!IsFakeClient(i))
+			{
+				PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
+			}
 
 			if(!StrEqual(GUNS_CLASSNAMES[i], "null"))
 			{
@@ -2953,9 +2999,9 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XP = XP + %i, XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", amount, amount, AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XP = XP + %i, XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", amount, amount, AuthId);
 
-	dbGunXP.Query(SQLCB_Error, sQuery);	
+	g_dbGunXP.Query(SQLCB_Error, sQuery);	
 
 	CalculateStats(client);
 }
@@ -3040,16 +3086,16 @@ stock void ResetPerkTreesAndSkills(int client)
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XP WHERE AuthId = '%s'", AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XP WHERE AuthId = '%s'", AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
-	dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_Skills WHERE AuthId = '%s'", AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_Skills WHERE AuthId = '%s'", AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
-	dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_PerkTrees WHERE AuthId = '%s'", AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_PerkTrees WHERE AuthId = '%s'", AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
-	dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 
 	if(IsPlayerAlive(client))
 	{
@@ -3081,19 +3127,19 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree,
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency - %i WHERE AuthId = '%s'", cost, AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency - %i WHERE AuthId = '%s'", cost, AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
 	// PerkTreeLevel to -1 to immediately increment it.
-	dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO GunXP_PerkTrees (AuthId, PerkTreeIdentifier, PerkTreeLevel) VALUES ('%s', '%s', -1)", AuthId, perkTree.identifier);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT %s GunXP_PerkTrees (AuthId, PerkTreeIdentifier, PerkTreeLevel) VALUES ('%s', '%s', -1)", INSERT_OR_IGNORE_INTO, AuthId, perkTree.identifier);
 	SQL_AddQuery(transaction, sQuery);
 	
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_PerkTrees SET PerkTreeLevel = PerkTreeLevel + 1 WHERE AuthId = '%s' AND PerkTreeIdentifier = '%s'", AuthId, perkTree.identifier);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_PerkTrees SET PerkTreeLevel = PerkTreeLevel + 1 WHERE AuthId = '%s' AND PerkTreeIdentifier = '%s'", AuthId, perkTree.identifier);
 	SQL_AddQuery(transaction, sQuery);
 
 	if(bExecute)
 	{
-		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+		g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 	}
 
 	if(!bAuto && transaction == null)
@@ -3125,19 +3171,19 @@ stock void SellPerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, boo
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", cost, AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", cost, AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
 	// PerkTreeLevel to -1 to immediately increment it.
-	dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO GunXP_PerkTrees (AuthId, PerkTreeIdentifier, PerkTreeLevel) VALUES ('%s', '%s', -1)", AuthId, perkTree.identifier);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT %s GunXP_PerkTrees (AuthId, PerkTreeIdentifier, PerkTreeLevel) VALUES ('%s', '%s', -1)", INSERT_OR_IGNORE_INTO, AuthId, perkTree.identifier);
 	SQL_AddQuery(transaction, sQuery);
 	
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_PerkTrees SET PerkTreeLevel = PerkTreeLevel - 1 WHERE AuthId = '%s' AND PerkTreeIdentifier = '%s'", AuthId, perkTree.identifier);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_PerkTrees SET PerkTreeLevel = PerkTreeLevel - 1 WHERE AuthId = '%s' AND PerkTreeIdentifier = '%s'", AuthId, perkTree.identifier);
 	SQL_AddQuery(transaction, sQuery);
 
 	if(bExecute)
 	{
-		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+		g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 	}
 
 	if(!bAuto && transaction == null)
@@ -3168,16 +3214,16 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, 
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency - %i WHERE AuthId = '%s'", skill.cost, AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency - %i WHERE AuthId = '%s'", skill.cost, AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
 	// INSERT INTO will guarantee an error if we give someone the same skill twice.
-	dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT INTO GunXP_Skills (AuthId, SkillIdentifier) VALUES ('%s', '%s')", AuthId, skill.identifier);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT INTO GunXP_Skills (AuthId, SkillIdentifier) VALUES ('%s', '%s')", AuthId, skill.identifier);
 	SQL_AddQuery(transaction, sQuery);
 
 	if(bExecute)
 	{
-		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+		g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 	}
 
 	// To make buying skills faster, the function jumps back to list of skills instead.
@@ -3210,16 +3256,16 @@ stock void SellSkill(int client, int skillIndex, enSkill skill, bool bAuto, Tran
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", skill.cost, AuthId);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", skill.cost, AuthId);
 	SQL_AddQuery(transaction, sQuery);
 
 	// INSERT INTO will guarantee an error if we give someone the same skill twice.
-	dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_Skills WHERE AuthId = '%s' AND SkillIdentifier = '%s'", AuthId, skill.identifier);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_Skills WHERE AuthId = '%s' AND SkillIdentifier = '%s'", AuthId, skill.identifier);
 	SQL_AddQuery(transaction, sQuery);
 
 	if(bExecute)
 	{
-		dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+		g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
 	}
 
 	// To make buying skills faster, the function jumps back to list of skills instead.
@@ -3260,10 +3306,10 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 		GetClientName(client, Name, sizeof(Name));
 
 		char sQuery[512];
-		dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT OR IGNORE INTO GunXP_Players (AuthId, LastName, XP, XPCurrency, LastSecondary, LastPrimary) VALUES ('%s', '%s', 0, 0, 0, 0)", AuthId, Name);
+		g_dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT %s GunXP_Players (AuthId, LastName, XP, XPCurrency, LastSecondary, LastPrimary) VALUES ('%s', '%s', 0, 0, 0, 0)", INSERT_OR_IGNORE_INTO, AuthId, Name);
 
 		// We just loaded the client, and this is the first query made after authentication. We need to skip any queued queries to increase XP.
-		dbGunXP.Query(SQLCB_Error, sQuery, _, DBPrio_High);	
+		g_dbGunXP.Query(SQLCB_Error, sQuery, _, DBPrio_High);	
 
 		if(IsClientInGame(client) && IsPlayerAlive(client) && L4D_GetClientTeam(client) == L4DTeam_Survivor)
 		{

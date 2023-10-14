@@ -162,7 +162,7 @@ public Action Event_PlayerOrCommonDeath(Handle hEvent, const char[] name, bool d
     // Ultimate Samurai
     if(!StrEqual(weaponName, "melee"))
     {
-        if(type & DMG_BURN || type & DMG_BLAST || type & DMG_DIRECT)
+        if(type & DMG_BURN || type & DMG_BLAST || type & DMG_DROWNRECOVER)
             return Plugin_Continue;
     }
 

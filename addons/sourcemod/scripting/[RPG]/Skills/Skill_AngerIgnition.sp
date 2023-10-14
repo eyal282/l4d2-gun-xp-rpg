@@ -97,13 +97,13 @@ public void CastAngerIgnition(int client)
             if(GetVectorDistance(fOrigin, fSmokerOrigin) <= 128.0)
             {
                 RPG_Perks_IgniteWithOwnership(pinner, client);
-                RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN);
+                RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN|DMG_DROWNRECOVER);
             }
         }
         else
         {
             RPG_Perks_IgniteWithOwnership(pinner, client);
-            RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN);
+            RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_BURN|DMG_DROWNRECOVER);
         }
     }
 

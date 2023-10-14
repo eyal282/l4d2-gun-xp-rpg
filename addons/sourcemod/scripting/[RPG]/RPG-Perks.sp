@@ -989,7 +989,7 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		else if(g_hRPGDeathCheckMode.IntValue == 1 && !IsFakeClient(i))
 			g_bEndConditionMet = false;
 
-		if(!L4D_HasAnySurvivorLeftSafeArea())
+		if(!L4D_HasAnySurvivorLeftSafeArea() && !L4D2_IsTankInPlay())
 		{
 			if(IsPlayerSpawnStuck(i) && !g_bTeleported[i])
 			{
@@ -2511,7 +2511,7 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 	else if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !(damagetype & DMG_DIRECT) && !IsDamageToSelf(victim, attacker) && !IsPinDamage(victim, attacker))
+	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !(damagetype & DMG_DROWNRECOVER) && !IsDamageToSelf(victim, attacker) && !IsPinDamage(victim, attacker))
 		return Plugin_Continue;
 
 
@@ -2534,7 +2534,7 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	else if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || damagetype & DMG_DIRECT || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
+	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || damagetype & DMG_DROWNRECOVER || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;

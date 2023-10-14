@@ -27,6 +27,7 @@ int stunIndex, hunterIndex, mutationIndex;
 
 float g_fExplosionRange = 512.0;
 
+ConVar g_hDifficulty;
 
 public void OnLibraryAdded(const char[] name)
 {
@@ -44,6 +45,8 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
+	g_hDifficulty = FindConVar("z_difficulty");
+
 	RegisterTank();
 }
 
@@ -81,6 +84,7 @@ public Action Timer_TrollTank(Handle hTimer)
 		else if(RPG_Tanks_GetClientTank(i) != tankIndex)
 			continue;
 
+
 		OnTrollTankTimer(i);
 	}
 
@@ -89,6 +93,16 @@ public Action Timer_TrollTank(Handle hTimer)
 
 public void OnTrollTankTimer(int client)
 {
+	char sValue[16];
+	g_hDifficulty.GetString(sValue, sizeof(sValue));
+
+	if(!StrEqual(sValue, "impossible"))
+	{
+		if(RPG_Perks_GetClientHealth(client) * 2 > RPG_Perks_GetClientMaxHealth(client))
+		{
+			RPG_Perks_SetClientHealth(client, RPG_Perks_GetClientMaxHealth(client) / 2);
+		}
+	}
 	int weapon = L4D_GetPlayerCurrentWeapon(client);
 
 	if(weapon != -1)
@@ -193,6 +207,7 @@ public void RegisterTank()
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Painful Goodbye", sDescription);
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Cheerful Goodbye?", "No matter the situation, all players are treated as inflicted 100{PERCENT} of Tank's HP in damage.");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Fair Fight?", "Tank's max HP is halved below Expert difficulty");
 
 	stunIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Stun", "Stuns 2 closest survivors for 30 seconds in a 512 unit radius\nThis can stack freely.", 20, 40);
 	hunterIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Tactical Stun", "Spawns a Hunter that pins closest survivor\nThis always works no matter how far the survivor is.", 30, 45);

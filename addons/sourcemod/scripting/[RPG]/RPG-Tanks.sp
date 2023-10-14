@@ -122,7 +122,7 @@ public int Native_IsDamageImmuneTo(Handle caller, int numParams)
 	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
 		return false;
 
-	else if(damageType & DMG_DIRECT)
+	else if(damageType & DMG_DROWNRECOVER)
 		return false;
 		
 	if(g_iCurrentTank[client] < 0)
@@ -405,6 +405,17 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 
 		else if(g_iCurrentTank[i] < 0)
 			continue;
+
+		enTank tank;
+		g_aTanks.GetArray(g_iCurrentTank[i], tank);
+
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN)
+		{
+			if(L4D_IsPlayerOnFire(i))
+			{
+				ExtinguishEntity(i);
+			}
+		}
 
 		int count = GetEntityCount();
 
@@ -776,7 +787,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[victim], tank);
 
-	if(!(damagetype & DMG_DIRECT))
+	if(!(damagetype & DMG_DROWNRECOVER))
 	{
 		if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && damagetype & DMG_BURN)
 		{

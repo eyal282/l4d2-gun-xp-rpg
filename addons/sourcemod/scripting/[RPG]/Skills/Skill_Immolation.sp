@@ -174,7 +174,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(i, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DIRECT);
+            RPG_Perks_TakeDamage(i, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
 
             if(!RPG_Tanks_IsDamageImmuneTo(i, DAMAGE_IMMUNITY_BURN))
             {
@@ -191,7 +191,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DIRECT);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }
@@ -204,7 +204,7 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
         if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DIRECT);
+            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
             RPG_Perks_IgniteWithOwnership(iEntity, client);
         }
     }

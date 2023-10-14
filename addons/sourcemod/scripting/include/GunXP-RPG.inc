@@ -103,7 +103,7 @@ native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 native bool RPG_Perks_InstantKill(int victim, int attacker, int inflictor, int damagetype);
 
 // damagetypes:
-// DMG_DIRECT protects from Damage Reflect and bypasses protection.
+// DMG_DROWNRECOVER protects from Damage Reflect and bypasses protection.
 // Returns damage dealt after all modifiers.
 native float RPG_Perks_TakeDamage(int victim, int attacker, int inflictor, float damage, int damagetype, int hitbox=0, int hitgroup=0);
 
