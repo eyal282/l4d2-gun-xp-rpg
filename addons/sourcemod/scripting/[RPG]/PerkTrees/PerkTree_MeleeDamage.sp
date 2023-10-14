@@ -21,7 +21,6 @@ public Plugin myinfo =
 #define MIN_FLOAT -2147483647.0
 
 ConVar g_hDamagePriority;
-ConVar g_hTankDamageMultiplier;
 
 int meleeDamageIndex = -1;
 
@@ -113,13 +112,11 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
     damage = float(g_iMeleeDamages[perkLevel]);
 
-    if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
-    {
-        damage *= g_hTankDamageMultiplier.FloatValue;
-    }
     // Tanks are immune to HS damage.
-    else if(hitgroup == 1)
+    if(RPG_Perks_GetZombieType(victim) != ZombieType_Tank && hitgroup == 1)
+    {
         damage *= 4;
+    }
 
     bDontInstakill = true;
 }
