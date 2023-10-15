@@ -55,6 +55,7 @@ float g_fAbsAdrenalineSpeed[MAXPLAYERS+1];		// Player speed when running under a
 float g_fAbsScopeSpeed[MAXPLAYERS+1];		// Player speed while looking through a sniper scope
 float g_fAbsCustomSpeed[MAXPLAYERS+1];		// Player speed while under custom condition.
 
+int g_iAbsLastLimpHealth[MAXPLAYERS+1];
 int g_iAbsLimpHealth[MAXPLAYERS+1];
 int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 
@@ -68,8 +69,8 @@ bool g_bRoundStarted = false;
 
 Handle g_hCheckAttributeExpire;
 
-ConVar g_hRPGRelayVersus;
 ConVar g_hGamemode;
+ConVar g_hDifficulty;
 
 ConVar g_bRescueDisabled;
 
@@ -168,8 +169,6 @@ int g_iLastPermanentHealth[MAXPLAYERS+1];
 char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
-
-char g_sLastGamemodeRelayed[MAXPLAYERS+1][64];
 
 enum struct enTimedAttribute
 {
@@ -1034,6 +1033,16 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 			Call_Finish();
 		}
+
+		if(!IsFakeClient(i) && g_iAbsLastLimpHealth[i] != g_iAbsLimpHealth[i])
+		{
+			char sValue[11];
+			IntToString(g_iAbsLimpHealth[i], sValue, sizeof(sValue));
+
+			SendConVarValue(i, g_hLimpHealth, sValue);
+		}
+
+		g_iAbsLastLimpHealth[i] = g_iAbsLimpHealth[i];
 	}
 
 	char sCode[128];
@@ -1153,8 +1162,8 @@ public void OnPluginStart()
 
 	AutoExecConfig_SetFile("RPG-Perks");
 
-	g_hRPGRelayVersus = AutoExecConfig_CreateConVar("rpg_relay_versus", "0", "When set to 1, fixes bug where you can't vote kick. Might cause more problems than it solves.");
 	g_hGamemode = FindConVar("mp_gamemode");
+	g_hDifficulty = FindConVar("z_difficulty");
 
 	g_hRPGDeathCheckMode = AutoExecConfig_CreateConVar("rpg_death_check_mode", "1", "0: Normal behaviour. 1: Round won't end until humans are dead. 2: Round won't end until survivors are dead.");
 
@@ -2390,32 +2399,6 @@ public void OnClientPutInServer(int client)
 
 }
 
-public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
-{
-	if(!g_hRPGRelayVersus.BoolValue)
-		return Plugin_Continue;
-
-	else if(L4D_GetGameModeType() != GAMEMODE_COOP)
-		return Plugin_Continue;
-
-	char modeToRelay[64];
-
-	if(buttons & IN_SCORE || !IsPlayerAlive(client))
-		g_hGamemode.GetString(modeToRelay, sizeof(modeToRelay));
-
-	else
-	{
-		modeToRelay = "versus";
-	}
-
-	if(!StrEqual(modeToRelay, g_sLastGamemodeRelayed[client]))
-	{
-		g_sLastGamemodeRelayed[client] = modeToRelay;
-		SendConVarValue(client, g_hGamemode, modeToRelay);
-	}
-
-	return Plugin_Continue;
-}
 public Action OnTankStartSwingPost(int client, int &sequence)
 {
 	// 0 Clue how the other two got here...
@@ -3338,8 +3321,8 @@ stock float CalculateTankBurnDamage(int victim)
 {
 
 	char sGamemode[64], sDifficulty[64];
-	GetConVarString(FindConVar("mp_gamemode"), sGamemode, sizeof(sGamemode));
-	GetConVarString(FindConVar("z_difficulty"), sDifficulty, sizeof(sDifficulty));
+	GetConVarString(g_hGamemode, sGamemode, sizeof(sGamemode));
+	GetConVarString(g_hDifficulty, sDifficulty, sizeof(sDifficulty));
 	
 	float burnDuration = 0.0;
 
