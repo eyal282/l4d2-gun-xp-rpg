@@ -21,6 +21,8 @@ public Plugin myinfo =
 
 int skillIndex;
 
+float g_fSpawnTime[2049] = { -1.0, ... };
+
 public void OnLibraryAdded(const char[] name)
 {
     if (StrEqual(name, "GunXP_SkillShop"))
@@ -60,9 +62,17 @@ int g_iClusterCombo[2048];
 
 float g_fChanceMultiplier = 4.0;
 
+public void OnEntityCreated(int entity, const char[] classname)
+{
+    g_fSpawnTime[entity] = GetGameTime();
+}
 public void L4D_PipeBomb_Detonate_Post(int entity, int client)
 {
     if(!GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
+        return;
+
+    // Propane Tank / Oxygen Tank
+    else if(g_fSpawnTime[entity] == GetGameTime())
         return;
 
     float fOrigin[3];
