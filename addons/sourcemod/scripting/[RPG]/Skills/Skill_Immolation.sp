@@ -117,21 +117,42 @@ public void OnEntityDestroyed(int entity)
     if(!GunXP_RPGShop_IsSkillUnlocked(owner, immolationIndex))
         return;
 
-    if(GetVectorDistance(fOrigin, fDetonationOrigin) < 128.0)
+    if(IsPlayerAlive(owner))
+    {
+        if(GetVectorDistance(fOrigin, fDetonationOrigin) < 128.0)
+        {
+            float fDuration = g_fDurationPerLevel * float(GunXP_RPG_GetClientLevel(owner));
+
+            PrintToChat(owner, "Immolation is active for %.1f seconds.", fDuration);
+
+            RPG_Perks_ApplyEntityTimedAttribute(owner, "Immolation", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
+
+            if(g_hTimer[owner] != INVALID_HANDLE)
+            {
+                CloseHandle(g_hTimer[owner]);
+                g_hTimer[owner] = INVALID_HANDLE;
+            }
+
+            g_hTimer[owner] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(owner), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+        }
+    }
+    else
     {
         float fDuration = g_fDurationPerLevel * float(GunXP_RPG_GetClientLevel(owner));
 
-        PrintToChat(owner, "Immolation is active for %.1f seconds.", fDuration);
+        PrintToChat(owner, "Immolation is active on your dead body for %.1f seconds.", fDuration);
 
-        RPG_Perks_ApplyEntityTimedAttribute(owner, "Immolation", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
+        int body = CreateEntityByName("info_target");
 
-        if(g_hTimer[owner] != INVALID_HANDLE)
-        {
-            CloseHandle(g_hTimer[owner]);
-            g_hTimer[owner] = INVALID_HANDLE;
-        }
+        DispatchSpawn(body);
 
-        g_hTimer[owner] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(owner), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+        SetEntPropEnt(body, Prop_Send, "m_hOwnerEntity", owner);
+
+        TeleportEntity(body, fDetonationOrigin, NULL_VECTOR, NULL_VECTOR);
+
+        RPG_Perks_ApplyEntityTimedAttribute(body, "Immolation", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
+
+        CreateTimer(1.0, Timer_CastImmolationOnBody, EntIndexToEntRef(body), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
     }
 }
 
@@ -153,6 +174,46 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
 
     GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
+    InflictImmolationDamage(client, fOrigin);
+
+    return Plugin_Continue;
+}
+
+
+public Action Timer_CastImmolationOnBody(Handle hTimer, int entRef)
+{
+    int body = EntRefToEntIndex(entRef);
+
+    if(body == INVALID_ENT_REFERENCE)
+        return Plugin_Stop;
+
+    else if(!RPG_Perks_IsEntityTimedAttribute(body, "Immolation"))   
+    {
+        AcceptEntityInput(body, "Kill");
+
+        return Plugin_Stop;
+    }
+
+    int owner = GetEntPropEnt(body, Prop_Send, "m_hOwnerEntity");
+
+    if(owner == -1)
+    {
+        AcceptEntityInput(body, "Kill");
+
+        return Plugin_Stop;
+    }
+
+    float fOrigin[3];
+
+    GetEntPropVector(body, Prop_Data, "m_vecOrigin", fOrigin);
+
+    InflictImmolationDamage(owner, fOrigin);
+
+    return Plugin_Continue;
+}
+
+public void InflictImmolationDamage(int client, float fOrigin[3])
+{
     int iFakeWeapon = CreateEntityByName("weapon_pistol_magnum");
 
     for (int i = 1; i <= MaxClients; i++)
@@ -222,13 +283,12 @@ public Action Timer_CastImmolation(Handle hTimer, int userid)
     }
 
     AcceptEntityInput(iFakeWeapon, "Kill");
-    return Plugin_Continue;
 }
 
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you, igniting and damaging all Zombies around.\nDuration is half your level, and stacks.\nRadius of damaging is %.0f units\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection\nDeploy Molotov instantly.", g_fRadius, g_iMagnumShots);
+    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you/r dead body, hurting Zombies near you.\nDuration is half your level, and stacks. Radius of damaging is %.0f units.\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection\nDeploy Molotov instantly", g_fRadius, g_iMagnumShots);
     immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
     150000, 0);
 }

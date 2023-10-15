@@ -619,7 +619,7 @@ public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, cons
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
-
+	CreateNative("GunXP_RPG_GetXPForLevel", Native_GetXPForLevel);
 	CreateNative("GunXP_RPG_GetClientLevel", Native_GetClientLevel);
 	CreateNative("GunXP_RPG_GetClientRealLevel", Native_GetClientRealLevel);
 
@@ -643,6 +643,16 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 }
 
 // GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null)
+
+public int Native_GetXPForLevel(Handle caller, int numParams)
+{
+	int level = GetNativeCell(1);
+
+	if(level == 0)
+		return 0;
+		
+	return LEVELS[level-1];
+}
 
 public int Native_GetClientLevel(Handle caller, int numParams)
 {
@@ -2989,7 +2999,7 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 	{
 		if(g_iXP[client] >= LEVELS[i])
 		{
-			if(!IsFakeClient(i))
+			if(!IsFakeClient(client))
 			{
 				PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
 			}

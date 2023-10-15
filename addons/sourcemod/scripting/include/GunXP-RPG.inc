@@ -78,6 +78,9 @@ char ColorEquivalents[][] =
 
 native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
 
+// Finds amount of XP needed for a level.
+native int GunXP_RPG_GetXPForLevel(int level);
+
 // GetClientLevel is 0 if mutated, RealLevel ignores mutation.
 native int GunXP_RPG_GetClientLevel(int client);
 native int GunXP_RPG_GetClientRealLevel(int client);

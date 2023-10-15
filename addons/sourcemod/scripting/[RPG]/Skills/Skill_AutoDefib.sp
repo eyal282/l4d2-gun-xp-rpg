@@ -151,14 +151,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	return Plugin_Continue;
 }
 
-public Action Timer_SpamOff(Handle Timer, int client)
-{
-	g_bSpam[client] = false;
-
-	return Plugin_Continue;
-}
-
-
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
 	if(priority != 10)
@@ -204,6 +196,7 @@ public void FindClientDeathDefib(int client)
 	g_iDeathDefib[client] = EntIndexToEntRef(entity);
 	GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", g_fDeathOrigin[client]);
 }
+
 public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
 {
 	if(!StrEqual(attributeName, "Auto Defib"))

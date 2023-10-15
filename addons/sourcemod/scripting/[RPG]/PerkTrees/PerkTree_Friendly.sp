@@ -53,7 +53,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     else if(!IsPlayer(victim) || !IsPlayer(attacker))
         return;
 
-    else if(L4D_GetClientTeam(victim) != L4D_GetClientTeam(attacker))
+    else if(L4D_GetClientTeam(victim) != L4D_GetClientTeam(attacker) && L4D_GetClientTeam(victim) != L4DTeam_Spectator)
         return;
 
     int perkLevel1 = GunXP_RPGShop_IsPerkTreeUnlocked(victim, friendlyIndex);
