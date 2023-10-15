@@ -48,7 +48,7 @@ public void OnPluginStart()
 public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	
+
 	if(victim == 0)
 		return Plugin_Continue;
 

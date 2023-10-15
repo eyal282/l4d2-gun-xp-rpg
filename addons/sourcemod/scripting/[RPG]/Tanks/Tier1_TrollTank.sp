@@ -96,7 +96,7 @@ public void OnTrollTankTimer(int client)
 	char sValue[16];
 	g_hDifficulty.GetString(sValue, sizeof(sValue));
 
-	if(!StrEqual(sValue, "impossible"))
+	if(!StrEqual(sValue, "Impossible", false))
 	{
 		if(RPG_Perks_GetClientHealth(client) * 2 > RPG_Perks_GetClientMaxHealth(client))
 		{

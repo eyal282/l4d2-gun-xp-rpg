@@ -1248,22 +1248,28 @@ public void OnMapStart()
 
 	TriggerTimer(CreateTimer(5.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE));
 		
-	CreateTimer(150.0, Timer_TellAboutShop,_, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(150.0, Timer_TellAboutShop, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
-	if(g_bLate)
+	if(!g_bLate)
 	{
-		for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
-		{
-			int entity = -1;
-
-			while((entity = FindEntityByClassname(entity, g_sForbiddenMapWeapons[i])) != -1)
-			{
-				OnShouldSpawn_ConvertSpawn(entity);
-			}
-		}
+		CreateTimer(1.0, Timer_ConvertSpawns, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
+public Action Timer_ConvertSpawns(Handle hTimer)
+{
+	for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
+	{
+		int entity = -1;
+
+		while((entity = FindEntityByClassname(entity, g_sForbiddenMapWeapons[i])) != -1)
+		{
+			OnShouldSpawn_ConvertSpawn(entity);
+		}
+	}
+
+	return Plugin_Continue;
+}
 public Action Timer_AutoRPG(Handle hTimer)
 {
 	Transaction transaction = SQL_CreateTransaction();

@@ -2738,7 +2738,7 @@ public void Frame_FirePlayerHurtEvent(Handle DP)
 
 	SetEventInt(hNewEvent, "userid", GetClientUserId(victim));
 
-	if(IsPlayer(attacker))
+	if(IsPlayer(attacker) && IsClientInGame(attacker))
 	{
 		SetEventInt(hNewEvent, "attacker", GetClientUserId(attacker));
 	}

@@ -89,6 +89,8 @@ int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
 // [victim][attacker]
 int g_iDamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 
+int g_iSpawnflags[2049] = { -1, ... };
+
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {
 
@@ -318,6 +320,22 @@ public any Native_IsTankInPlay(Handle caller, int numParams)
 	return false;
 }
 
+public void OnPluginEnd()
+{
+	int door = L4D_GetCheckpointLast();
+
+	if(door != -1)
+	{
+		AcceptEntityInput(door, "InputUnlock");
+		SetEntProp(door, Prop_Data, "m_bLocked", 0);
+		ChangeEdictState(door, 0);
+
+		if(g_iSpawnflags[door] != -1)
+		{
+			SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
+		}
+	}
+}
 public void OnPluginStart()
 {
 
@@ -359,6 +377,7 @@ public void OnPluginStart()
 	RegPluginLibrary("RPG_Tanks");
 
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
+	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Post);
 	HookEvent("player_entered_checkpoint", Event_EnterCheckpoint, EventHookMode_Post);
 	HookEvent("finale_start", Event_FinaleStart, EventHookMode_PostNoCopy);
 	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
@@ -389,6 +408,14 @@ public void OnClientConnected(int client)
 		g_iDamageTaken[client][i] = 0;
 		g_iDamageTaken[i][client] = 0;
 	}
+}
+
+public void OnEntityDestroyed(int entity)
+{
+    if(!IsValidEntityIndex(entity))
+        return;
+
+    g_iSpawnflags[entity] = -1;
 }
 public Action Timer_TanksOpenDoors(Handle hTimer)
 {
@@ -689,6 +716,73 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 		FormatEx(TempFormat, sizeof(TempFormat), "Cast Active Ability #%i", i);
 
 		RPG_Perks_ApplyEntityTimedAttribute(client, TempFormat, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_POSITIVE);
+	}
+
+	int door = L4D_GetCheckpointLast();
+
+	if(door != -1)
+	{
+		AcceptEntityInput(door, "Close");
+
+		AcceptEntityInput(door, "InputLock");
+		SetEntProp(door, Prop_Data, "m_bLocked", 1);
+		ChangeEdictState(door, 0);
+
+		g_iSpawnflags[door] = GetEntProp(door, Prop_Send, "m_spawnflags");
+
+		SetEntProp(door, Prop_Send, "m_spawnflags", DOOR_FLAG_IGNORE_USE); // Prevent +USE
+
+		int survivor = 0;
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+				continue;
+
+			else if(L4D_IsInLastCheckpoint(i))
+				continue;
+
+			survivor = i;
+		}
+
+		float fOrigin[3];
+
+		if(survivor != 0)
+		{
+			GetEntPropVector(survivor, Prop_Data, "m_vecAbsOrigin", fOrigin);
+		}
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+				continue;
+
+			else if(!L4D_IsInLastCheckpoint(i))
+				continue;
+
+			if(survivor == 0)
+			{
+				// Slay the newborn tank to prevent issues...
+				ForcePlayerSuicide(client);
+
+				// Return and not break or continue
+				return;
+			}
+
+			TeleportEntity(i, fOrigin, NULL_VECTOR, NULL_VECTOR);
+		}
 	}
 }
 
@@ -1448,6 +1542,7 @@ public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	return Plugin_Continue;
 }
+
 public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -1567,12 +1662,78 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			continue;
 
 		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-			return Plugin_Continue;
+			continue;
 
 		else if(L4D_IsPlayerIncapacitated(i))
 			continue;
 
 		tankCount++;
+	}
+
+	if(tankCount <= 0)
+	{
+		int door = L4D_GetCheckpointLast();
+
+		if(door != -1)
+		{
+			AcceptEntityInput(door, "InputUnlock");
+			SetEntProp(door, Prop_Data, "m_bLocked", 0);
+			ChangeEdictState(door, 0);
+
+			if(g_iSpawnflags[door] != -1)
+			{
+				SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
+			}
+		}
+	}
+
+	return Plugin_Continue;
+}
+
+public Action Event_TankKilled(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	
+	if(victim == 0)
+		return Plugin_Continue;
+
+	int tankCount = 0;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(L4D_IsPlayerIncapacitated(i))
+			continue;
+
+		tankCount++;
+	}
+
+	if(tankCount <= 0)
+	{
+		int door = L4D_GetCheckpointLast();
+
+		if(door != -1)
+		{
+			AcceptEntityInput(door, "InputUnlock");
+			SetEntProp(door, Prop_Data, "m_bLocked", 0);
+			ChangeEdictState(door, 0);
+
+			if(g_iSpawnflags[door] != -1)
+			{
+				SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
+			}
+		}
 	}
 
 	return Plugin_Continue;
@@ -1640,4 +1801,9 @@ stock void CalculateIsEnoughDamage(int survivor, int tank, float &fDamageRatio, 
 
 	if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientRealLevel(survivor) <= 21)
 		fMinDamageRatio = 0.01;
+}
+
+bool IsValidEntityIndex(int entity)
+{
+    return (MaxClients+1 <= entity <= GetMaxEntities());
 }
