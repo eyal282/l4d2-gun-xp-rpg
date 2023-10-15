@@ -809,10 +809,12 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	enActiveAbility activeAbility;
 	tank.aActiveAbilities.GetArray(abilityIndex, activeAbility);
 
+	if(activeAbility.minCooldown == 0 && activeAbility.maxCooldown == 0)
+		return;
+
 	RPG_Perks_ApplyEntityTimedAttribute(entity, attributeName, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_POSITIVE);
 
 	Call_StartForward(g_fwOnRPGTankCastActiveAbility);
-
 	
 	Call_PushCell(entity);
 	
@@ -1267,7 +1269,7 @@ public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
 
 		if(activeAbility.minCooldown == 0 && activeAbility.maxCooldown == 0)
 		{
-			FormatEx(TempFormat, sizeof(TempFormat), " %s\nDelay: Controlled by Passive Abilities\n%s", sName, description);
+			FormatEx(TempFormat, sizeof(TempFormat), " %s\nDelay: Controlled by Abilities\n%s", sName, description);
 		}
 		else if(activeAbility.minCooldown == activeAbility.maxCooldown)
 		{
