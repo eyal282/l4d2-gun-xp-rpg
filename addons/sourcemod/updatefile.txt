@@ -56,6 +56,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Knife.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Leader_And_ParryTactics.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_MedkitClearsDebuffs.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_OutWithABlast.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_RetroactiveRecovery.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Sniper.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_StickyBile.smx"
