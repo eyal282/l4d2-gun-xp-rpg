@@ -650,7 +650,7 @@ public int Native_GetXPForLevel(Handle caller, int numParams)
 
 	if(level == 0)
 		return 0;
-		
+
 	return LEVELS[level-1];
 }
 
@@ -1262,7 +1262,7 @@ public void OnMapStart()
 
 	if(!g_bLate)
 	{
-		CreateTimer(1.0, Timer_ConvertSpawns, _, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(5.0, Timer_ConvertSpawns, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
