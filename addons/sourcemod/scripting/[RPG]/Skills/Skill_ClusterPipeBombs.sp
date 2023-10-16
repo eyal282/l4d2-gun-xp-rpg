@@ -64,6 +64,9 @@ float g_fChanceMultiplier = 4.0;
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
+    if(!IsValidEntityIndex(entity))
+        return;
+
     g_fSpawnTime[entity] = GetGameTime();
 }
 public void L4D_PipeBomb_Detonate_Post(int entity, int client)
@@ -144,3 +147,9 @@ public void RegisterSkill()
 }
 
 
+
+
+bool IsValidEntityIndex(int entity)
+{
+    return (MaxClients+1 <= entity <= GetMaxEntities());
+}

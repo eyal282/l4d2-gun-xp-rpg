@@ -112,6 +112,9 @@ public void OnEntityDestroyed(int entity)
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
+    if(!IsValidEntityIndex(entity))
+        return;
+
 	if(g_bMapStarted)
 	{
 		if(StrEqual(classname, "insect_swarm"))

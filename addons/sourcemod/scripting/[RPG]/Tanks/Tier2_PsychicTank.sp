@@ -85,6 +85,9 @@ public void OnClientPutInServer(int client)
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
+	if(!IsValidEntityIndex(entity))
+        return;
+
 	if(StrEqual(classname, "infected") || StrEqual(classname, "witch"))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
@@ -470,4 +473,9 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 		damage *= 2.0;
 	}
+}
+
+bool IsValidEntityIndex(int entity)
+{
+    return (MaxClients+1 <= entity <= GetMaxEntities());
 }

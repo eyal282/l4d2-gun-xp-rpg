@@ -1265,6 +1265,9 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
+	if(!IsValidEntityIndex(entity))
+        return;
+
 	if(StrEqual(classname, "info_survivor_position"))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, Event_OnSpawnpointSpawnPost);
@@ -3429,4 +3432,9 @@ stock void TeleportToStartArea(int client)
 	TeleportEntity(client, fOrigin, NULL_VECTOR, NULL_VECTOR);
 
 	g_bTeleported[client] = true;
+}
+
+bool IsValidEntityIndex(int entity)
+{
+    return (MaxClients+1 <= entity <= GetMaxEntities());
 }

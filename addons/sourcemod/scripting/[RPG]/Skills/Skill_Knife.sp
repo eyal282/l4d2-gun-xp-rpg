@@ -70,8 +70,15 @@ public void RPG_Perks_OnGetMaxLimitedAbility(int priority, int client, char iden
     if(!StrEqual(identifier, "Knife", false))
         return;
 
-    else if(priority != 0)
+    else if(priority != 1)
         return;
+
+    if(!GunXP_RPGShop_IsSkillUnlocked(client, knifeIndex))
+    {
+        maxUses = 0;
+
+        return;
+    }
 
     maxUses++;
 
@@ -106,7 +113,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
         g_fNextExpireJump[client] = GetGameTime() + 1.5;
         g_iJumpCount[client]++;
 
-        if(g_iJumpCount[client] >= 3 && GunXP_RPGShop_IsSkillUnlocked(client, knifeIndex))
+        if(g_iJumpCount[client] >= 3 && (GunXP_RPGShop_IsSkillUnlocked(client, knifeIndex) || GunXP_RPGShop_IsSkillUnlocked(client, panicTossIndex)))
         {
             bool success = RPG_Perks_UseClientLimitedAbility(client, "Knife");
 

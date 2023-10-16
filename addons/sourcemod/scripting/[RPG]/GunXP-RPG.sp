@@ -2343,7 +2343,12 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 		{
 			case 0:
 			{
-				if(skill.levelReq > GetClientLevel(client))
+				if(!g_bUnlockedSkills[client][skillIndex])
+				{
+					PrintToChat(client, "\x04[Gun-XP]\x03 You already own this Skill!");
+					return 0;
+				}
+				else if(skill.levelReq > GetClientLevel(client))
 				{
 					PrintToChat(client, "\x04[Gun-XP] You need to reach Level %i to unlock this Skill!", skill.levelReq);
 					return 0;
@@ -2874,9 +2879,12 @@ public void OnEntityCreated(int entity, const char[] classname)
 	// Sometimes a map will want to give RPG to continue progress.
 	//if(StrEqual(classname, "game_player_equip"))
 	//	SDKHook(entity, SDKHook_Spawn, OnShouldSpawn_NeverSpawn);
-
 	if(!g_bMapStarted)
 		return;
+
+	else if(!IsValidEntityIndex(entity))
+        return;
+
 
 	for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
 	{
@@ -3294,7 +3302,7 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, 
 	SQL_AddQuery(transaction, sQuery);
 
 	// INSERT INTO will guarantee an error if we give someone the same skill twice.
-	g_dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT INTO GunXP_Skills (AuthId, SkillIdentifier) VALUES ('%s', '%s')", AuthId, skill.identifier);
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT %s GunXP_Skills (AuthId, SkillIdentifier) VALUES ('%s', '%s')", INSERT_OR_IGNORE_INTO, AuthId, skill.identifier);
 	SQL_AddQuery(transaction, sQuery);
 
 	if(bExecute)
@@ -4118,6 +4126,7 @@ stock int GetRPGTargetInfo(int client, char[] sNameTarget, int len1, char[] sPos
 		return target;
 	}
 }
+
 stock void RecalculateBotMaxHP()
 {
 	for(int i=1;i <= MaxClients;i++)
@@ -4136,4 +4145,9 @@ stock void RecalculateBotMaxHP()
 
 		RPG_Perks_RecalculateMaxHP(i);
 	}
+}
+
+bool IsValidEntityIndex(int entity)
+{
+    return (MaxClients+1 <= entity <= GetMaxEntities());
 }
