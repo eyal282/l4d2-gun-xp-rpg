@@ -122,7 +122,7 @@ bool g_bTookWeapons[MAXPLAYERS+1];
 
 int StartOfPrimary = 14; // Change to the beginning of rifles in the levels, remember to count [0]
 
-#define MAX_LEVEL 65
+#define MAX_LEVEL 85
 
 enum struct enSkill
 {
@@ -242,28 +242,48 @@ int LEVELS[MAX_LEVEL+1] =
 	350000,  // needed for level 41
 	375000,  // needed for level 42
 	400000,  // needed for level 43
-	425000,  // needed for level 44
-	450000,  // needed for level 45
-	475000,  // needed for level 46
-	500000,  // needed for level 47
-	600000,  // needed for level 48
-	700000,  // needed for level 49
-	800000,  // needed for level 50
-	900000,  // needed for level 51
-	1000000,  // needed for level 52
-	2000000,  // needed for level 53
-	3000000,  // needed for level 54
-	4000000,  // needed for level 55
-	5000000,  // needed for level 56
-	6000000,  // needed for level 57
-	7000000,  // needed for level 58
-	8000000,  // needed for level 59
-	9000000,  // needed for level 60
-	10000000,  // needed for level 61
-	20000000,  // needed for level 62
-	30000000,  // needed for level 63
-	40000000,  // needed for level 64
-	50000000, // needed for level 65
+	450000,  // needed for level 44
+	500000,  // needed for level 45
+	600000,  // needed for level 46
+	700000,  // needed for level 47
+	800000,  // needed for level 48
+	900000,  // needed for level 49
+	1000000,  // needed for level 50
+	1200000,  // needed for level 51
+	1400000,  // needed for level 52
+	1600000,  // needed for level 53
+	1800000,  // needed for level 54
+	2000000,  // needed for level 55
+	2200000,  // needed for level 56
+	2400000,  // needed for level 57
+	2600000,  // needed for level 58
+	2800000,  // needed for level 59
+	3000000,  // needed for level 60
+	3400000,  // needed for level 61
+	3800000,  // needed for level 62
+	4200000,  // needed for level 63
+	4600000,  // needed for level 64
+	5000000, // needed for level 65
+	5500000,  // needed for level 66
+	6000000,  // needed for level 67
+	6500000,  // needed for level 68
+	7000000,  // needed for level 69
+	7500000,  // needed for level 70
+	8000000,  // needed for level 71
+	8500000,  // needed for level 72
+	9000000,  // needed for level 73
+	9500000,  // needed for level 74
+	10000000, // needed for level 75
+	12000000,  // needed for level 76
+	14000000,  // needed for level 77
+	16000000,  // needed for level 78
+	18000000,  // needed for level 79
+	20000000,  // needed for level 80
+	22500000,  // needed for level 81
+	25000000,  // needed for level 82
+	27500000,  // needed for level 83
+	30000000,  // needed for level 84
+	50000000, // needed for level 85
 	2147483647 // This shall never change, NEVERRRRR
 };
 
@@ -334,6 +354,26 @@ char GUNS_CLASSNAMES[MAX_LEVEL+1][] =
 	"null",
 	"null",
 	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
+	"null",
 	"null"
 };
 
@@ -368,6 +408,26 @@ char GUNS_NAMES[MAX_LEVEL+1][] =
 	"SG552",
 	"M-16",
 	"AK-47",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
+	"NULL",
 	"NULL",
 	"NULL",
 	"NULL",

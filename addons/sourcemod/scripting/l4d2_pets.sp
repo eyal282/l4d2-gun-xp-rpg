@@ -1099,42 +1099,45 @@ Action ChangeVictim_Timer(Handle timer, int pet)
 
             int target = GetPlayerCarry(pet);
 
-            float fDuration = -1.0;
-
-            Call_StartForward(g_fwOnCanPetReviveIncap);
-
-            Call_PushCell(target);
-            Call_PushCell(pet);
-            Call_PushCell(g_iOwner[pet]);
-
-            Call_PushFloatRef(fDuration);
-
-            Call_Finish();
-
-            if(fDuration >= 0.0 && GetEntPropEnt(target, Prop_Send, "m_reviveOwner") == -1 && g_iLastRevive[pet] == 0)
+            if(L4D_IsPlayerIncapacitated(target))
             {
-                nextTarget = target;
+                float fDuration = -1.0;
 
-                float vIncapped[3];
-                GetClientAbsOrigin(target, vIncapped);
+                Call_StartForward(g_fwOnCanPetReviveIncap);
 
-                if(GetVectorDistance(vIncapped, vPet, false) < 128.0)
+                Call_PushCell(target);
+                Call_PushCell(pet);
+                Call_PushCell(g_iOwner[pet]);
+
+                Call_PushFloatRef(fDuration);
+
+                Call_Finish();
+
+                if(fDuration >= 0.0 && GetEntPropEnt(target, Prop_Send, "m_reviveOwner") == -1 && g_iLastRevive[pet] == 0)
                 {
-                    if(fDuration == 0.0)
+                    nextTarget = target;
+
+                    float vIncapped[3];
+                    GetClientAbsOrigin(target, vIncapped);
+
+                    if(GetVectorDistance(vIncapped, vPet, false) < 128.0)
                     {
-                        ReviveWithOwnership(target, g_iOwner[pet]);
-                    }
-                    else
-                    {
-                        SetEntityMoveType(pet, MOVETYPE_NONE);
+                        if(fDuration == 0.0)
+                        {
+                            ReviveWithOwnership(target, g_iOwner[pet]);
+                        }
+                        else
+                        {
+                            SetEntityMoveType(pet, MOVETYPE_NONE);
 
-                        SetEntPropFloat(target, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
-                        SetEntPropFloat(target, Prop_Send, "m_flProgressBarDuration", fDuration);
-                        SetEntPropEnt(target, Prop_Send, "m_reviveOwner", pet);
+                            SetEntPropFloat(target, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+                            SetEntPropFloat(target, Prop_Send, "m_flProgressBarDuration", fDuration);
+                            SetEntPropEnt(target, Prop_Send, "m_reviveOwner", pet);
 
-                        g_iLastRevive[pet] = target;
+                            g_iLastRevive[pet] = target;
 
-                        CreateTimer(0.1, Timer_CheckPetReviveIncap, GetClientUserId(pet), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+                            CreateTimer(0.1, Timer_CheckPetReviveIncap, GetClientUserId(pet), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+                        }
                     }
                 }
             }

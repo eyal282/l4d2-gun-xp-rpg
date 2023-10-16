@@ -24,6 +24,7 @@ ConVar g_hDamagePriority;
 int samuraiIndex;
 
 float g_fSwingSpeedPerLevels = 0.5;
+float g_fSwingMaxSpeed = 5.0;
 int g_iSwingSpeedLevels = 10;
 float g_fMeleeDamagePerLevels = 0.1;
 int g_iMeleeDamageLevels = 2;
@@ -135,13 +136,21 @@ public void WH_OnMeleeSwing(int client, int weapon, float &speedmodifier)
 	else if(!GunXP_RPGShop_IsSkillUnlocked(client, samuraiIndex))
 		return;
 
-	speedmodifier += g_fSwingSpeedPerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(client)) / float(g_iSwingSpeedLevels)));
+
+	if(g_fSwingSpeedPerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(client)) / float(g_iSwingSpeedLevels))) >= g_fSwingMaxSpeed)
+	{
+		speedmodifier += g_fSwingMaxSpeed;
+	}
+	else
+	{
+		speedmodifier += g_fSwingSpeedPerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(client)) / float(g_iSwingSpeedLevels)));
+	}
 }
 
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Melee swings gain +%i{PERCENT} speed per %i levels\nDeploy melee instantly.\nMelee sets targets on fire.\n+%i{PERCENT} melee damage per %i levels.\nIf a Tank is immune to Melee but not fire, it will take 5{PERCENT} Fire damage.", RoundFloat(g_fSwingSpeedPerLevels * 100.0), g_iSwingSpeedLevels, RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels);
+	FormatEx(sDescription, sizeof(sDescription), "Melee swings gain +%i{PERCENT} speed per %i levels (Max %i{PERCENT})\nDeploy melee instantly.\nMelee sets targets on fire.\n+%i{PERCENT} melee damage per %i levels.\nIf a Tank is immune to Melee but not fire, it will take 5{PERCENT} Fire damage.", RoundFloat(g_fSwingSpeedPerLevels * 100.0), g_iSwingSpeedLevels, RoundFloat(g_fSwingMaxSpeed * 100.0), RoundFloat(g_fMeleeDamagePerLevels * 100.0), g_iMeleeDamageLevels);
    	samuraiIndex = GunXP_RPGShop_RegisterSkill("Ultimate Samurai", "Ultimate Samurai", sDescription,
 	80000, 200000);
 }

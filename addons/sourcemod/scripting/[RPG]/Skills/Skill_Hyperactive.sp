@@ -66,9 +66,6 @@ public Action Timer_MonitorHyperactive(Handle hTimer)
         else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
             continue;
 
-        else if(!IsPlayerAlive(i))
-            continue;
-
         else if(!GunXP_RPGShop_IsSkillUnlocked(i, hyperactiveIndex))
             continue;
 
@@ -125,7 +122,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
     if(StrEqual(attributeName, "Hyperactive Music"))
     {
         int client = attributeEntity;
-
+        
         if(!RPG_Perks_IsEntityTimedAttribute(client, "Hyperactive") && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(client) <= 0.0)
             return;
 
@@ -155,7 +152,10 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 
     // Infinite loop otherwise
     else if(oldClient == newClient)
+    {
+        StopHyperactiveSound(oldClient);
         return;
+    }
 
     StopHyperactiveSound(oldClient);
     RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
