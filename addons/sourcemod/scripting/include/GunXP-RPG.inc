@@ -192,6 +192,37 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("GunXP_RPGShop_IsPerkTreeUnlocked");
 	MarkNativeAsOptional("GunXP_RPGShop_RegisterSkill");
 	MarkNativeAsOptional("GunXP_RPGShop_IsSkillUnlocked");
+	MarkNativeAsOptional("GunXP_RPG_AddClientXP");
+	MarkNativeAsOptional("GunXP_RPG_GetXPForLevel");
+	MarkNativeAsOptional("GunXP_RPG_GetClientLevel");
+	MarkNativeAsOptional("GunXP_RPG_GetClientRealLevel");
+	MarkNativeAsOptional("GunXP_RPGShop_RegisterPerkTree");
+	MarkNativeAsOptional("GunXP_RPGShop_IsPerkTreeUnlocked");
+	MarkNativeAsOptional("GunXP_RPGShop_RegisterSkill");
+	MarkNativeAsOptional("GunXP_RPGShop_IsSkillUnlocked");
+	MarkNativeAsOptional("RPG_Perks_InstantKill");
+	MarkNativeAsOptional("RPG_Perks_TakeDamage");
+	MarkNativeAsOptional("RPG_Perks_UseAdrenaline");
+	MarkNativeAsOptional("RPG_Perks_IgniteWithOwnership");
+	MarkNativeAsOptional("RPG_Perks_GetClientLimitedAbility");
+	MarkNativeAsOptional("RPG_Perks_UseClientLimitedAbility");
+	MarkNativeAsOptional("RPG_Perks_IsEntityTimedAttribute");
+	MarkNativeAsOptional("RPG_Perks_GetEntityTimedAttributes");
+	MarkNativeAsOptional("RPG_Perks_ApplyEntityTimedAttribute");
+	MarkNativeAsOptional("RPG_Perks_RecalculateMaxHP");
+	MarkNativeAsOptional("RPG_Perks_SetClientHealth");
+	MarkNativeAsOptional("RPG_Perks_GetClientHealth");
+	MarkNativeAsOptional("RPG_Perks_GetClientMaxHealth");
+	MarkNativeAsOptional("RPG_Perks_SetClientTempHealth");
+	MarkNativeAsOptional("RPG_Perks_GetClientTempHealth");
+	MarkNativeAsOptional("RPG_Tanks_IsDamageImmuneTo");
+	MarkNativeAsOptional("RPG_Tanks_RegisterTank");
+	MarkNativeAsOptional("RPG_Tanks_RegisterActiveAbility");
+	MarkNativeAsOptional("RPG_Tanks_RegisterPassiveAbility");
+	MarkNativeAsOptional("RPG_Tanks_GetClientTank");
+	MarkNativeAsOptional("RPG_Tanks_GetDamagePercent");
+	MarkNativeAsOptional("RPG_Tanks_SetDamagePercent");
+	MarkNativeAsOptional("RPG_Tanks_IsTankInPlay");
 }
 #endif
 

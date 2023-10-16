@@ -62,7 +62,7 @@ public void GunXP_OnReloadRPGPlugins()
 
 public void RegisterSkill()
 {
-    addictIndex = GunXP_RPGShop_RegisterSkill("Permanent Adrenaline unless Tank", "Addict", "If a tank is NOT spawned, adrenaline is permanently active.",
+    addictIndex = GunXP_RPGShop_RegisterSkill("Permanent Adrenaline unless Tank", "Addict", "As long as a tank is NOT spawned, you permanently run at Adrenaline's speed\nThis does not allow you to revive faster nor dodge commons",
 	 75000, 125000);
 }
 
