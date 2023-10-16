@@ -2343,7 +2343,7 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 		{
 			case 0:
 			{
-				if(!g_bUnlockedSkills[client][skillIndex])
+				if(g_bUnlockedSkills[client][skillIndex])
 				{
 					PrintToChat(client, "\x04[Gun-XP]\x03 You already own this Skill!");
 					return 0;
