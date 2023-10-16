@@ -55,7 +55,7 @@ float g_fAbsAdrenalineSpeed[MAXPLAYERS+1];		// Player speed when running under a
 float g_fAbsScopeSpeed[MAXPLAYERS+1];		// Player speed while looking through a sniper scope
 float g_fAbsCustomSpeed[MAXPLAYERS+1];		// Player speed while under custom condition.
 
-int g_iAbsLastLimpHealth[MAXPLAYERS+1];
+int g_iAbsLastLimpHealth[MAXPLAYERS+1] = { -1, ... };
 int g_iAbsLimpHealth[MAXPLAYERS+1];
 int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 
@@ -911,6 +911,7 @@ public void OnMapStart()
 		for(int i=1;i < sizeof(g_bTeleported);i++)
 		{
 			g_bTeleported[i] = false;
+			g_iAbsLastLimpHealth[i] = -1;
 		}
 	}
 
@@ -1983,7 +1984,7 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 
 		RPG_Perks_RecalculateMaxHP(newPlayer);
 	}
-	
+
 	DataPack DP = CreateDataPack();
 
 	WritePackCell(DP, GetClientUserId(newPlayer));
