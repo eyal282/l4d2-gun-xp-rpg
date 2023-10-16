@@ -1936,7 +1936,17 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
-	RPG_Perks_RecalculateMaxHP(newPlayer);
+	if(!L4D_IsPlayerIncapacitated(newPlayer))
+	{
+		int health = GetEntityHealth(newPlayer);
+
+		RPG_Perks_RecalculateMaxHP(oldPlayer);
+
+		SetEntityMaxHealth(newPlayer, GetEntityMaxHealth(oldPlayer));
+		SetEntityHealth(newPlayer, health);
+
+		RPG_Perks_RecalculateMaxHP(newPlayer);
+	}
 
 	DataPack DP = CreateDataPack();
 
@@ -1962,8 +1972,18 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
-	RPG_Perks_RecalculateMaxHP(newPlayer);
+	if(!L4D_IsPlayerIncapacitated(newPlayer))
+	{
+		int health = GetEntityHealth(newPlayer);
 
+		RPG_Perks_RecalculateMaxHP(oldPlayer);
+
+		SetEntityMaxHealth(newPlayer, GetEntityMaxHealth(oldPlayer));
+		SetEntityHealth(newPlayer, health);
+
+		RPG_Perks_RecalculateMaxHP(newPlayer);
+	}
+	
 	DataPack DP = CreateDataPack();
 
 	WritePackCell(DP, GetClientUserId(newPlayer));
