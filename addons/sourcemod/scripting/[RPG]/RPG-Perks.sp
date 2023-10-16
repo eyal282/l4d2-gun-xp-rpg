@@ -1931,6 +1931,7 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	int oldPlayer = GetClientOfUserId(GetEventInt(event, "player"));
 	int newPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
 
+	g_iAbsLastLimpHealth[newPlayer] = -1;
 	g_iLastTemporaryHealth[newPlayer] = 0;
 	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
@@ -1963,6 +1964,7 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	int oldPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
 	int newPlayer = GetClientOfUserId(GetEventInt(event, "player"));
 
+	g_iAbsLastLimpHealth[newPlayer] = -1;
 	g_sLastSecondaryClassname[newPlayer][0] = EOS;
 	g_iLastSecondaryClip[newPlayer] = 0;
 	g_bLastSecondaryDual[newPlayer] = false;
