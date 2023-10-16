@@ -22,6 +22,7 @@ public Plugin myinfo =
 ConVar hcv_Difficulty;
 
 int knifeIndex;
+int panicTossIndex;
 
 int g_iLastButtons[MAXPLAYERS+1];
 float g_fNextExpireJump[MAXPLAYERS+1];
@@ -146,6 +147,50 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
                     RPG_Perks_TakeDamage(pinner, client, client, 10000.0, DMG_SLASH);
                 }
             }
+            else if(GunXP_RPGShop_IsSkillUnlocked(client, panicTossIndex))
+            {
+                float fOrigin[3];
+                GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+                fOrigin[2] += 4.0;
+
+                L4D2WeaponId weaponID;  
+                
+                int heldGrenade = GetPlayerWeaponSlot(client, view_as<int>(L4DWeaponSlot_Grenade));
+
+                if(heldGrenade != -1)
+                {
+                    weaponID = L4D2_GetWeaponId(heldGrenade);
+                }
+
+                switch(weaponID)
+                {
+                    case L4D2WeaponId_Molotov:
+                    {
+                        L4D_MolotovPrj(client, fOrigin, view_as<float>({0.0, 0.0, 0.0}));
+                    }
+                    case L4D2WeaponId_PipeBomb:
+                    {
+                        float fAngle[3];
+                        
+                        fAngle[0] = GetRandomFloat(300.0, 500.0);
+                        fAngle[1] = GetRandomFloat(300.0, 500.0);
+                        fAngle[2] = GetRandomFloat(-500.0, 500.0);
+
+                        int grenade = L4D_PipeBombPrj(client, fOrigin, view_as<float>({0.0, 0.0, 0.0}), true);
+
+                        TeleportEntity(grenade, NULL_VECTOR, fAngle, NULL_VECTOR);
+
+                        L4D_AngularVelocity(grenade, fAngle);
+                    }
+                    case L4D2WeaponId_Vomitjar:
+                    {
+                        L4D2_VomitJarPrj(client, fOrigin, view_as<float>({0.0, 0.0, 0.0}));
+                    }
+                }
+
+                AcceptEntityInput(heldGrenade, "Kill");
+            }
         }
 
         return Plugin_Continue;
@@ -176,5 +221,8 @@ public void RegisterSkill()
 {
     knifeIndex = GunXP_RPGShop_RegisterSkill("Knife", "Knife", "Triple click SHIFT to instantly kill a Special Infected that pins you.\nYou only get 1 knife per round.\nYou get 1 extra knife per difficulty under Expert.",
     1000, 0);
+
+    panicTossIndex = GunXP_RPGShop_RegisterSkill("Panic Toss", "Panic Toss", "After running out of Knife Skill(s), activate Knife Skill to drop your grenade.",
+    17000, 0);
 }
 

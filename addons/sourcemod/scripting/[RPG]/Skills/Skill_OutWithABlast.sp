@@ -125,13 +125,11 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 		L4D2WeaponId weaponID = aLegalGrenades.Get(RNG);
 		aLegalGrenades.Erase(RNG);
 
-	
-		int grenade = 0;
 		switch(weaponID)
 		{
 			case L4D2WeaponId_Molotov:
 			{
-				grenade = L4D_MolotovPrj(victim, g_fDeathOrigin[victim], view_as<float>({0.0, 0.0, 0.0}));
+				L4D_MolotovPrj(victim, g_fDeathOrigin[victim], view_as<float>({0.0, 0.0, 0.0}));
 			}
 			case L4D2WeaponId_PipeBomb:
 			{
@@ -153,7 +151,7 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 				fAngle[1] = GetRandomFloat(300.0, 500.0);
 				fAngle[2] = GetRandomFloat(-500.0, 500.0);
 
-				grenade = L4D_PipeBombPrj(victim, g_fDeathOrigin[victim], view_as<float>({0.0, 0.0, 0.0}), true);
+				int grenade = L4D_PipeBombPrj(victim, g_fDeathOrigin[victim], view_as<float>({0.0, 0.0, 0.0}), true);
 
 				TeleportEntity(grenade, NULL_VECTOR, fAngle, fVelocity);
 
@@ -161,7 +159,7 @@ public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
 			}
 			case L4D2WeaponId_Vomitjar:
 			{
-				grenade = L4D2_VomitJarPrj(victim, g_fDeathOrigin[victim], view_as<float>({0.0, 0.0, 0.0}));
+				L4D2_VomitJarPrj(victim, g_fDeathOrigin[victim], view_as<float>({0.0, 0.0, 0.0}));
 			}
 		}
 	}
