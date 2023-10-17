@@ -24,6 +24,9 @@ ConVar g_hReflectDamagePriority;
 int tankIndex;
 int weakerTankIndex;
 
+int psychicPowersIndex;
+int weakerPsychicPowersIndex;
+
 float g_fEndDamageReflect[MAXPLAYERS+1];
 bool g_bNightmare[MAXPLAYERS+1];
 int g_iBulletRelease[MAXPLAYERS+1];
@@ -129,38 +132,13 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	g_bNightmare[oldClient] = false;
 }
 
-
-public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
-{
-	if(priority != 0)
+public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
+{  
+	if(RPG_Tanks_GetClientTank(client) != tankIndex && RPG_Tanks_GetClientTank(client) != weakerTankIndex)
 		return;
 
-	else if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
+	if(abilityIndex != psychicPowersIndex && abilityIndex != weakerPsychicPowersIndex)
 		return;
-	
-	else if(RPG_Tanks_GetClientTank(entity) != tankIndex && RPG_Tanks_GetClientTank(entity) != weakerTankIndex)
-		return;
-
-	float fDuration = 30.0;
-
-	if(RPG_Tanks_GetClientTank(entity) == tankIndex)
-		fDuration = 20.0;
-
-	CreateTimer(fDuration, Timer_CastAbility, GetClientUserId(entity), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
-}
-
-public Action Timer_CastAbility(Handle hTimer, int userid)
-{
-	int client = GetClientOfUserId(userid);
-
-	if(client == 0)
-		return Plugin_Stop;
-
-	else if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
-		return Plugin_Stop;
-
-	else if(RPG_Tanks_GetClientTank(client) != tankIndex && RPG_Tanks_GetClientTank(client) != weakerTankIndex)
-		return Plugin_Stop;
 
 	int minRNG = 0;
 
@@ -176,17 +154,16 @@ public Action Timer_CastAbility(Handle hTimer, int userid)
 	{
 		CastBulletRelease(client);
 
-		return Plugin_Continue;
+		return;
 	}
+
 	switch(GetRandomInt(minRNG, 3))
 	{
 		case 0:	CastBulletRelease(client);
 		case 1:	CastPsychoKinesis(client);
 		case 2:	CastNightmare(client);
 		case 3:	CastDamageReflect(client);
-	}
-
-	return Plugin_Continue;
+	}	
 }
 
 public void CastBulletRelease(int client)
@@ -412,28 +389,26 @@ public void RegisterTank()
 	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Psychic", "A powerful Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 20 seconds.",
 	1500000, 180, 0.2, 3000, 5000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
 
-	RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "Tank must be under 90{PERCENT} HP to use this ability\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 7 seconds.", 0, 0);
+	psychicPowersIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
+	RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 7 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Psychokinesis", "Closest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 10 seconds before release.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Nightmare", "2 Closest survivors hallucinate a nightmare.\nThey cannot see any player, and take 2x damage from all sources.\nLasts 20 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 7 seconds.", 0, 0);
 
-	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Psychic Powers", "Every 20 seconds, the tank casts a random Psychic Ability.");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Brains, Not Brawn", "Tank deals 5x less damage with punches.");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Adaptability", "When the tank is under 30{PERCENT} HP, it will only cast Bullet Release");
-	//RPG_Tanks_RegisterPassiveAbility(tankIndex, "Psychic Rock", "Tank rock will kill a survivor hit by it.", 0, 0);
 
 	weakerTankIndex = RPG_Tanks_RegisterTank(1, 5, "Apprentice Psychic", "A weak Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 30 seconds.",
 	500000, 180, 0.2, 500, 750, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
 
-	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Bullet Release", "Tank must be under 90{PERCENT} HP to use this ability\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 4 seconds.", 0, 0);
+	weakerPsychicPowersIndex = RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 30, 30);
+	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 4 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Psychokinesis", "Closest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 10 seconds before release.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Nightmare", "2 Closest survivors hallucinate a nightmare.\nThey cannot see any player, and take 2x damage from all sources.\nLasts 12 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 4 seconds.", 0, 0);
 
-	RPG_Tanks_RegisterPassiveAbility(weakerTankIndex, "Psychic Powers", "Every 30 seconds, the tank casts a random Psychic Ability.");
 	RPG_Tanks_RegisterPassiveAbility(weakerTankIndex, "Brains, Not Brawn", "Tank deals 5x less damage with punches.");
 	RPG_Tanks_RegisterPassiveAbility(weakerTankIndex, "Adaptability", "When the tank is under 15{PERCENT} HP, it will only cast Bullet Release");
-	//RPG_Tanks_RegisterPassiveAbility(weakerTankIndex, "Psychic Rock", "Tank rock will kill a survivor hit by it.", 0, 0);
 }
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)

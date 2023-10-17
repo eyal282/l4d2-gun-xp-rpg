@@ -239,6 +239,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_ApplyEntityTimedAttribute", Native_ApplyEntityTimedAttribute);
 	CreateNative("RPG_Perks_GetClientLimitedAbility", Native_GetClientLimitedAbility);
 	CreateNative("RPG_Perks_UseClientLimitedAbility", Native_UseClientLimitedAbility);
+	CreateNative("RPG_Perks_ReuseClientLimitedAbility", Native_ReuseClientLimitedAbility);
 
 	g_bLate = bLate;
 
@@ -852,6 +853,65 @@ public int Native_UseClientLimitedAbility(Handle caller, int numParams)
 	ability.timesUsed = timesUsed + 1;
 
 	g_aLimitedAbilities.SetArray(pos, ability);
+	return true;
+}
+
+public int Native_ReuseClientLimitedAbility(Handle caller, int numParams)
+{
+	if(g_aLimitedAbilities == null)
+	{
+		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
+
+		return false;
+	}
+
+	int client = GetNativeCell(1);
+	char identifier[32];
+	GetNativeString(2, identifier, sizeof(identifier));
+
+	int size = g_aLimitedAbilities.Length;
+
+	int pos = -1;
+	int timesUsed = 0;
+	char sAuthId[64];
+	GetClientAuthId(client, AuthId_Steam2, sAuthId, sizeof(sAuthId));
+
+	for(int i=0;i < size;i++)
+	{
+		enLimitedAbility ability;
+
+		g_aLimitedAbilities.GetArray(i, ability);
+
+		if(StrEqual(sAuthId, ability.authId))
+		{
+			timesUsed = ability.timesUsed;
+			pos = i;
+			break;
+		}
+	}
+
+	if(pos == -1)
+	{
+		enLimitedAbility ability;
+
+		ability.identifier = identifier;
+		ability.authId = sAuthId;
+		ability.timesUsed = 0;
+
+		pos = g_aLimitedAbilities.PushArray(ability);
+	}
+
+	if(timesUsed == 0)
+		return false;
+
+	enLimitedAbility ability;
+
+	ability.identifier = identifier;
+	ability.authId = sAuthId;
+	ability.timesUsed = timesUsed - 1;
+
+	g_aLimitedAbilities.SetArray(pos, ability);
+
 	return true;
 }
 

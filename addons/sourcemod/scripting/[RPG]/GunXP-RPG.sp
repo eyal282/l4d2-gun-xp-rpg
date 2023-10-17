@@ -523,6 +523,38 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	else if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
 		return;
 
+	for(int i=0;i < MAX_ITEMS;i++)
+	{
+		if(g_bUnlockedSkills[entity][i])
+		{
+			Call_StartForward(g_fwOnSkillBuy);
+
+			Call_PushCell(entity);
+			Call_PushCell(i);
+
+			// Auto RPG?
+			Call_PushCell(true);
+
+			Call_Finish();
+		}
+		if(g_iUnlockedPerkTrees[entity][i] != PERK_TREE_NOT_UNLOCKED)
+		{
+			for(int a=0;a < g_iUnlockedPerkTrees[entity][i];a++)
+			{
+				Call_StartForward(g_fwOnPerkTreeBuy);
+
+				Call_PushCell(entity);
+				Call_PushCell(i);
+				Call_PushCell(a);
+
+				// Auto RPG?
+				Call_PushCell(true);
+
+				Call_Finish();
+			}
+		}	
+	}
+
 	if(IsPlayerAlive(entity))
 	{
 		RPG_Perks_RecalculateMaxHP(entity);

@@ -119,7 +119,10 @@ native void RPG_Perks_GetClientLimitedAbility(int entity, char attributeName[64]
 
 
 // Returns true if ability was used, false if maxed or another error was thrown.
-native bool  RPG_Perks_UseClientLimitedAbility(int client, char identifier[32], char sError[256] = {EOS, ...});
+native bool RPG_Perks_UseClientLimitedAbility(int client, char identifier[32], char sError[256] = {EOS, ...});
+
+// Returns true if reuse was successful, false if 0 times used.
+native bool RPG_Perks_ReuseClientLimitedAbility(int client, char identifier[32], char sError[256] = {EOS, ...});
 
 native bool RPG_Perks_IsEntityTimedAttribute(int entity, char attributeName[64], float &fDuration=0.0);
 
@@ -206,6 +209,7 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("RPG_Perks_IgniteWithOwnership");
 	MarkNativeAsOptional("RPG_Perks_GetClientLimitedAbility");
 	MarkNativeAsOptional("RPG_Perks_UseClientLimitedAbility");
+	MarkNativeAsOptional("RPG_Perks_ReuseClientLimitedAbility");
 	MarkNativeAsOptional("RPG_Perks_IsEntityTimedAttribute");
 	MarkNativeAsOptional("RPG_Perks_GetEntityTimedAttributes");
 	MarkNativeAsOptional("RPG_Perks_ApplyEntityTimedAttribute");
