@@ -177,9 +177,9 @@ public void FindClientDeathOrigin(int client)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "When you die, spawns unique random grenades, equal to your level divided by 21");
+	FormatEx(sDescription, sizeof(sDescription), "When you die, spawns unique random grenades, equal to your level divided by 25");
 
 	skillIndex = GunXP_RPGShop_RegisterSkill("Grenades on Death", "Out With A Blast", sDescription,
-	125000, GunXP_RPG_GetXPForLevel(21));
+	125000, GunXP_RPG_GetXPForLevel(25));
 }
 
