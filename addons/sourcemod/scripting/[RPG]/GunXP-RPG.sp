@@ -1216,6 +1216,18 @@ public void OnPluginStart()
 	cpSaveGuns = RegClientCookie("GunXP_SaveGuns", "Save Guns Choice?", CookieAccess_Private);
 	cpAutoRPG = RegClientCookie("GunXP_AutoRPG", "Are we playing auto RPG?", CookieAccess_Private);
 	
+	HookEntityOutput("commentary_zombie_spawner", "OnSpawnedZombieDeath", ZombieSpawnOutput_PreventFarming);
+	
+	HookEntityOutput("info_zombie_spawn", "OnSpawnNormal", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnSmoker", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnBoomer", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnHunter", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnSpitter", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnJockey", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnCharger", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnWitch", ZombieSpawnOutput_PreventFarming);
+	HookEntityOutput("info_zombie_spawn", "OnSpawnTank", ZombieSpawnOutput_PreventFarming);
+
 	#if defined _autoexecconfig_included
 	
 	AutoExecConfig_ExecuteFile();
@@ -2892,6 +2904,21 @@ public Action Event_PlayerDisconnect(Handle hEvent, char[] Name, bool dontBroadc
 	return Plugin_Continue;
 }
 
+public void ZombieSpawnOutput_PreventFarming(const char[] output, int caller, int activator, float delay)
+{
+	CreateTimer(1.0, Timer_KillEdict, EntIndexToEntRef(caller), TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_KillEdict(Handle hTimer, int ref)
+{
+	int entity = EntRefToEntIndex(ref);
+
+	if(entity == INVALID_ENT_REFERENCE)
+		return Plugin_Stop;
+
+	AcceptEntityInput(entity, "Kill");
+	return Plugin_Stop;
+}
 /*
 public Action Event_WeaponOutOfAmmo(Handle hEvent, char[] Name, bool dontBroadcast)
 {
