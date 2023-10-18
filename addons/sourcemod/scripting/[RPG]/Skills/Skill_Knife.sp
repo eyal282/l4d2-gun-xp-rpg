@@ -196,7 +196,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
                     }
                 }
 
-                AcceptEntityInput(heldGrenade, "Kill");
+                if(heldGrenade != -1)
+                {
+                    AcceptEntityInput(heldGrenade, "Kill");
+                }
             }
         }
 

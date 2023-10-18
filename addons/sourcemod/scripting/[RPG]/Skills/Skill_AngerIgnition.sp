@@ -19,8 +19,6 @@ public Plugin myinfo =
     url         = ""
 };
 
-ConVar g_hDamagePriority;
-
 int ignitionIndex;
 
 float g_fChancePerLevels = 0.002;
@@ -171,7 +169,7 @@ public void RegisterSkill()
     char sDescription[512];
     FormatEx(sDescription, sizeof(sDescription), "Taking damage from Common Infected has a chance to ignite everything around.\nRadius is 512 units.\nKills any pinning Special Infected.\nChance is %.1f{PERCENT} per %i Levels", g_fChancePerLevels * 100.0, g_iChanceLevels);
     ignitionIndex = GunXP_RPGShop_RegisterSkill("Anger Ignition", "Anger Ignition", sDescription,
-    150000, 0);
+    75000, 750000);
 }
 
 
