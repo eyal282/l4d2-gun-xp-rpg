@@ -230,7 +230,7 @@ public Action Timer_BulletRelease(Handle hTimer, int userid)
 
 		float damage = ratio * RPG_Perks_GetClientMaxHealth(i);
 
-		RPG_Perks_TakeDamage(i, client, client, damage, DMG_BULLET);
+		RPG_Perks_TakeDamage(i, client, client, damage, DMG_BULLET|DMG_DROWNRECOVER);
 	}
 
 	g_iBulletRelease[client]--;
