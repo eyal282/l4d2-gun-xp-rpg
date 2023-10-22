@@ -46,6 +46,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Athlete.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_AutoDefib.smx"
  	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_BileGoggles.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Bodyguard.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_ClusterPipeBombs.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Cowardice.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_EternalFlame.smx"
