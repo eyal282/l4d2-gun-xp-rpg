@@ -22,6 +22,43 @@ public Plugin myinfo =
 
 int hardToKillIndex = -1;
 
+float g_fHealthIncrease[] =
+{
+    50.0,
+    100.0,
+    150.0,
+    200.0,
+    250.0,
+    300.0,
+    350.0,
+    400.0
+};
+
+int g_iHardToKillCosts[] =
+{
+    3,
+    30,
+    300,
+    3000,
+    30000,
+    300000,
+    600000,
+    1000000
+
+};
+
+int g_iHardToKillReqs[] =
+{
+    0,
+    0,
+    0,
+    0,
+    500000,
+    1000000,
+    1200000,
+    1600000
+};
+
 public void OnLibraryAdded(const char[] name)
 {
     if (StrEqual(name, "GunXP_PerkTreeShop"))
@@ -45,16 +82,16 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnGetIncapHealth(int reviver, bool bLedge, int &health)
+public void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health)
 {
-    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(reviver, hardToKillIndex);
+    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(client, hardToKillIndex);
 
     if(perkLevel == -1)
         return;
 
-    int percent = (100 * (perkLevel + 1));
+    int percent = RoundFloat(g_fHealthIncrease[perkLevel]);
 
-    health += (percent * health) / (percent + 100);
+    health *= (RoundToFloor(1.0 + (float(percent) / 100.0)));
 }
 
 public void RegisterPerkTree()
@@ -64,37 +101,15 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+100%% incap HP");
-    costs.Push(100);
-    xpReqs.Push(0);
+    for(int i=0;i < sizeof(g_iHardToKillCosts);i++)
+    {
+        char TempFormat[128];
 
-    descriptions.PushString("+200%% incap HP.");
-    costs.Push(300);
-    xpReqs.Push(0);
-
-    descriptions.PushString("+300%% incap HP.");
-    costs.Push(700);
-    xpReqs.Push(0);
-
-    descriptions.PushString("+400%% incap HP.");
-    costs.Push(1000);
-    xpReqs.Push(0);
-
-    descriptions.PushString("+500%% incap HP.");
-    costs.Push(1500);
-    xpReqs.Push(0);
-
-    descriptions.PushString("+600%% incap HP.");
-    costs.Push(2500);
-    xpReqs.Push(0);
-
-    descriptions.PushString("+700%% incap HP.");
-    costs.Push(3500);
-    xpReqs.Push(0);
-
-    descriptions.PushString("+800%% incap HP.");
-    costs.Push(5000);
-    xpReqs.Push(0);
+        FormatEx(TempFormat, sizeof(TempFormat), "+%.0f{PERCENT} Incap HP", g_fHealthIncrease[i]);
+        descriptions.PushString(TempFormat);
+        costs.Push(g_iHardToKillCosts[i]);
+        xpReqs.Push(g_iHardToKillReqs[i]);
+    }
 
     hardToKillIndex = GunXP_RPGShop_RegisterPerkTree("Incap HP", "Hard to Kill", descriptions, costs, xpReqs);
 }

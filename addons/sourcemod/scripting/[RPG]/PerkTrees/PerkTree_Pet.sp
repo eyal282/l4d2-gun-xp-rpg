@@ -116,8 +116,6 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
-
     AutoExecConfig_SetFile("GunXP-PetPerkTree.cfg");
 
     g_hDamagePriority = AutoExecConfig_CreateConVar("gun_xp_rpgshop_pet_damage_priority", "-2", "Do not mindlessly edit this without understanding what it does.\nThis controls the order at which the damage editing plugins get to alter it.\nThis is important because this plugin sets the damage, negating any modifier another plugin made, so it must go first");
@@ -134,51 +132,57 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+
+public void OnMapStart()
 {
-    int client = GetClientOfUserId(event.GetInt("userid"));
-
-    if(client == 0)
-        return Plugin_Continue;
-
-    int owner = GetEntPropEnt(client, Prop_Send, "m_hOwnerEntity");
-
-    if(!IsPlayer(owner))
-        return Plugin_Continue;
-
-    else if(RPG_Perks_GetZombieType(owner) != ZombieType_NotInfected)
-        return Plugin_Continue;
-
-    CreateTimer(1.0, Timer_RespawnPet, GetClientUserId(owner), TIMER_FLAG_NO_MAPCHANGE);
-
-    return Plugin_Continue;
+    TriggerTimer(CreateTimer(5.0, Timer_MonitorPets, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
-
-public Action Timer_RespawnPet(Handle Timer, int userid)
+public Action Timer_MonitorPets(Handle hTimer)
 {
-    int client = GetClientOfUserId(userid);
+    for(int i=1;i <= MaxClients;i++)
+    {
+        if(!IsClientInGame(i))
+            continue;
 
-    if(client == 0)
-        return Plugin_Continue;
+        else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+            continue;
 
-    else if(GunXP_RPGShop_IsPerkTreeUnlocked(client, petIndex) == PERK_TREE_NOT_UNLOCKED)
-        return Plugin_Continue;
-    
-    FakeClientCommand(client, "sm_pet");
+        else if(!IsPlayerAlive(i))
+            continue;
+
+        else if(!GunXP_RPGShop_IsSkillUnlocked(i, petIndex))
+            continue;
+
+        else if(RPG_FindClientPet(i) != 0)
+            continue;
+
+        FakeClientCommand(i, "sm_pet");
+    }
+
+    for(int i=1;i <= MaxClients;i++)
+    {
+        if(!IsClientInGame(i))
+            continue;
+
+        else if(L4D_GetClientTeam(i) != L4DTeam_Infected)
+            continue;
+
+        else if(!IsPlayerAlive(i))
+            continue;
+
+        int owner = GetEntPropEnt(i, Prop_Send, "m_hOwnerEntity");
+
+        if(owner == -1)
+            continue;
+
+        else if(RPG_Perks_GetZombieType(owner) != ZombieType_NotInfected)
+            continue;
+
+        SetEntPropFloat(i, Prop_Send, "m_flLaggedMovementValue", L4D_LaggedMovement(i, 1.75));
+    }
 
     return Plugin_Continue;
-}
-
-public void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLevel, bool bAutoRPG)
-{
-    if(perkIndex != petIndex)
-        return;
-
-    int pet = RPG_FindClientPet(client);
-
-    if(pet == 0)
-        FakeClientCommand(client, "sm_pet");
 }
 
 public void GunXP_RPGShop_OnResetRPG(int client)
@@ -191,18 +195,6 @@ public void GunXP_RPGShop_OnResetRPG(int client)
     if(pet != 0)
         ForcePlayerSuicide(pet);
 
-}
-
-// Must add natives for after a player spawns for incap hidden pistol.
-public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
-{
-    if(priority != 0)
-        return;
-
-    else if(GunXP_RPGShop_IsPerkTreeUnlocked(client, petIndex) == PERK_TREE_NOT_UNLOCKED)
-        return;
-
-    FakeClientCommand(client, "sm_pet");
 }
 
 public void RPG_Perks_OnZombiePlayerSpawned(int client)

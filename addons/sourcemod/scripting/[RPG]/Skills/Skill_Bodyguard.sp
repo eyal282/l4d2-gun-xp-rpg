@@ -72,7 +72,10 @@ public Action Timer_MonitorBodyguard(Handle hTimer)
             continue;
 
         else if(L4D_IsPlayerIncapacitated(i))
+        {
+            TryRemoveBodyguard(i);
             continue;
+        }
 
         else if(L4D_GetPinnedInfected(i) != 0 || L4D_GetAttackerCarry(i) != 0)
             continue;
@@ -146,6 +149,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
     if(g_bSpam[client] || L4D_GetPinnedInfected(client) != 0 || L4D_GetAttackerCarry(client) != 0)
         return Plugin_Continue;
 
+    else if(!HasMeleeEquipped(client))
+        return Plugin_Continue;
+        
     if(buttons & IN_RELOAD && !(lastButtons & IN_RELOAD) && g_fNextExpireJump[client] > GetGameTime())
     {
     

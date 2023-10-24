@@ -102,7 +102,7 @@ native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] nam
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
 
 
-// Returns true if player died, false otherwise.
+// Returns true if player died, false if player didn't die or if you're causing an infinite loop by calling this in HookEvent("player_hurt")
 native bool RPG_Perks_InstantKill(int victim, int attacker, int inflictor, int damagetype);
 
 // damagetypes:
@@ -175,6 +175,11 @@ native void RPG_Tanks_SetDamagePercent(int client, int tank, float damagePercent
 
 native bool RPG_Tanks_IsTankInPlay(int tankIndex);
 
+// Note: strTeam is either @all, @infected, @survivors. @all means the vote is for all, @infected means vote only for infected team, @survivors same but only for survivors team.
+// Note: Percents must be between 1 and 100 or an error will be thrown to the client through ReplyToCommand.
+// @return: 0 on success, 1 if percents are invalid ( not between 1 to 100 ), 2 if the vote is on the 6.0 seconds cooldown, 3 if the team is not valid
+native int StartCustomVote(int client, char[] strTeam, int Percents, char[] VoteSubject);
+
 public SharedPlugin __pl_gun_xp_rpg = 
 {
 	name = "Gun XP - RPG",
@@ -227,6 +232,7 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("RPG_Tanks_GetDamagePercent");
 	MarkNativeAsOptional("RPG_Tanks_SetDamagePercent");
 	MarkNativeAsOptional("RPG_Tanks_IsTankInPlay");
+	MarkNativeAsOptional("StartCustomVote");
 }
 #endif
 
@@ -342,7 +348,7 @@ forward void RPG_Perks_OnZombiePlayerSpawned(int priority, int client);
 // Check for priority closer to -10 if you want to SET the damage to a certain value.
 // Check for priority closer to 10 if you want to go after another plugin to fix something they did.
 // Do not hog -10 and 10, this may have severe consequences when a programmer cannot naturally go before / after you.
-// bImmune is like setting damage to 0.0, but enables plugins to block your damage immunity. Example: Tier 1 tank is immune to fire damage. Flaming katana deals fire damage and ignores all fire immunity.
+// Please use odd priorities to remove bImmune and even priorities to enable bImmune
 
 forward void RPG_Perks_OnShouldInstantKill(int priority, int victim, int attacker, int inflictor, int damagetype, bool &bImmune);
 
@@ -390,6 +396,8 @@ forward void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health);
 // 0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum
 forward void RPG_Perks_OnGetIncapWeapon(int reviver, int &index)
 //forward void RPG_Perks_OnGetLimpSpeed(int)
+
+forward void sm_vote_OnVoteFinished_Post(int client, int VotesFor, int VotesAgainst, int PercentsToPass, bool bCanVote[MAXPLAYERS], char[] VoteSubject, bool bInternal, Handle Caller);
 
 enum ZombieType
 {

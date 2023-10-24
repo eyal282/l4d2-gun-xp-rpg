@@ -98,6 +98,7 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
     RPG_SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
     RPG_SendConVarValue(client, hcv_IncapCameraShake, "0.0");
 }
+
 public void OnMapStart()
 {
     TriggerTimer(CreateTimer(1.5, Timer_MonitorSniper, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));

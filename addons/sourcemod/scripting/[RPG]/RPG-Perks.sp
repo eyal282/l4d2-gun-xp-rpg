@@ -67,6 +67,9 @@ float g_fLastStunOrigin[MAXPLAYERS+1][3];
 bool g_bTeleported[MAXPLAYERS+1];
 bool g_bRoundStarted = false;
 
+bool g_bMidInstantKill = false;
+bool g_bMidClearAttributes = false;
+
 Handle g_hCheckAttributeExpire;
 
 ConVar g_hGamemode;
@@ -248,6 +251,9 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 
 public any Native_InstantKill(Handle caller, int numParams)
 {
+	if(g_bMidInstantKill)
+		return false;
+
 	int victim = GetNativeCell(1);
 	int attacker = GetNativeCell(2);
 	int inflictor = GetNativeCell(3);
@@ -284,7 +290,9 @@ public any Native_InstantKill(Handle caller, int numParams)
 	Format(filename, sizeof(filename), "RPG_Perks_InstantKill: %s - %i - %s", filename, victim, class);
 
 	LogToFile("eyal_crash_detector.txt", filename);
+	g_bMidInstantKill = true;
 	SDKHooks_TakeDamage(victim, inflictor, attacker, 100000.0, damagetype);
+	g_bMidInstantKill = false;
 
 	if(IsPlayerAlive(victim))
 		return false;
@@ -583,6 +591,7 @@ public int Native_IsEntityTimedAttribute(Handle caller, int numParams)
 		if(attribute.entity == entity && StrEqual(attributeName, attribute.attributeName))
 		{
 			SetNativeCellRef(3, attribute.fExpire - GetGameTime());
+
 			return true;
 		}
 	}
@@ -624,6 +633,9 @@ public any Native_GetEntityTimedAttributes(Handle caller, int numParams)
 
 public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 {
+	if(g_bMidClearAttributes)
+		return true;
+
 	if(g_aTimedAttributes == null)
 	{
 		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));
@@ -1159,6 +1171,7 @@ public void OnPluginStart()
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_first_spawn", Event_PlayerFirstSpawn);
+	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Pre);
 	HookEvent("player_hurt", Event_PlayerHurt);
@@ -1612,7 +1625,7 @@ public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 	g_bRoundStarted = true;
 
 	g_aLimitedAbilities.Clear();
-	g_aTimedAttributes.Clear();
+	RPG_ClearTimedAttributes();
 
 	return Plugin_Continue;
 }
@@ -1620,7 +1633,7 @@ public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	g_aLimitedAbilities.Clear();
-	g_aTimedAttributes.Clear();
+	RPG_ClearTimedAttributes();
 
 	g_bRoundStarted = false;
 
@@ -1651,6 +1664,17 @@ public Action Event_PlayerFirstSpawn(Handle hEvent, char[] Name, bool dontBroadc
 	return Plugin_Continue;
 }
 
+public Action Event_PlayerDeath(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	RPG_ClearTimedAttributes(client);
+
+	return Plugin_Continue;
+}
 public Action Event_PlayerSpawn(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
@@ -3497,4 +3521,37 @@ stock void TeleportToStartArea(int client)
 bool IsValidEntityIndex(int entity)
 {
     return (MaxClients+1 <= entity <= GetMaxEntities());
+}
+
+stock void RPG_ClearTimedAttributes(int entity = 0)
+{
+	g_bMidClearAttributes = true;
+
+	// Can't declare size because the size changes over time.
+	for(int i=0;i < g_aTimedAttributes.Length;i++)
+	{
+		enTimedAttribute attribute;
+		g_aTimedAttributes.GetArray(i, attribute);
+
+		if(entity == 0 || attribute.entity == entity)
+		{
+			g_aTimedAttributes.Erase(i);
+			i--;
+			
+			if(IsPlayer(entity) && !IsClientInGame(entity))
+				continue;
+			
+			else if(!IsValidEdict(entity))
+				continue;
+
+			Call_StartForward(g_fwOnTimedAttributeExpired);
+
+			Call_PushCell(attribute.entity);
+			Call_PushString(attribute.attributeName);
+
+			Call_Finish();
+		}
+	}
+
+	g_bMidClearAttributes = false;
 }

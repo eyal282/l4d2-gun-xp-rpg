@@ -136,6 +136,7 @@ public void RegisterTank()
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Physique", "Tank deals less damage when punching\nTank cannot throw rocks.\nTank attacks slower");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Confusion and Horror", "No matter the source, Survivors gain NIGHTMARE for 30 seconds when Biled.");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Magic Guard", "Melee Damage to Tank is decreased by 75{PERCENT}");
 
 	regenIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Regeneration", "Tank heals 100k HP", 60, 60);
 
@@ -154,6 +155,28 @@ public void RegisterTank()
 	}
 }
 
+
+
+public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
+{   
+	if(priority != 0)
+        return;
+
+	else if(IsPlayer(victim) && IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
+        return;
+
+	else if(RPG_Perks_GetZombieType(victim) != ZombieType_Tank)
+        return;
+
+	else if(RPG_Tanks_GetClientTank(victim) != tankIndex)
+		return;
+        
+	else if(L4D2_GetWeaponId(inflictor) != L4D2WeaponId_Melee)
+        return;
+
+
+	damage /= 4.0;
+}
 public void RPG_Perks_OnGetTankSwingSpeed(int priority, int client, float &delay)
 {
 	if(priority != 0)

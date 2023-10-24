@@ -28,6 +28,7 @@ public Plugin myinfo = {
 
 ConVar g_hDifficulty;
 
+ConVar g_hComboNeeded;
 ConVar g_hMinigunDamageMultiplier;
 ConVar g_hRPGDamageMultiplier;
 
@@ -86,10 +87,15 @@ GlobalForward g_fwOnRPGTankCastActiveAbility;
 
 int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
 
+int g_iKillCombo;
+int g_iOverrideNextTier = TANK_TIER_UNKNOWN;
+
 // [victim][attacker]
 int g_iDamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
 
 int g_iSpawnflags[2049] = { -1, ... };
+
+bool g_bButtonLive = false;
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {
@@ -355,6 +361,8 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 	RegConsoleCmd("sm_tankhp", Command_TankHP);
 
+	g_hComboNeeded = UC_CreateConVar("rpg_tanks_finale_combo_needed", "3", "Amount of Tank kills needed to trigger a powerful tank event");
+
 	g_hMinigunDamageMultiplier = UC_CreateConVar("rpg_tanks_minigun_damage_multiplier", "0.1", "Minigun damage multiplier");
 	g_hRPGDamageMultiplier = UC_CreateConVar("rpg_tanks_rpg_damage_multiplier", "0.05", "RPG damage multiplier");
 
@@ -398,6 +406,10 @@ public void OnMapStart()
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
 
+	g_iKillCombo = 0;
+	g_iOverrideNextTier = TANK_TIER_UNKNOWN;
+	g_bButtonLive = false;
+
 	TriggerTimer(CreateTimer(0.5, Timer_TanksOpenDoors, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
@@ -417,6 +429,113 @@ public void OnEntityDestroyed(int entity)
 
     g_iSpawnflags[entity] = -1;
 }
+
+#define MAX_BUTTONS 26
+
+int g_iLastButtons[MAXPLAYERS+1];
+
+public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
+{
+	if(IsPlayerAlive(client))
+	{
+		for (int i = 0; i < MAX_BUTTONS; i++)
+		{
+			int button = (1 << i);
+
+			if ((buttons & button))
+			{
+				if (!(g_iLastButtons[client] & button))
+				{
+					OnButtonPressed(client, button);
+				}
+			}
+		}
+	}
+
+	g_iLastButtons[client] = buttons;
+
+	return Plugin_Continue;
+}
+
+public void OnButtonPressed(int client, int button)
+{
+	if(!(button & IN_USE))
+		return;
+
+	else if(L4D2_GetCurrentFinaleStage() != FINALE_GAUNTLET_ESCAPE)
+		return;
+
+	int target = GetClientAimTarget(client, false);
+
+	if(target == -1)
+		return;
+
+	char sClassname[64];
+	GetEdictClassname(target, sClassname, sizeof(sClassname));
+
+	if(!StrEqual(sClassname, "trigger_finale"))
+		return;
+
+	else if(GetAimDistanceFromTarget(client, target) > 100.0)
+		return;
+
+	char sModelname[PLATFORM_MAX_PATH];
+	GetEntPropString(target, Prop_Data, "m_ModelName", sModelname, sizeof(sModelname));
+
+	if(StrContains(sModelname, "radio", false) == -1)
+		return;
+
+	else if(!g_bButtonLive)
+		return;
+
+	int tier = GetRandomInt(2, 3);
+
+	char sValue[16];
+	g_hDifficulty.GetString(sValue, sizeof(sValue));
+	
+	if(!StrEqual(sValue, "Impossible", false))
+	{
+		if(StrEqual(sValue, "Hard"))
+		{
+			tier = 2;
+		}
+		else
+		{
+			tier = 1;
+		}
+	}
+
+	char sVoteSubject[64];
+	FormatEx(sVoteSubject, sizeof(sVoteSubject), "Spawn Tier %i Tank?", tier);
+
+	if(StartCustomVote(-1 * tier, "@survivors", 51, sVoteSubject) != 0)
+		return;
+
+	g_iKillCombo = 0;
+	g_bButtonLive = false;
+	L4D2_SetEntityGlow(target, L4D2Glow_None, 0, 0, {255, 255, 255}, false);
+}
+
+public void sm_vote_OnVoteFinished_Post(int client, int VotesFor, int VotesAgainst, int PercentsToPass, bool bCanVote[MAXPLAYERS], char[] VoteSubject, bool bInternal, Handle Caller)
+{
+	if(Caller != GetMyHandle())
+		return;
+	
+	float ForPercents = (float(VotesFor) / (float(VotesFor) + float(VotesAgainst))) * 100.0;
+
+	if(ForPercents < PercentsToPass)
+		return;
+
+	int tier = -1 * client;
+
+	if(tier > 3 || tier < 1)
+		return;
+
+	g_iOverrideNextTier = tier;
+
+	PrintToChatAll("\x04[Gun-XP] \x01The next Tank that spawns will be\x03 Tier %i", tier);
+}
+
 public Action Timer_TanksOpenDoors(Handle hTimer)
 {
 	for(int i=1;i <= MaxClients;i++)
@@ -522,6 +641,8 @@ public void Func_DifficultyChanged(const char[] newValue)
 
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
+
+	g_iOverrideNextTier = TANK_TIER_UNKNOWN;
 }
 
 public void GunXP_OnReloadRPGPlugins()
@@ -620,6 +741,12 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 		initValue += entries[i];
 	}
 
+	if(g_iOverrideNextTier != TANK_TIER_UNKNOWN)
+	{
+		winnerTier = g_iOverrideNextTier;
+		g_iOverrideNextTier = TANK_TIER_UNKNOWN;
+	}
+
 	if(winnerTier == 0)
 	{
 		g_iCurrentTank[client] = TANK_TIER_UNTIERED;
@@ -700,7 +827,7 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 			ClientCommand(i, "play ui/critical_event_1.wav");
 
 		else if(winnerTank.tier == 3)
-			ClientCommand(i, "@#music/terror/clingingtohell4.wav");
+			ClientCommand(i, "play @#music/terror/clingingtohell4.wav");
 	}
 	int size = winnerTank.aActiveAbilities.Length;
 
@@ -715,7 +842,7 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 		char TempFormat[64];
 		FormatEx(TempFormat, sizeof(TempFormat), "Cast Active Ability #%i", i);
 
-		RPG_Perks_ApplyEntityTimedAttribute(client, TempFormat, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_POSITIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(client, TempFormat, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_NEUTRAL);
 	}
 
 	int door = L4D_GetCheckpointLast();
@@ -791,10 +918,10 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	if(strncmp(attributeName, "Cast Active Ability #", 21) != 0)
 		return;
 
-	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
+	else if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
 		return;
 
-	if(g_iCurrentTank[entity] < 0)
+	else if(g_iCurrentTank[entity] < 0)
 		return;
 
 	char sAbilityIndex[64];
@@ -812,7 +939,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	if(activeAbility.minCooldown == 0 && activeAbility.maxCooldown == 0)
 		return;
 
-	RPG_Perks_ApplyEntityTimedAttribute(entity, attributeName, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_POSITIVE);
+	RPG_Perks_ApplyEntityTimedAttribute(entity, attributeName, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
 	Call_StartForward(g_fwOnRPGTankCastActiveAbility);
 	
@@ -1474,9 +1601,11 @@ public Action Event_FinaleStart(Handle hEvent, char[] Name, bool dontBroadcast)
 		
 		if(type == 2)
 		{
+			g_bButtonLive = false;
 			PrintToChatAll("Rescue vehicle is here. Either leave or defeat the Tanks.");
 			L4D2_SendInRescueVehicle();
 			L4D2_ChangeFinaleStage(FINALE_GAUNTLET_ESCAPE, "");
+			L4D2_SetEntityGlow(entity, L4D2Glow_None, 0, 0, {255, 255, 255}, false);
 		}
 	}
 
@@ -1542,6 +1671,10 @@ public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 	}
 
+	g_bButtonLive = false;
+	g_iKillCombo = 0;
+	g_iOverrideNextTier = TANK_TIER_UNKNOWN;
+
 	return Plugin_Continue;
 }
 
@@ -1590,8 +1723,9 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			g_iCurrentTank[i] = TANK_TIER_UNTIERED;
 		}
 
+		return Plugin_Continue;
 	}
-	
+
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[victim], tank);
 
@@ -1688,6 +1822,10 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			}
 		}
 	}
+
+	g_iKillCombo++;
+	
+	RPG_CheckFinaleKillCombo();
 
 	return Plugin_Continue;
 }
@@ -1808,4 +1946,55 @@ stock void CalculateIsEnoughDamage(int survivor, int tank, float &fDamageRatio, 
 bool IsValidEntityIndex(int entity)
 {
     return (MaxClients+1 <= entity <= GetMaxEntities());
+}
+
+stock void RPG_CheckFinaleKillCombo()
+{
+	if(g_iKillCombo < g_hComboNeeded.IntValue)
+		return;
+
+	if(L4D2_GetCurrentFinaleStage() != FINALE_GAUNTLET_ESCAPE)
+		return;
+
+	int finale = FindEntityByClassname(-1, "trigger_finale");
+
+	if(finale == -1)
+		return;
+
+	char sModelname[PLATFORM_MAX_PATH];
+	GetEntPropString(finale, Prop_Data, "m_ModelName", sModelname, sizeof(sModelname));
+
+	if(StrContains(sModelname, "radio", false) == -1)
+		return;
+
+	g_bButtonLive = true;
+	L4D2_SetEntityGlow(finale, L4D2Glow_Constant, 0, 0, {255, 0, 0}, true);
+
+	
+	PrintToChatAll("\x04[Gun-XP] \x01Virgil spotted a Powerful Tank. Contact the Radio to lure it.");
+}
+
+
+// Shamelessly stolen from Shanapu MyJB.
+float GetAimDistanceFromTarget(int client, int target)
+{
+	float vAngles[3];
+	float vOrigin[3];
+	float g_fPos[3];
+
+	GetClientEyePosition(client, vOrigin);
+	GetClientEyeAngles(client, vAngles);
+
+	TR_TraceRayFilter(vOrigin, vAngles, MASK_ALL, RayType_Infinite, TraceFilterHitTarget, target);
+
+	TR_GetEndPosition(g_fPos);
+
+	return GetVectorDistance(vOrigin, g_fPos, false);
+}
+public bool TraceFilterHitTarget(int entity, int contentsMask, int target)
+{
+	if (entity == target)
+		return true;
+
+	return false;
 }
