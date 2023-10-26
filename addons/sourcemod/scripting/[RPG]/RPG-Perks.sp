@@ -98,6 +98,7 @@ ConVar g_hRPGKitDuration;
 ConVar g_hDefibDuration;
 ConVar g_hRPGDefibDuration;
 
+ConVar g_hReviveHealth;
 ConVar g_hReviveDuration;
 ConVar g_hRPGReviveDuration;
 ConVar g_hRPGLedgeReviveDuration;
@@ -424,6 +425,13 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
 
+	RecalculateMaxHP(client);
+
+	return 0;
+}
+
+stock void RecalculateMaxHP(int client, bool bDontScale = false)
+{
 	int maxHP = 100;
 	
 	for(int prio=-10;prio <= 10;prio++)
@@ -444,8 +452,10 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 	float fOldPermanentPercent = float(GetEntityHealth(client)) / float(GetEntityMaxHealth(client));
 	float fOldTemporaryPercent = float(RPG_Perks_GetClientTempHealth(client)) / float(GetEntityMaxHealth(client));
 
-
 	SetEntityMaxHealth(client, maxHP);
+
+	if(bDontScale)
+		return;
 
 	// This accounts for temporary health fluctuation instantly, right before we start depending on it, as GunXP_GiveClientHealth can alter Temp Health twice.
 	GunXP_GiveClientHealth(client, 0, 0);
@@ -482,8 +492,6 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 	{
 		GunXP_GiveClientHealth(client, iPermanentHealth, iTemporaryHealth);
 	}
-
-	return 0;
 }
 
 stock float RoundToAbs(float value)
@@ -1258,6 +1266,7 @@ public void OnPluginStart()
 	g_hDefibDuration = FindConVar("defibrillator_use_duration");
 	g_hRPGDefibDuration = AutoExecConfig_CreateConVar("rpg_defibrillator_use_duration", "5", "Default time for use with defibrillator.");
 
+	g_hReviveHealth = FindConVar("survivor_revive_health");
 	g_hReviveDuration = FindConVar("survivor_revive_duration");
 	g_hRPGReviveDuration = AutoExecConfig_CreateConVar("rpg_survivor_revive_duration", "5", "Default time for reviving.");
 	g_hRPGLedgeReviveDuration = AutoExecConfig_CreateConVar("rpg_survivor_ledge_revive_duration", "5", "Default time for reviving from a ledge.");
@@ -1747,7 +1756,11 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 			return Plugin_Continue;
 
 		else if(GetEntityHealth(client) != 1)
+		{
+			// Bog fix...
+			SetClientTemporaryHP(client, g_iTemporaryHealth[client]);
 			return Plugin_Continue;
+		}
 
 		int hpLost = GetEventInt(hEvent, "dmg_health");
 		
@@ -1868,6 +1881,8 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 			}
 			else
 			{
+				g_iHealth[client] = -1;
+				g_iMaxHealth[client] = maxHP;
 				SetEntityMaxHealth(client, maxHP);
 				SetEntityHealth(client, maxHP);
 			}
@@ -1896,6 +1911,9 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 		}
 		else
 		{
+			g_iHealth[client] = -1;
+			g_iMaxHealth[client] = maxHP;
+
 			SetEntityMaxHealth(client, maxHP);
 			SetEntityHealth(client, maxHP);
 		}
@@ -2004,6 +2022,9 @@ public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool don
 		g_iLastSecondaryClip[client] = 0;
 		g_bLastSecondaryDual[client] = false;
 	}
+
+	// To prevent incap damage reduce issues.
+	SetEntityMaxHealth(client, 100);
 
 	return Plugin_Continue;
 }
@@ -2258,7 +2279,10 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 	if(revived == 0)
 		return Plugin_Continue;
 
-	else if(GetEventBool(event, "ledge_hang"))
+	// Even on ledge hang, must set new max HP because we reset to 100 to avoid damage bug.
+	RecalculateMaxHP(revived, true);
+
+	if(GetEventBool(event, "ledge_hang"))
 		return Plugin_Continue;
 
 	int temporaryHealthPercent = 0;
@@ -2280,18 +2304,34 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 	if(permanentHealthPercent < 0)
 		permanentHealthPercent = 0;
 
+	if(temporaryHealthPercent == 0 && permanentHealthPercent == 0)
+	{
+		return Plugin_Continue;
+	}
+
+
 	SetEntityHealth(revived, 0);
 	L4D_SetPlayerTempHealth(revived, 0);
 	g_iTemporaryHealth[revived] = 0;
 
-	GunXP_GiveClientHealth(revived, RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100.0)), RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100.0)));
+	int tempHP = RoundToFloor(GetEntityMaxHealth(revived) * (float(temporaryHealthPercent) / 100.0));
+	int permHP = RoundToFloor(GetEntityMaxHealth(revived) * (float(permanentHealthPercent) / 100.0));
 
-	if(GetEntityHealth(revived) == 0)
+	if(tempHP <= 0)
 	{
-		SetEntityHealth(revived, 1);
-		GunXP_GiveClientHealth(revived, 0, -1);
+		tempHP = g_hReviveHealth.IntValue;
 	}
+
+	if(permHP <= 0)
+	{
+		permHP = 1;
+		tempHP -= 1;
+	}
+
+	GunXP_GiveClientHealth(revived, permHP, tempHP);
 	
+	RPG_Perks_SetClientTempHealth(revived, RPG_Perks_GetClientTempHealth(revived));
+
 	int weapon = GetPlayerWeaponSlot(revived, 1);
 
 	if(g_sLastSecondaryClassname[revived][0] != EOS)
@@ -2323,7 +2363,6 @@ public Action Event_ReviveSuccess(Event event, const char[] name, bool dontBroad
 	
 	return Plugin_Continue;
 }
-
 
 public Action Event_DefibUsed(Event event, const char[] name, bool dontBroadcast)
 {
@@ -3379,6 +3418,19 @@ stock void SetClientTemporaryHP(int client, int hp)
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime() + (float(hp - 200)) / g_hPillsDecayRate.FloatValue + 1.0 / g_hPillsDecayRate.FloatValue);
 	}
 }
+
+stock int GetClientTemporaryHP(int client)
+{
+	if(g_iTemporaryHealth[client] <= 200)
+	{
+		return L4D_GetPlayerTempHealth(client);
+	}
+	else
+	{
+		return RoundToFloor((GetEntPropFloat(client, Prop_Send, "m_healthBufferTime") * g_hPillsDecayRate.FloatValue) - (GetGameTime() * g_hPillsDecayRate.FloatValue) + 200);
+	}
+}
+
 
 stock bool SurvivorVictimNextBotAttacker(int victim, int attacker)
 {

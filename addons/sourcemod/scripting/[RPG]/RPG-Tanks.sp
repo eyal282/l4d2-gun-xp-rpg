@@ -642,7 +642,7 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 			}
 		}
 
-		if(L4D_IsFinaleEscapeInProgress())
+		if(L4D_IsFinaleEscapeInProgress() && L4D2_IsGenericCooperativeMode())
 		{
 			PrintToChatAll(" The Finale was won. %N will be converted to a normal Tank now.", i);
 
@@ -674,6 +674,9 @@ public void Func_DifficultyChanged(const char[] newValue)
 			continue;
 
 		else if(g_iCurrentTank[i] < 0)
+			continue;
+
+		else if(!L4D2_IsGenericCooperativeMode())
 			continue;
 
 		PrintToChatAll(" \x03%N\x01 will be converted to a normal Tank for the difficulty change.", i);
@@ -998,7 +1001,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 {   
 	if(priority == 10 && RPG_Perks_GetZombieType(victim) == ZombieType_Tank && g_iCurrentTank[victim] >= 0)
 	{
-		if(RPG_Perks_GetClientHealth(victim) > RPG_Perks_GetClientMaxHealth(victim))
+		if(RPG_Perks_GetClientHealth(victim) > RPG_Perks_GetClientMaxHealth(victim) && L4D2_IsGenericCooperativeMode())
 		{
 			PrintToChatAll(" \x03%N\x01 had more HP than max HP. It will be converted to a normal Tank now.", victim);
 
@@ -1015,14 +1018,18 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 		if(damage >= 200 && (attacker == victim || attacker == 0 || strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0))
 		{
-			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
+			if(L4D2_IsGenericCooperativeMode())
+			{
+				PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
 
-			SetClientName(victim, "Tank");
+				SetClientName(victim, "Tank");
 
-			RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
-			//RPG_Perks_SetClientMaxHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+				RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+				//RPG_Perks_SetClientMaxHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
-			g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
+				g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
+
+			}
 
 			return;
 		}
@@ -1542,6 +1549,9 @@ public void OnStartTouchTriggerGravity(const char[] output, int caller, int acti
 		else if(g_iCurrentTank[i] < 0)
 			continue;
 
+		else if(!L4D2_IsGenericCooperativeMode())
+			continue;
+
 		PrintToChatAll(" \x03%N\x01 entered a trigger_gravity. %N will be converted to a normal Tank now.", client, i);
 
 		SetClientName(i, "Tank");
@@ -1620,6 +1630,9 @@ public Action Event_EnterCheckpoint(Handle hEvent, char[] Name, bool dontBroadca
 			else if(g_iCurrentTank[i] < 0)
 				continue;
 
+			else if(!L4D2_IsGenericCooperativeMode())
+				continue;
+
 			PrintToChatAll(" \x03%N\x01 entered a safe room. %N will be converted to a normal Tank now.", client, i);
 
 			SetClientName(i, "Tank");
@@ -1643,7 +1656,7 @@ public Action Event_FinaleStart(Handle hEvent, char[] Name, bool dontBroadcast)
 	{
 		int type = GetEntProp(entity, Prop_Data, "m_type");
 		
-		if(type == 2)
+		if(type == 2 && L4D_IsCoopMode())
 		{
 			g_bButtonLive = false;
 			PrintToChatAll("Rescue vehicle is here. Either leave or defeat the Tanks.");
@@ -1673,6 +1686,9 @@ public Action Event_FinaleWin(Handle hEvent, char[] Name, bool dontBroadcast)
 			continue;
 
 		else if(g_iCurrentTank[i] < 0)
+			continue;
+
+		else if(!L4D2_IsGenericCooperativeMode())
 			continue;
 
 		PrintToChatAll(" The Finale was won. %N will be converted to a normal Tank now.", i);
@@ -1757,6 +1773,9 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			else if(g_iCurrentTank[i] < 0)
 				continue;
 
+			else if(!L4D2_IsGenericCooperativeMode())
+				continue;
+				
 			PrintToChatAll(" The Finale was won. %N will be converted to a normal Tank now.", i);
 
 			SetClientName(i, "Tank");
