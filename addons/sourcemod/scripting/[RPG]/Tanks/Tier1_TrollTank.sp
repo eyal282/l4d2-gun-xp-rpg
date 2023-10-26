@@ -1,9 +1,12 @@
 
-#include <GunXP-RPG>
 #include <sdkhooks>
 #include <sdktools>
 #include <sourcemod>
 #include <left4dhooks>
+
+#undef REQUIRE_PLUGIN
+#include <GunXP-RPG>
+#define REQUIRE_PLUGIN
 
 #pragma semicolon 1
 #pragma newdecls required

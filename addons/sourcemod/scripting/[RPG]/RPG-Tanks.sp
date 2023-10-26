@@ -1,4 +1,3 @@
-#include <GunXP-RPG>
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
@@ -10,6 +9,7 @@
 #undef REQUIRE_PLUGIN
 #undef REQUIRE_EXTENSIONS
 #tryinclude <autoexecconfig>
+#include <GunXP-RPG>
 #define REQUIRE_PLUGIN
 #define REQUIRE_EXTENSIONS
 
@@ -110,6 +110,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Tanks_GetDamagePercent", Native_GetDamagePercent);
 	CreateNative("RPG_Tanks_SetDamagePercent", Native_SetDamagePercent);
 	CreateNative("RPG_Tanks_IsTankInPlay", Native_IsTankInPlay);
+	CreateNative("RPG_Tanks_SetOverrideTier", Native_SetOverrideTier);
 
 
 	// Do not check for this library!!!
@@ -309,6 +310,7 @@ public any Native_SetDamagePercent(Handle caller, int numParams)
 
 	return 0;
 }
+
 public any Native_IsTankInPlay(Handle caller, int numParams)
 {
 	int tankIndex = GetNativeCell(1);
@@ -326,6 +328,18 @@ public any Native_IsTankInPlay(Handle caller, int numParams)
 	}
 
 	return false;
+}
+
+public any Native_SetOverrideTier(Handle caller, int numParams)
+{
+	int tier = GetNativeCell(1);
+
+	if(tier <= 3)
+	{
+		g_iOverrideNextTier = tier;
+	}
+
+	return 0;
 }
 
 public void OnPluginEnd()
@@ -554,10 +568,10 @@ public void Plugins_OnCarAlarmPost(int userid)
 
 		int client = GetClientOfUserId(userid);
 
-		// Accepts invalid client of user id.
 		float fOrigin[3];
 
-		if(!L4D_GetRandomPZSpawnPosition(client, view_as<int>(L4D2ZombieClass_Tank), 3, fOrigin))
+		// Accepts invalid client of user id.
+		if(!L4D_GetRandomPZSpawnPosition(client, view_as<int>(L4D2ZombieClass_Tank), 10, fOrigin))
 			return;
 
 		L4D2_SpawnTank(fOrigin, view_as<float>({0.0, 0.0, 0.0}));
@@ -713,7 +727,7 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
 		tankCount++;
 	}
 
-	if(tankCount >= 2)
+	if(tankCount >= 2 && L4D_IsCoopMode())
 	{
 		if(IsFakeClient(client))
 		{

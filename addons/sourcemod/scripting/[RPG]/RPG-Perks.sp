@@ -497,18 +497,14 @@ public int Native_SetClientHealth(Handle caller, int numParams)
 	int hp = GetNativeCell(2);
 
 	if(hp <= 65535)
-		hp = -1;
-	
-	g_iHealth[client] = hp;
-
-	if(g_iHealth[client] <= 65535)
 	{
-		SetEntityHealth(client, g_iHealth[client]);
+		SetEntityHealth(client, hp);
 		g_iHealth[client] = -1;
 	}
 	else
 	{
 		SetEntityHealth(client, 65535);
+		g_iHealth[client] = hp;
 	}
 
 	return 0;
@@ -1288,7 +1284,7 @@ public void OnPluginStart()
 	g_hRPGAdrenalineDuration = AutoExecConfig_CreateConVar("rpg_adrenaline_duration", "15.0", "Default time adrenaline lasts for.");
 	g_hAdrenalineDuration = FindConVar("adrenaline_duration");
 
-	g_hRPGAdrenalineRunSpeed = AutoExecConfig_CreateConVar("rpg_adrenaline_run_speed", "260", "Default HP for ledge hanging");
+	g_hRPGAdrenalineRunSpeed = AutoExecConfig_CreateConVar("rpg_adrenaline_run_speed", "260", "Default Speed for Adrenaline");
 
 	g_hStartIncapWeapon = AutoExecConfig_CreateConVar("rpg_start_incap_weapon", "0", "0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum");
 
