@@ -28,6 +28,8 @@ public Plugin myinfo = {
 
 ConVar g_hDifficulty;
 
+ConVar g_hCarAlarmTankChance;
+
 ConVar g_hComboNeeded;
 ConVar g_hMinigunDamageMultiplier;
 ConVar g_hRPGDamageMultiplier;
@@ -394,6 +396,9 @@ public void OnPluginStart()
 
 	HookEntityOutput("trigger_gravity", "OnStartTouch", OnStartTouchTriggerGravity);
 
+
+	g_hCarAlarmTankChance = CreateConVar("rpg_tanks_car_alarm_tank_chance", "50", "Chance to spawn tank when an alarm is tripped", _, true, 0.0, true, 100.0);
+
 	g_hDifficulty = FindConVar("z_difficulty");
 
 	HookConVarChange(g_hDifficulty, cvChange_Difficulty);
@@ -534,6 +539,31 @@ public void sm_vote_OnVoteFinished_Post(int client, int VotesFor, int VotesAgain
 	g_iOverrideNextTier = tier;
 
 	PrintToChatAll("\x04[Gun-XP] \x01The next Tank that spawns will be\x03 Tier %i", tier);
+}
+
+public void Plugins_OnCarAlarmPost(int userid)
+{
+    float fChance = g_hCarAlarmTankChance.FloatValue / 100.0;
+
+    float fGamble = GetRandomFloat(0.0, 1.0);
+
+    if(fGamble < fChance)
+	{
+		if(L4D2_IsTankInPlay())
+			return;
+
+		int client = GetClientOfUserId(userid);
+
+		// Accepts invalid client of user id.
+		float fOrigin[3];
+
+		if(!L4D_GetRandomPZSpawnPosition(client, view_as<int>(L4D2ZombieClass_Tank), 3, fOrigin))
+			return;
+
+		L4D2_SpawnTank(fOrigin, view_as<float>({0.0, 0.0, 0.0}));
+
+		PrintToChatAll("\x04[Gun-XP] \x01A Tank will spawn from the\x03 Car Alarm");
+	}
 }
 
 public Action Timer_TanksOpenDoors(Handle hTimer)
@@ -1017,7 +1047,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 			bImmune = true;
 		}
 
-		if(tank.damageImmunities & DAMAGE_IMMUNITY_EXPLOSIVES && damagetype & DMG_BLAST)
+		if(tank.damageImmunities & DAMAGE_IMMUNITY_EXPLOSIVES == DAMAGE_IMMUNITY_EXPLOSIVES && damagetype & DMG_BLAST)
 		{
 			bImmune = true;
 		}

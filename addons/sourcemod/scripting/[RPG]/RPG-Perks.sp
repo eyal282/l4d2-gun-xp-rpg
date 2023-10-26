@@ -261,11 +261,11 @@ public any Native_InstantKill(Handle caller, int numParams)
 	
 	bool bImmune = false;
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnShouldInstantKill);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(victim);
 		Call_PushCell(attacker);
 		Call_PushCell(inflictor);
@@ -426,11 +426,11 @@ public int Native_RecalculateMaxHP(Handle caller, int numParams)
 
 	int maxHP = 100;
 	
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetRPGMaxHP);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 		
 		Call_PushCellRef(maxHP);
@@ -773,11 +773,11 @@ public int Native_GetClientLimitedAbility(Handle caller, int numParams)
 
 	int maxUses = 0;
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetMaxLimitedAbility);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 
 		Call_PushString(identifier);
@@ -840,11 +840,11 @@ public int Native_UseClientLimitedAbility(Handle caller, int numParams)
 
 	int maxUses = 0;
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetMaxLimitedAbility);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 
 		Call_PushString(identifier);
@@ -1086,11 +1086,11 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		g_fAbsCustomSpeed[i] = 0.0;
 
 
-		for(int a=-10;a <= 10;a++)
+		for(int prio=-10;prio <= 10;prio++)
 		{
 			Call_StartForward(g_fwOnGetRPGSpeedModifiers);
 
-			Call_PushCell(a);
+			Call_PushCell(prio);
 			Call_PushCell(i);
 			Call_PushCellRef(g_iOverrideSpeedState[i]);
 			Call_PushCellRef(g_iAbsLimpHealth[i]);
@@ -1355,11 +1355,11 @@ public void Event_ZombieSpawnPost(int entity)
 {
 	int maxHP = GetEntityMaxHealth(entity);
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetRPGZombieMaxHP);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(entity);
 		
 		Call_PushCellRef(maxHP);
@@ -1828,11 +1828,11 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 		L4D2ZombieClassType originalZClass = zclass;
 
-		for(int a=-10;a <= 10;a++)
+		for(int prio=-10;prio <= 10;prio++)
 		{
 			Call_StartForward(g_fwOnGetRPGSpecialInfectedClass);
 
-			Call_PushCell(a);
+			Call_PushCell(prio);
 			Call_PushCell(client);
 			
 			Call_PushCellRef(zclass);
@@ -1878,11 +1878,11 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 		}
 
 
-		for(int a=-10;a <= 10;a++)
+		for(int prio=-10;prio <= 10;prio++)
 		{
 			Call_StartForward(g_fwOnGetRPGZombieMaxHP);
 
-			Call_PushCell(a);
+			Call_PushCell(prio);
 			Call_PushCell(client);
 			
 			Call_PushCellRef(maxHP);
@@ -1920,11 +1920,11 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 	int maxHP = 100;
 	
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetRPGMaxHP);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 		
 		Call_PushCellRef(maxHP);
@@ -1937,11 +1937,11 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 	SetEntityMaxHealth(client, maxHP);
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnRPGPlayerSpawned);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 
 		Call_PushCell(bFirstSpawn);
@@ -2353,11 +2353,11 @@ public Action Event_DefibUsed(Event event, const char[] name, bool dontBroadcast
 
 	int maxHP = 100;
 	
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetRPGMaxHP);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(revived);
 		
 		Call_PushCellRef(maxHP);
@@ -2552,11 +2552,11 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 
 	float fDelay = fOriginalDelay;
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetTankSwingSpeed);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 		
 		Call_PushFloatRef(fDelay);
@@ -2954,11 +2954,11 @@ public void Frame_GhostState(int userid)
 
 	L4D2ZombieClassType originalZClass = zclass;
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetRPGSpecialInfectedClass);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 		
 		Call_PushCellRef(zclass);
@@ -3001,11 +3001,11 @@ public void Frame_GhostState(int userid)
 	}
 
 
-	for(int a=-10;a <= 10;a++)
+	for(int prio=-10;prio <= 10;prio++)
 	{
 		Call_StartForward(g_fwOnGetRPGZombieMaxHP);
 
-		Call_PushCell(a);
+		Call_PushCell(prio);
 		Call_PushCell(client);
 		
 		Call_PushCellRef(maxHP);

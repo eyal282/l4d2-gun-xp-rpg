@@ -226,21 +226,11 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 		case 0:	CastBulletRelease(client);
 		case 1:
 		{
-			if(RPG_Tanks_GetClientTank(client) == strongerTankIndex)
-			{
-				CastDamageReflect(client);
-			}
-
 			CastPsychoKinesis(client);
 		}
 		case 2:	CastNightmare(client);
 		case 3:
 		{
-			if(RPG_Tanks_GetClientTank(client) == strongerTankIndex)
-			{
-				CastPsychoKinesis(client);
-			}
-
 			CastDamageReflect(client);
 		}
 	}	
@@ -505,20 +495,20 @@ public Action SDKEvent_SetTransmit(int victim, int viewer)
 public void RegisterTank()
 {
 	strongerTankIndex = RPG_Tanks_RegisterTank(3, 3, "Ultimate Psychic", "The strongest Psychic Tank the survivors will ever witness\nCasts a random psychic ability every 20 seconds.",
-	2500000, 180, 0.333333, 13000, 21000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
+	2500000, 180, 0.333333, 13000, 21000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	strongerPsychicPowersIndex = RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 10 seconds.", 0, 0);
-	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Psychokinesis", "This ability also casts Damage Reflect\nClosest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 15 seconds before release.", 0, 0);
+	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Psychokinesis", "Closest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 15 seconds before release.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Nightmare", "All survivors hallucinate a nightmare.\nThey cannot see any player, and take 2x damage from all sources.\nLasts 10 seconds.\nThe Tank instantly kills a survivor under Nightmare, returning the rest to normal", 0, 0);
-	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Damage Reflect", "This ability also casts Psychokinesis\nTank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 10 seconds.", 0, 0);
+	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 10 seconds.", 0, 0);
 
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Brains, Not Brawn", "Tank deals 3x less damage with punches.");
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Adaptability", "When the tank is under 30{PERCENT} HP, it will only cast Bullet Release");
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Psychic Rock", "The Tank's rock instantly kills a survivor it hits.");
 
 	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Psychic", "A powerful Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 20 seconds.",
-	1500000, 180, 0.2, 3000, 5000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
+	1500000, 180, 0.2, 3000, 5000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	psychicPowersIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 7 seconds.", 0, 0);

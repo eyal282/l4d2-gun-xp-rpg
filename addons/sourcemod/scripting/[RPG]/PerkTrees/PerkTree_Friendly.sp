@@ -53,8 +53,16 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     else if(!IsPlayer(victim) || !IsPlayer(attacker))
         return;
 
-    else if(L4D_GetClientTeam(victim) != L4D_GetClientTeam(attacker) && L4D_GetClientTeam(victim) != L4DTeam_Spectator)
+    else if(L4D_GetClientTeam(victim) != L4D_GetClientTeam(attacker))
+    {
+        if(L4D_GetClientTeam(attacker) == L4DTeam_Spectator || L4D_GetClientTeam(attacker) == L4DTeam_Unassigned)
+        {
+            damage = 0.0;
+            bImmune = true;
+        }
+
         return;
+    }
 
     int perkLevel1 = GunXP_RPGShop_IsPerkTreeUnlocked(victim, friendlyIndex);
     int perkLevel2 = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, friendlyIndex);

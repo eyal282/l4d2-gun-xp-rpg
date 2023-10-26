@@ -539,13 +539,13 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 		}
 		if(g_iUnlockedPerkTrees[entity][i] != PERK_TREE_NOT_UNLOCKED)
 		{
-			for(int a=0;a < g_iUnlockedPerkTrees[entity][i];a++)
+			for(int level=0;level < g_iUnlockedPerkTrees[entity][i];level++)
 			{
 				Call_StartForward(g_fwOnPerkTreeBuy);
 
 				Call_PushCell(entity);
 				Call_PushCell(i);
-				Call_PushCell(a);
+				Call_PushCell(level);
 
 				// Auto RPG?
 				Call_PushCell(true);
@@ -2718,7 +2718,7 @@ public Action Event_WeaponFire(Handle hEvent, char[] Name, bool dontBroadcast)
 	{
 		if(StrEqual(sClassname, GUNS_CLASSNAMES[i]))
 		{
-			if(i <= GetClientLevel(client))
+			if(i <= GetClientLevel(client) || IsFakeClient(client))
 			{
 				if(StrEqual(sClassname, "chainsaw"))
 				{
