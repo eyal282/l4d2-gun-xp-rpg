@@ -59,6 +59,8 @@ int g_iAbsLastLimpHealth[MAXPLAYERS+1] = { -1, ... };
 int g_iAbsLimpHealth[MAXPLAYERS+1];
 int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 
+float g_fMaterializedTimestamp[MAXPLAYERS+1];
+
 bool g_bLate;
 
 float g_fSpawnPoint[3];
@@ -1828,11 +1830,13 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 	if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
 	{
-		// Fake Client because humans spawn as ghosts.
-		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected || !IsFakeClient(client))
+		// Fake Client because humans spawn as ghosts for the most part. We must account for times where they don't.
+		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected || GetGameTime() - g_fMaterializedTimestamp[client] <= 0.05)
 			return;
 
-		
+		// While we're not materialzing, tanks have an annoying bug involving an instant double spawn.
+		g_fMaterializedTimestamp[client] = GetGameTime();
+
 		L4D2ZombieClassType zclass = L4D2_GetPlayerZombieClass(client);
 
 		L4D2ZombieClassType originalZClass = zclass;
@@ -2970,6 +2974,11 @@ public void L4D2_BackpackItem_StartAction_Post(int client, int entity, any type)
 	}
 }
 
+public void L4D_OnMaterializeFromGhost(int client)
+{
+	g_fMaterializedTimestamp[client] = GetGameTime();
+}
+
 public void L4D_OnEnterGhostState(int client)
 {
 	if(IsFakeClient(client))
@@ -3030,6 +3039,9 @@ public void Frame_GhostState(int userid)
 		}
 		else
 		{
+			g_iHealth[client] = -1;
+			g_iMaxHealth[client] = maxHP;
+
 			SetEntityMaxHealth(client, maxHP);
 			SetEntityHealth(client, maxHP);
 		}
@@ -3058,6 +3070,9 @@ public void Frame_GhostState(int userid)
 	}
 	else
 	{
+		g_iHealth[client] = -1;
+		g_iMaxHealth[client] = maxHP;
+		
 		SetEntityMaxHealth(client, maxHP);
 		SetEntityHealth(client, maxHP);
 	}
