@@ -1754,7 +1754,7 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		return Plugin_Continue;
 	}
 
-	if(L4D_IsFinaleEscapeInProgress())
+	if(L4D_IsFinaleEscapeInProgress() && L4D2_IsGenericCooperativeMode())
 	{
 		for(int i=1;i <= MaxClients;i++)
 		{
@@ -1765,9 +1765,6 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 				continue;
 
 			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-				continue;
-
-			else if(L4D_IsPlayerIncapacitated(i))
 				continue;
 
 			else if(g_iCurrentTank[i] < 0)

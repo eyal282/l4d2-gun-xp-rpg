@@ -1068,7 +1068,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
 
     GetClientAbsOrigin(owner, vOwner);
 
-    if(IsNotCarryable(owner) && !IsFakeClient(owner) && L4D_GetPinnedInfected(owner) == 0 && g_iPetCarrySlowSurvivors != 0)
+    if(IsNotCarryable(owner) && !IsFakeClient(owner) && g_iPetCarrySlowSurvivors != 0 && CountPinnedSurvivors() == 0)
     {
         fDist = Pow(131071.0, 2.0);
 
@@ -1076,7 +1076,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
         {
             for( int i = 1; i <= MaxClients; i++ )
             {
-                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && !IsNotCarryable(i) && L4D_GetPinnedInfected(i) == 0 && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
+                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && g_iCarrier[i] == -1 && !IsNotCarryable(i) && L4D_GetPinnedInfected(i) == 0 && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
                 {
                     GetClientAbsOrigin(i, vTarget);
                     GetClientAbsOrigin(owner, vPet);
@@ -1782,6 +1782,30 @@ public Action Event_ReviveSuccessPre(Event event, const char[] name, bool dontBr
     }
 
     return Plugin_Continue;
+}
+
+stock int CountPinnedSurvivors()
+{
+    int count = 0;
+
+    for(int i = 1; i <= MaxClients; i++ )
+    {
+        if(!IsClientInGame(i))
+            continue;
+            
+        else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+            continue;
+            
+        else if(!IsPlayerAlive(i))
+            continue;
+
+        else if(L4D_GetPinnedInfected(i) == 0)
+            continue;
+
+        count++;
+    }
+
+    return count;
 }
 
 /*============================================================================================
