@@ -145,6 +145,7 @@ native void RPG_Perks_SetClientHealth(int client, int amount);
 native int RPG_Perks_GetClientHealth(int client);
 
 // Gets a client's max health getting if they have over 65535 HP. Feel free to check for non-tanks.
+// Important note: Because RPG-Perks resets incapped players to 100 HP, use this to get original max HP.
 native int RPG_Perks_GetClientMaxHealth(int client);
 
 // Lets you give a player above 200 temp HP.

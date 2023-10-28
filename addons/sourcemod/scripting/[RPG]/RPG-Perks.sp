@@ -456,6 +456,8 @@ stock void RecalculateMaxHP(int client, bool bDontScale = false)
 
 	SetEntityMaxHealth(client, maxHP);
 
+	g_iMaxHealth[client] = maxHP;
+	
 	if(bDontScale)
 		return;
 
@@ -543,7 +545,7 @@ public int Native_GetClientMaxHealth(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
 
-	if(g_iMaxHealth[client] <= 65535)
+	if(g_iMaxHealth[client] <= 0)
 	{
 		return GetEntityMaxHealth(client);
 	}

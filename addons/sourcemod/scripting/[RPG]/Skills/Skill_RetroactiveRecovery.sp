@@ -54,14 +54,24 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 	else if(!GunXP_RPGShop_IsSkillUnlocked(attacker, skillIndex))
 		return;
 
-	CreateTimer(0.1, Timer_RetroactiveRecover, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+	// Insta kill when tank dies...
+	CreateTimer(0.1, Timer_RetroactiveRevive, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.2, Timer_RetroactiveRecover, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+}
 
+public Action Timer_RetroactiveRevive(Handle hTimer, int userid)
+{
+	int attacker = GetClientOfUserId(userid);
+
+	if(attacker == 0)
+		return Plugin_Continue;
+		
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
 
-		else if(IsPlayerAlive(i))
+		else if(!IsPlayerAlive(i))
 			continue;
 
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
@@ -91,8 +101,9 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 
 		break;
 	}
-}
 
+	return Plugin_Continue;
+}
 public Action Timer_RetroactiveRecover(Handle hTimer, int userid)
 {
 	int attacker = GetClientOfUserId(userid);
