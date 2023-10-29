@@ -1832,8 +1832,8 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 	if(L4D_GetClientTeam(client) != L4DTeam_Survivor)
 	{
-		// Fake Client because humans spawn as ghosts for the most part. We must account for times where they don't.
-		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected || GetGameTime() - g_fMaterializedTimestamp[client] <= 0.05)
+		// Fake clients cannot be ghosts, and make sure he didn't materialize.
+		if(!IsPlayerAlive(client) || L4D_GetClientTeam(client) != L4DTeam_Infected || (GetGameTime() - g_fMaterializedTimestamp[client] <= 0.05 && !IsFakeClient(client)))
 			return;
 
 		// While we're not materialzing, tanks have an annoying bug involving an instant double spawn.
