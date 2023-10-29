@@ -55,8 +55,24 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 		return;
 
 	// Insta kill when tank dies...
-	CreateTimer(0.1, Timer_RetroactiveRevive, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.1, Timer_RetroactiveCheck, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_RetroactiveCheck(Handle hTimer, int userid)
+{
+	int attacker = GetClientOfUserId(userid);
+
+	if(attacker == 0)
+		return Plugin_Continue;
+
+	if(IsPlayerAlive(attacker))
+	{
+		CreateTimer(0.1, Timer_RetroactiveRevive, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+	}
+
 	CreateTimer(0.2, Timer_RetroactiveRecover, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+
+	return Plugin_Continue;
 }
 
 public Action Timer_RetroactiveRevive(Handle hTimer, int userid)
@@ -71,7 +87,7 @@ public Action Timer_RetroactiveRevive(Handle hTimer, int userid)
 		if(!IsClientInGame(i))
 			continue;
 
-		else if(!IsPlayerAlive(i))
+		else if(IsPlayerAlive(i))
 			continue;
 
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
@@ -109,6 +125,9 @@ public Action Timer_RetroactiveRecover(Handle hTimer, int userid)
 	int attacker = GetClientOfUserId(userid);
 
 	if(attacker == 0)
+		return Plugin_Continue;
+
+	else if(!IsPlayerAlive(attacker))
 		return Plugin_Continue;
 
 	for(int i=1;i <= MaxClients;i++)
