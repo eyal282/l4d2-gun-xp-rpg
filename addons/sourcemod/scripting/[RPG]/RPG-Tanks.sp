@@ -107,6 +107,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Tanks_RegisterActiveAbility", Native_RegisterActiveAbility);
 	CreateNative("RPG_Tanks_RegisterPassiveAbility", Native_RegisterPassiveAbility);
 	CreateNative("RPG_Tanks_GetClientTank", Native_GetClientTank);
+	CreateNative("RPG_Tanks_GetClientTankTier", Native_GetClientTankTier);
 	CreateNative("RPG_Tanks_GetDamagePercent", Native_GetDamagePercent);
 	CreateNative("RPG_Tanks_SetDamagePercent", Native_SetDamagePercent);
 	CreateNative("RPG_Tanks_IsTankInPlay", Native_IsTankInPlay);
@@ -285,6 +286,22 @@ public any Native_GetClientTank(Handle caller, int numParams)
 	int client = GetNativeCell(1);
 
 	return g_iCurrentTank[client];
+}
+
+public any Native_GetClientTankTier(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+		return TANK_TIER_UNTIERED;
+
+	else if(g_iCurrentTank[client] < 0)
+		return TANK_TIER_UNTIERED;
+
+	enTank tank;
+	g_aTanks.GetArray(g_iCurrentTank[client], tank);
+
+	return tank.tier;
 }
 
 public any Native_GetDamagePercent(Handle caller, int numParams)

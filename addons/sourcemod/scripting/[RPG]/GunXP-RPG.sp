@@ -511,8 +511,6 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 		RecalculateBotMaxHP();
 	}
-	
-	SetEntityRenderColor(entity, 255, 0, 0);
 }
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
@@ -561,8 +559,6 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 		RecalculateBotMaxHP();
 	}
-
-	SetEntityRenderColor(entity, 255, 255, 255);
 }
 
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
@@ -586,9 +582,6 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 
 		RecalculateBotMaxHP();
 	}
-
-	SetEntityRenderColor(oldClient, 255, 255, 255);
-	SetEntityRenderColor(newClient, 255, 0, 0);
 }
 
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)

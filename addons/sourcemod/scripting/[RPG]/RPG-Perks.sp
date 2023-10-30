@@ -986,6 +986,7 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 public void OnMapStart()
 {
+	PrecacheSound("physics/glass/glass_impact_bullet4.wav");
 	if(!g_bLate)
 	{
 		for(int i=1;i < sizeof(g_bTeleported);i++)
@@ -1392,6 +1393,38 @@ public void Event_OnSpawnpointSpawnPost(int entity)
 
 public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
 {
+	float fOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	RPG_CalculateColorByAttributes(entity, attributeName);
+
+	if(StrEqual(attributeName, "Frozen") || StrEqual(attributeName, "Stun"))
+	{
+		if(IsPlayer(entity))
+		{
+			L4D_StaggerPlayer(entity, entity, {0.0, 0.0, 0.0});
+
+			char TempFormat[128];
+			FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(entity), GetClientUserId(entity));
+			L4D2_ExecVScriptCode(TempFormat);
+		}
+	}
+	if(StrEqual(attributeName, "Frozen"))
+	{
+
+		SetEntityFlags(entity, GetEntityFlags(entity) | FL_FROZEN);
+
+		if(RPG_Perks_GetZombieType(entity) != ZombieType_CommonInfected && RPG_Perks_GetZombieType(entity) != ZombieType_Witch)
+		{
+			SetEntityMoveType(entity, MOVETYPE_NONE);
+		}
+
+		EmitAmbientSound("physics/glass/glass_impact_bullet4.wav", fOrigin, entity, SNDLEVEL_RAIDSIREN);
+
+		
+		
+		return;
+	}
 	if(!StrEqual(attributeName, "Stun"))
 		return;
 
@@ -1404,10 +1437,36 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 		SetEntityMoveType(entity, MOVETYPE_NONE);
 		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", g_fLastStunOrigin[entity]);
 	}
+
+	TE_SetupSparks(fOrigin, {0.0, 0.0, 0.0}, 5, 5);
+
+	SetEntityRenderColor(entity, 238, 210, 2);
 }
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
+	RPG_CalculateColorByAttributes(entity, attributeName);
+
+	if(StrEqual(attributeName, "Frozen") || StrEqual(attributeName, "Stun"))
+	{
+		if(!IsPlayer(entity) && GetEntityHealth(entity) <= 0)
+		{
+			AcceptEntityInput(entity, "BecomeRagdoll");
+
+			return;
+		}
+	}
+	if(StrEqual(attributeName, "Frozen"))
+	{
+		SetEntityFlags(entity, GetEntityFlags(entity) & ~FL_FROZEN);
+
+		if(RPG_Perks_GetZombieType(entity) != ZombieType_CommonInfected && RPG_Perks_GetZombieType(entity) != ZombieType_Witch)
+		{
+			SetEntityMoveType(entity, MOVETYPE_WALK);
+		}
+
+		return;
+	}
 	if(!StrEqual(attributeName, "Stun"))
 		return;
 
@@ -1425,6 +1484,21 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
+	RPG_CalculateColorByAttributes(newClient, attributeName);
+
+	if(oldClient == newClient)
+		return;
+
+	if(StrEqual(attributeName, "Frozen"))
+	{
+		SetEntityFlags(oldClient, GetEntityFlags(oldClient) & ~FL_FROZEN);
+		SetEntityFlags(newClient, GetEntityFlags(newClient) | FL_FROZEN);
+
+		SetEntityMoveType(oldClient, MOVETYPE_WALK);
+		SetEntityMoveType(newClient, MOVETYPE_NONE);
+
+		return;
+	}
 	if(!StrEqual(attributeName, "Stun"))
 		return;
 
@@ -1435,6 +1509,29 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	g_fLastStunOrigin[newClient] = g_fLastStunOrigin[oldClient];
 }
 
+public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
+{
+	if(!StrEqual(attributeName, "Stun") && !StrEqual(attributeName, "Frozen") && !StrEqual(attributeName, "Mutated"))
+		return;
+
+	if(RPG_Perks_IsEntityTimedAttribute(entity, "Mutated"))
+	{
+		SetEntityRenderColor(entity, 255, 0, 0, 255);
+		return;
+	}
+	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Frozen"))
+	{
+		SetEntityRenderColor(entity, 0, 128, 255, 192);
+		return;
+	}
+	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Stun"))
+	{
+		SetEntityRenderColor(entity, 238, 210, 2, 255);
+		return;
+	}
+
+	SetEntityRenderColor(entity, 255, 255, 255, 255);
+}
 // Must add natives for after a player spawns for incap hidden pistol.
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
 {
@@ -2785,7 +2882,14 @@ public Action RPG_OnTraceAttack(int victim, int &attacker, int inflictor, float&
 		return Plugin_Stop;
 
 	else if(!IsPlayer(victim))
+	{
+		if(damage > float(GetEntityHealth(victim)) && GetEntityFlags(victim) & FL_FROZEN)
+		{
+			RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+			RPG_Perks_ApplyEntityTimedAttribute(victim, "Frozen", 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		}
 		return bDontInstakill ? Plugin_Changed : Plugin_Continue;
+	}
 
 	// Time to die / incap
 	else if(damage >= float(GetEntityHealth(victim) + L4D_GetPlayerTempHealth(victim)))

@@ -171,6 +171,9 @@ native int RPG_Tanks_RegisterPassiveAbility(int tank, char name[32], char descri
 // Returns tank index, TANK_TIER_UNTIERED for untiered and TANK_TIER_UNKNOWN on priority -10 of GetZombieMaxHP.
 native int RPG_Tanks_GetClientTank(int client);
 
+// Returns tier of a client, or TANK_TIER_UNTIERED if not a Tank or not tiered.
+native int RPG_Tanks_GetClientTankTier(int client);
+
 native float RPG_Tanks_GetDamagePercent(int client, int tank);
 native void RPG_Tanks_SetDamagePercent(int client, int tank, float damagePercent);
 
@@ -230,6 +233,7 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("RPG_Tanks_RegisterActiveAbility");
 	MarkNativeAsOptional("RPG_Tanks_RegisterPassiveAbility");
 	MarkNativeAsOptional("RPG_Tanks_GetClientTank");
+	MarkNativeAsOptional("RPG_Tanks_GetClientTankTier");
 	MarkNativeAsOptional("RPG_Tanks_GetDamagePercent");
 	MarkNativeAsOptional("RPG_Tanks_SetDamagePercent");
 	MarkNativeAsOptional("RPG_Tanks_IsTankInPlay");

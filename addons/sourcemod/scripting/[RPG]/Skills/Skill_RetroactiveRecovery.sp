@@ -48,14 +48,17 @@ public void GunXP_OnReloadRPGPlugins()
 
 public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 {
-	if(RPG_Tanks_GetClientTank(victim) == TANK_TIER_UNTIERED)
+	if(RPG_Tanks_GetClientTankTier(victim) == TANK_TIER_UNTIERED)
 		return;
 
 	else if(!GunXP_RPGShop_IsSkillUnlocked(attacker, skillIndex))
 		return;
 
-	// Insta kill when tank dies...
-	CreateTimer(0.1, Timer_RetroactiveCheck, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+	// Delay to account for insta kill
+	for(int i=0;i < RPG_Tanks_GetClientTankTier(victim);i++)
+	{
+		CreateTimer(0.1, Timer_RetroactiveCheck, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
+	}
 }
 
 public Action Timer_RetroactiveCheck(Handle hTimer, int userid)
@@ -93,6 +96,9 @@ public Action Timer_RetroactiveRevive(Handle hTimer, int userid)
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
 		
+		else if(RPG_Perks_IsEntityTimedAttribute(i, "Retroactive Revive Cooldown"))
+			continue;
+			
 		float fChance = 0.01 * float(GunXP_RPG_GetClientLevel(attacker));
 
 		float fGamble = GetRandomFloat(0.0, 1.0);
@@ -102,11 +108,13 @@ public Action Timer_RetroactiveRevive(Handle hTimer, int userid)
 			break;
 
 		L4D2_VScriptWrapper_ReviveByDefib(i);
+		
+		RPG_Perks_ApplyEntityTimedAttribute(i, "Retroactive Revive Cooldown", 0.5, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
 		float fOrigin[3];
 		GetClientAbsOrigin(attacker, fOrigin);
 
-		TeleportEntity(attacker, fOrigin, NULL_VECTOR, NULL_VECTOR);
+		TeleportEntity(i, fOrigin, NULL_VECTOR, NULL_VECTOR);
 
 		RPG_Perks_RecalculateMaxHP(i);
 
@@ -154,7 +162,7 @@ public Action Timer_RetroactiveRecover(Handle hTimer, int userid)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "When a tiered Tank dies, random survivor may respawn\nChance to respawn equals your level\nAfter all respawns are done, survivors heal for %.1f{PERCENT} of max HP\nThis skill stacks across all survivors.\nDead players cannot activate this skill.", g_fHealPercent);
+	FormatEx(sDescription, sizeof(sDescription), "When a tiered Tank dies, random survivor may respawn with chance equal to your level\nActivates a number of times equal to Tank's Tier\nAfter all respawns, heal all for %.1f{PERCENT} of max HP\nThis skill stacks across all survivors, but dead players cannot activate this skill.", g_fHealPercent);
 
 	skillIndex = GunXP_RPGShop_RegisterSkill("Heal Team when Tank dies", "Retroactive Recovery", sDescription,
 	30000, 100000);
