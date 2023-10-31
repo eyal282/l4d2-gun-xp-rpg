@@ -150,11 +150,11 @@ public Action Timer_MonitorPets(Handle hTimer)
 
         else if(!IsPlayerAlive(i))
             continue;
-
-        else if(!GunXP_RPGShop_IsSkillUnlocked(i, petIndex))
+        
+        else if(GunXP_RPGShop_IsPerkTreeUnlocked(i, petIndex) == PERK_TREE_NOT_UNLOCKED)
             continue;
 
-        else if(RPG_FindClientPet(i) != 0)
+        if(RPG_FindClientPet(i) != 0)
             continue;
 
         FakeClientCommand(i, "sm_pet");
@@ -420,6 +420,9 @@ stock int RPG_FindClientPet(int client, int startPos=0)
             continue;
 
         else if(L4D_GetClientTeam(i) != L4DTeam_Infected)
+            continue;
+
+        else if(!IsPlayerAlive(i))
             continue;
 
         int owner = GetEntPropEnt(i, Prop_Send, "m_hOwnerEntity");
