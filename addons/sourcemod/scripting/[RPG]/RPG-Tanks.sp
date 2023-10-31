@@ -18,6 +18,14 @@
 
 #define PLUGIN_VERSION "1.0"
 
+#define SOUND_CHANNEL 7254
+
+#define IMMUNITY_SOUND "level/puck_fail.wav"
+
+// How much times to play the sound?
+#define IMMUNITY_SOUND_MULTIPLIER 100
+
+
 public Plugin myinfo = {
 	name = "RPG Tanks",
 	author = "Eyal282",
@@ -445,6 +453,8 @@ public void OnMapStart()
 	g_iKillCombo = 0;
 	g_iOverrideNextTier = TANK_TIER_UNKNOWN;
 	g_bButtonLive = false;
+
+	PrecacheSound(IMMUNITY_SOUND);
 
 	TriggerTimer(CreateTimer(0.5, Timer_TanksOpenDoors, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
@@ -1083,11 +1093,15 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN && damagetype & DMG_BURN)
 		{
 			bImmune = true;
+
+			TryPlayImmunitySound(attacker);			
 		}
 
 		if(tank.damageImmunities & DAMAGE_IMMUNITY_EXPLOSIVES == DAMAGE_IMMUNITY_EXPLOSIVES && damagetype & DMG_BLAST)
 		{
 			bImmune = true;
+
+			TryPlayImmunitySound(attacker);
 		}
 
 		if(tank.damageImmunities & DAMAGE_IMMUNITY_MELEE == DAMAGE_IMMUNITY_MELEE && (L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Melee || L4D2_GetWeaponId(inflictor) == L4D2WeaponId_Chainsaw))
@@ -1095,12 +1109,15 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 			if(tank.damageImmunities & DAMAGE_IMMUNITY_BURN == DAMAGE_IMMUNITY_BURN || !(damagetype & DMG_BURN))
 			{
 				bImmune = true;
+
+				TryPlayImmunitySound(attacker);
 			}
 		}
 
 		if(tank.damageImmunities & DAMAGE_IMMUNITY_BULLETS == DAMAGE_IMMUNITY_BULLETS && damagetype & DMG_BULLET)
 		{
 			bImmune = true;
+			TryPlayImmunitySound(attacker);
 		}
 	}
 
@@ -1116,6 +1133,27 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	{
 		damage = damage * g_hRPGDamageMultiplier.FloatValue;
 	}
+}
+
+public void TryPlayImmunitySound(int attacker)
+{
+	if(IsFakeClient(attacker))
+		return;
+
+	else if(RPG_Perks_IsEntityTimedAttribute(attacker, "Immunity Sound Cooldown"))
+		return;
+
+	RPG_Perks_ApplyEntityTimedAttribute(attacker, "Immunity Sound Cooldown", 2.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+
+	EmitImmunitySound(attacker);
+}
+
+stock void EmitImmunitySound(int client)
+{
+    for(int i=0;i < IMMUNITY_SOUND_MULTIPLIER;i++)
+    {
+        EmitSoundToClient(client, IMMUNITY_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 100);
+    }
 }
 
 public Action Command_TankHP(int client, int args)
