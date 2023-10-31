@@ -16,6 +16,13 @@
 #pragma newdecls required
 #pragma semicolon 1
 
+#define SOUND_CHANNEL 7154
+
+#define LEVEL_UP_SOUND "music/safe/themonsterswithout_l4d1.wav"
+
+// How much times to play the sound?
+#define LEVEL_UP_SOUND_MULTIPLIER 3
+
 //#define UNKNOWN_ERROR "\x01An unknown error has occured, action was aborted."
 
 #define ADMFLAG_VIP ADMFLAG_CUSTOM2
@@ -1354,12 +1361,14 @@ public void OnMapStart()
 {
 	g_bMapStarted = true;
 
+	PrecacheSound(LEVEL_UP_SOUND);
+
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 	TriggerTimer(CreateTimer(5.0, Timer_AutoRPG, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE));
 		
 	CreateTimer(150.0, Timer_TellAboutShop, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-
+	
 	if(!g_bLate)
 	{
 		CreateTimer(5.0, Timer_ConvertSpawns, _, TIMER_FLAG_NO_MAPCHANGE);
@@ -3185,13 +3194,23 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 	g_iXP[client] += amount;
 	g_iXPCurrency[client] += amount;
 
+	int minLevelUp = -1;
+	int maxLevelUp = -1;
+
 	for(int i=preCalculatedLevel;i < MAX_LEVEL;i++)
 	{
 		if(g_iXP[client] >= LEVELS[i])
 		{
 			if(!IsFakeClient(client))
 			{
-				PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, i + 1);
+				int level = i + 1;
+
+				if(minLevelUp == -1)
+				{
+					minLevelUp = level;
+				}
+
+				maxLevelUp = level;
 			}
 
 			if(!StrEqual(GUNS_CLASSNAMES[i], "null"))
@@ -3199,6 +3218,20 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 				SetClientSaveGuns(client, false);
 			}
 		}
+	}
+
+	if(minLevelUp != -1)
+	{
+		if(minLevelUp == maxLevelUp)
+		{
+			PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 to level\x05 %i\x01!", client, minLevelUp);
+		}
+		else
+		{
+			PrintToChatAll("\x04[Gun-XP] \x03%N\x01 has\x04 leveled up\x01 from level\x05 %i\x01 to level\x05 %i\x01!", client, minLevelUp - 1, maxLevelUp);
+		}
+
+		EmitLevelUpSound(client);
 	}
 
 	char AuthId[35];
@@ -3210,6 +3243,15 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 	g_dbGunXP.Query(SQLCB_Error, sQuery);	
 
 	CalculateStats(client);
+}
+
+
+stock void EmitLevelUpSound(int client)
+{
+    for(int i=0;i < LEVEL_UP_SOUND_MULTIPLIER;i++)
+    {
+        EmitSoundToClient(client, LEVEL_UP_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 110);
+    }
 }
 
 stock int GetClientXP(int client)
