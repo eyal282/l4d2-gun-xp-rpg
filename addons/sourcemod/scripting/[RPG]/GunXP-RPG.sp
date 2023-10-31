@@ -110,7 +110,10 @@ bool g_bLoadedFromDB[MAXPLAYERS+1];
 
 int g_iRPGTarget[MAXPLAYERS+1];
 
+int g_iMenuPosPerks[MAXPLAYERS+1], g_iMenuPosSkills[MAXPLAYERS+1];
+
 int g_iMidSell[MAXPLAYERS+1] = { -1, ... };
+
 
 Database g_dbGunXP;
 
@@ -1832,6 +1835,8 @@ public Action Command_RPG(int client, int args)
 	AddMenuItem(hMenu, "", "Perk Trees");
 	AddMenuItem(hMenu, "", "Skills");
 
+	AddMenuItem(hMenu, "", "Commands");
+
 	char sXP[16], sXPCurrency[16];
 
 	StringToKMB(GetClientXP(target), sXP, sizeof(sXP));
@@ -1919,7 +1924,69 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				// -1 instead of 0 is important for calculating a target.
 				Command_Skills(client, -1);
 			}
+
+			case 4:
+			{
+				// -1 instead of 0 is important for calculating a target.
+				Command_Commands(client, -1);
+			}
 		}
+	}	
+
+	return 0;
+}	
+
+
+public Action Command_Commands(int client, int args)
+{
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget), args);
+	
+	ShowCommandsMenu(client);
+	
+	return Plugin_Handled;
+}
+
+
+stock void ShowCommandsMenu(int client, int item=0)
+{
+	Handle hMenu = CreateMenu(Commands_MenuHandler);
+
+	AddMenuItem(hMenu, "sm_guns", "!guns");
+	AddMenuItem(hMenu, "sm_xp", "!xp [#userid|name]");
+	AddMenuItem(hMenu, "sm_rpg", "!rpg [#userid|name]");
+	AddMenuItem(hMenu, "sm_skill", "!skill [#userid|name]");
+	AddMenuItem(hMenu, "sm_perk", "!perk [#userid|name]");
+	AddMenuItem(hMenu, "sm_tankhp", "!tankhp");
+	AddMenuItem(hMenu, "sm_tankinfo", "!tankinfo");
+	AddMenuItem(hMenu, "sm_buy", "!buy <alias> [#userid|name]");
+
+	SetMenuExitBackButton(hMenu, true);
+
+	DisplayMenuAtItem(hMenu, client, item, MENU_TIME_FOREVER);
+
+	return;
+}
+
+public int Commands_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		// -1 instead of 0 is important for calculating a target.
+		Command_RPG(client, -1);
+	}
+	else if(action == MenuAction_Select)
+	{		
+		char sInfo[32];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		FakeClientCommand(client, sInfo);
 	}	
 
 	return 0;
@@ -2011,6 +2078,8 @@ public int PerkTreesShop_MenuHandler(Handle hMenu, MenuAction action, int client
 
 		int perkIndex = StringToInt(sInfo);
 
+		g_iMenuPosPerks[client] = GetMenuSelectionPosition();
+
 		ShowPerkTreeInfo(client, perkIndex);
 	}	
 
@@ -2095,8 +2164,7 @@ public int PerkTreeInfo_MenuHandler(Handle hMenu, MenuAction action, int client,
 	}
 	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
 	{
-		// -1 instead of 0 is important for calculating a target.
-		Command_PerkTrees(client, -1);
+		ShowPerkTreesMenu(client, g_iMenuPosPerks[client]);
 	}
 	else if(action == MenuAction_Select)
 	{		
@@ -2304,7 +2372,10 @@ public int SkillShop_MenuHandler(Handle hMenu, MenuAction action, int client, in
 
 		int skillIndex = StringToInt(sInfo);
 
+		g_iMenuPosSkills[client] = GetMenuSelectionPosition();
+
 		ShowSkillInfo(client, skillIndex);
+		
 	}	
 
 	return 0;
@@ -2362,8 +2433,7 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 	}
 	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
 	{
-		// -1 instead of 0 is important for calculating a target.
-		Command_Skills(client, -1);
+		ShowSkillsMenu(client, g_iMenuPosSkills[client]);
 	}
 	else if(action == MenuAction_Select)
 	{		
