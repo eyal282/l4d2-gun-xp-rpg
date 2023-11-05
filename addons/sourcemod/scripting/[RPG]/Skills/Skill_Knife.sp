@@ -133,7 +133,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
                 int pinner = L4D_GetPinnedInfected(client);
 
-                ClientCommand(client, "weapons/knife/knife_deploy.wav");
+                ClientCommand(client, "play weapons/knife/knife_deploy.wav");
 
                 if(RPG_Perks_GetZombieType(pinner) == ZombieType_Smoker)
                 {

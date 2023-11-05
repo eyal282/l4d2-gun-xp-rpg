@@ -68,6 +68,7 @@ public void OnEntityCreated(int entity, const char[] classname)
         return;
 
     g_fSpawnTime[entity] = GetGameTime();
+    g_iClusterCombo[entity] = 0;
 }
 public void L4D_PipeBomb_Detonate_Post(int entity, int client)
 {

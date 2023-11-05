@@ -63,6 +63,9 @@ float g_fMaterializedTimestamp[MAXPLAYERS+1];
 
 bool g_bLate;
 
+// 0 = no, 1 = yes, 2 = ignore.
+int g_iIsTouching[MAXPLAYERS+1][2049];
+
 float g_fSpawnPoint[3];
 float g_fLastStunOrigin[MAXPLAYERS+1][3];
 
@@ -128,6 +131,8 @@ ConVar g_hLimpHealth;
 ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
+
+GlobalForward g_fwOnShouldIgnoreEntireTeamTouch;
 
 GlobalForward g_fwOnShouldClosetsRescue;
 
@@ -1203,7 +1208,12 @@ public void OnPluginStart()
 	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
 
+	HookEntityOutput("trigger_multiple", "StartTouch", TriggerMultiple_StartTouch);
+	HookEntityOutput("trigger_multiple", "EndTouch", TriggerMultiple_EndTouch);
+
 	// Plugin_Handled if not.
+	g_fwOnShouldIgnoreEntireTeamTouch = CreateGlobalForward("RPG_Perks_OnShouldIgnoreEntireTeamTouch", ET_Event, Param_Cell);
+
 	g_fwOnShouldClosetsRescue = CreateGlobalForward("RPG_Perks_OnShouldClosetsRescue", ET_Event);
 
 	g_fwOnShouldInstantKill = CreateGlobalForward("RPG_Perks_OnShouldInstantKill", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_Cell, Param_CellByRef);
@@ -2143,6 +2153,13 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
+	int entity = -1;
+
+	while((entity = FindEntityByClassname(entity, "trigger_multiple")) != -1)
+	{
+		g_iIsTouching[newPlayer][entity] = g_iIsTouching[oldPlayer][entity];
+	}
+
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
 	if(!L4D_IsPlayerIncapacitated(newPlayer))
@@ -2179,6 +2196,13 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_iLastTemporaryHealth[newPlayer] = 0;
 	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
+
+	int entity = -1;
+
+	while((entity = FindEntityByClassname(entity, "trigger_multiple")) != -1)
+	{
+		g_iIsTouching[newPlayer][entity] = g_iIsTouching[oldPlayer][entity];
+	}
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
@@ -2636,6 +2660,105 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 	g_hLedgeHangHealth.IntValue = health;
 
 	return Plugin_Continue;
+}
+
+public void TriggerMultiple_StartTouch(const char[] output, int caller, int activator, float delay)
+{
+	g_iIsTouching[activator][caller] = 1;
+
+	int touchCount, fakeCount, teamCount;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(g_iIsTouching[activator][caller] == 1)
+			continue;
+
+		Call_StartForward(g_fwOnShouldIgnoreEntireTeamTouch);
+
+		Call_PushCell(i);
+
+		Action rtn;
+		Call_Finish(rtn);
+
+		if(rtn >= Plugin_Handled)
+		{
+			g_iIsTouching[activator][caller] = 2;
+		}
+	}
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(GetEntProp(caller, Prop_Data, "m_iEntireTeam") != GetClientTeam(caller))
+			continue;
+
+		teamCount++;
+
+		if(g_iIsTouching[activator][caller] == 1)
+			touchCount++;
+
+		else if(g_iIsTouching[activator][caller] == 2)
+			fakeCount++;
+	}
+
+	// Normal entire team, let the game do its logic.
+	if(fakeCount == 0)
+		return;
+
+	if(touchCount + fakeCount == teamCount)
+	{
+		FireEntityOutput(caller, "OnEntireTeamStartTouch");
+	}
+}
+
+public void TriggerMultiple_EndTouch(const char[] output, int caller, int activator, float delay)
+{
+	int touchCount, fakeCount, teamCount;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(GetEntProp(caller, Prop_Data, "m_iEntireTeam") != GetClientTeam(caller))
+			continue;
+
+		teamCount++;
+
+		if(g_iIsTouching[activator][caller] == 1)
+			touchCount++;
+
+		else if(g_iIsTouching[activator][caller] == 2)
+			fakeCount++;
+	}
+
+	// Normal entire team, let the game do its logic.
+	if(fakeCount == 0)
+	{
+		g_iIsTouching[activator][caller] = 0;
+		return;
+	}
+
+	if(touchCount + fakeCount == teamCount)
+	{
+		FireEntityOutput(caller, "OnEntireTeamEndTouch");
+	}
+
+	g_iIsTouching[activator][caller] = 0;
 }
 
 public void OnClientPutInServer(int client)

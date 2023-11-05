@@ -184,6 +184,10 @@ native bool RPG_Tanks_IsTankInPlay(int tankIndex);
 // @return: 0 on success, 1 if percents are invalid ( not between 1 to 100 ), 2 if the vote is on the 6.0 seconds cooldown, 3 if the team is not valid
 native int StartCustomVote(int client, char[] strTeam, int Percents, char[] VoteSubject);
 
+// Set pet to -1 to stop carry.
+native void L4D2_Pets_ForceCarry(int victim, int pet);
+native int L4D2_Pets_GetCarrier(int victim);
+
 public SharedPlugin __pl_gun_xp_rpg = 
 {
 	name = "Gun XP - RPG",
@@ -238,6 +242,8 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("RPG_Tanks_SetDamagePercent");
 	MarkNativeAsOptional("RPG_Tanks_IsTankInPlay");
 	MarkNativeAsOptional("StartCustomVote");
+	MarkNativeAsOptional("L4D2_Pets_ForceCarry");
+	MarkNativeAsOptional("L4D2_Pets_GetCarrier");
 }
 #endif
 
@@ -263,6 +269,11 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 // DO NOT UNDER ANY CIRCUMSTANCE SELL OR RESET A PLAYER IN THIS FORWARD IN ANY WAY SHAPE OR FORM ABLE TO.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 
+// return Plugin_Handled to ignore the client (please keep it for the rest of the round), Plugin_Continue otherwise.
+forward Action RPG_Perks_OnShouldIgnoreEntireTeamTouch(int client);
+
+// return Plugin_Handled to prevent closets rescue, Plugin_Continue to allow.
+forward Action RPG_Perks_OnShouldClosetsRescue();
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER CHECK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
@@ -676,6 +687,18 @@ stock void FullyHealPlayer(int client)
 	L4D2_GetVScriptOutput(code, sOutput, sizeof(sOutput));
 }
 
+stock int RPG_GetPlayerCarry(int client)
+{
+    for(int i=1;i <= MaxClients;i++)
+    {
+        if(L4D2_Pets_GetCarrier(i) == client)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
 /**
  * @brief Reloads a plugin.
  *

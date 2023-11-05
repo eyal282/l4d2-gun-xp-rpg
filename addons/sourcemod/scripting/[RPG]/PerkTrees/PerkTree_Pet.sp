@@ -238,6 +238,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
             }
             else
             {
+                if(RPG_GetPlayerCarry(pet) != -1)
+                {
+                    PrintToChat(client, "Cannot teleport pet while it's carrying.");
+                    PrintToChat(client, "Use !afk if you're stuck.");
+                    return Plugin_Continue;
+                }
                 g_bSpam[client] = true;
             
                 CreateTimer(5.0, Timer_SpamOff, client);

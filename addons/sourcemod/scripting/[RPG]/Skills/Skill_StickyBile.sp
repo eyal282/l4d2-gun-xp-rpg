@@ -71,7 +71,7 @@ public void GunXP_OnReloadRPGPlugins()
 public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &speedmodifier)
 {
 	if(L4D2_GetWeaponId(weapon) != L4D2WeaponId_Vomitjar)
-        return;
+		return;
 
 	else if(!GunXP_RPGShop_IsSkillUnlocked(client, bileIndex))
 		return;
@@ -112,8 +112,8 @@ public void OnEntityDestroyed(int entity)
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
-    if(!IsValidEntityIndex(entity))
-        return;
+	if(!IsValidEntityIndex(entity))
+		return;
 
 	if(g_bMapStarted)
 	{
@@ -288,7 +288,12 @@ public Action L4D2_CInsectSwarm_CanHarm(int acid, int spitter, int entity)
 				}
 				default:
 				{
-					L4D2_CTerrorPlayer_OnHitByVomitJar(entity, spitter);
+					int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+
+					if(owner == -1)
+					{
+						L4D2_CTerrorPlayer_OnHitByVomitJar(entity, spitter);
+					}
 				}
 			}
 		}
@@ -346,5 +351,5 @@ public void RegisterSkill()
 
 bool IsValidEntityIndex(int entity)
 {
-    return (MaxClients+1 <= entity <= GetMaxEntities());
+	return (MaxClients+1 <= entity <= GetMaxEntities());
 }

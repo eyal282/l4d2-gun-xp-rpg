@@ -19,9 +19,6 @@ public Plugin myinfo =
     url         = ""
 };
 
-native void L4D2_Pets_ForceCarry(int victim, int pet);
-native int L4D2_Pets_GetCarrier(int victim);
-
 int tamerIndex;
 
 public void OnLibraryAdded(const char[] name)
@@ -96,6 +93,6 @@ public void RegisterSkill()
     char sDescription[512];
     FormatEx(sDescription, sizeof(sDescription), "Shove your Pet while holding E to start/stop getting carried.\nYour pet will go to safe room if able\nIf it cannot, or if you're holding SHIFT, it'll attack normally"); 
 
-    tamerIndex = GunXP_RPGShop_RegisterSkill("Ride on your Pet", "Beast Timer", sDescription,
+    tamerIndex = GunXP_RPGShop_RegisterSkill("Ride on your Pet", "Beast Tamer", sDescription,
     0, 1000000);
 }
