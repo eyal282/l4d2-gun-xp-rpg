@@ -63,7 +63,7 @@ public void RegisterPerkTree()
     xpReqs = new ArrayList(1);
 
     descriptions.PushString("Gain a pistol when incapacitated");
-    costs.Push(750);
+    costs.Push(30);
     xpReqs.Push(0);
 
     descriptions.PushString("Gain dual-pistols when incapacitated");

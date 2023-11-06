@@ -1408,11 +1408,13 @@ public Action Timer_AutoRPG(Handle hTimer)
 		g_iMidSell[i] = -1;
 
 		// If XP Currency is below 0, it means that an admin stole his XP.
-		if(GetClientXPCurrency(i) < 0 || GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) > GetClientXP(i))
+		if(GetClientXPCurrency(i) < 0 || GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) != GetClientXP(i))
 		{
-			ResetPerkTreesAndSkills(i);
+			RefundPerkTreesAndSkills(i);
 
 			CreateTimer(1.0, Timer_AnnounceResetRPG, GetClientUserId(i), TIMER_FLAG_NO_MAPCHANGE);
+
+			continue;
 		}
 		if(!IsClientAutoRPG(i))
 			continue;
@@ -3351,15 +3353,138 @@ stock void ResetPerkTreesAndSkills(int client)
 
 		RecalculateBotMaxHP();
 	}
-
 }
 
+
+stock void RefundPerkTreesAndSkills(int client)
+{
+	Call_StartForward(g_fwOnResetRPG);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
+	StringMap smPerkTrees = new StringMap();
+	StringMap smSkills = new StringMap();
+
+	for(int i=0;i < g_aPerkTrees.Length;i++)
+	{
+		enPerkTree perkTree;
+		g_aPerkTrees.GetArray(i, perkTree);
+
+		smPerkTrees.SetValue(perkTree.identifier, g_iUnlockedPerkTrees[client][i]);
+
+		g_iUnlockedPerkTrees[client][i] = PERK_TREE_NOT_UNLOCKED;
+	}
+	
+	for(int i=0;i < g_aSkills.Length;i++)
+	{
+		enSkill skill;
+		g_aSkills.GetArray(i, skill);
+
+		smSkills.SetValue(skill.identifier, g_bUnlockedSkills[client][i]);
+
+		g_bUnlockedSkills[client][i] = false;
+	}
+
+	g_iXPCurrency[client] = g_iXP[client];
+
+	Transaction transaction = SQL_CreateTransaction();
+
+	char AuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
+
+	char sQuery[256];
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XP WHERE AuthId = '%s'", AuthId);
+	SQL_AddQuery(transaction, sQuery);
+
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_Skills WHERE AuthId = '%s'", AuthId);
+	SQL_AddQuery(transaction, sQuery);
+
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_PerkTrees WHERE AuthId = '%s'", AuthId);
+	SQL_AddQuery(transaction, sQuery);
+
+	StringMapSnapshot smSnapPerkTrees = smPerkTrees.Snapshot();
+	StringMapSnapshot smSnapSkills = smSkills.Snapshot();
+
+	for(int i=0;i < smSnapPerkTrees.Length;i++)
+	{
+		char sIdentifier[64];
+		smSnapPerkTrees.GetKey(i, sIdentifier, sizeof(sIdentifier));
+
+		int level;
+		smPerkTrees.GetValue(sIdentifier, level);
+
+		if(level == PERK_TREE_NOT_UNLOCKED)
+			continue;
+
+		for(int perkIndex=0;perkIndex < g_aPerkTrees.Length;perkIndex++)
+		{
+			enPerkTree perkTree;
+			g_aPerkTrees.GetArray(perkIndex, perkTree);
+			
+			if(StrEqual(sIdentifier, perkTree.identifier))
+			{
+				for(int dummy=0;dummy <= level;dummy++)
+				{
+					PurchasePerkTreeLevel(client, perkIndex, perkTree, true, transaction);
+				}
+
+				// I don't like breaking in two for loops...
+				perkIndex = g_aPerkTrees.Length;
+			}			
+		}
+	}
+	
+	for(int i=0;i < smSnapSkills.Length;i++)
+	{
+		char sIdentifier[64];
+		smSnapSkills.GetKey(i, sIdentifier, sizeof(sIdentifier));
+
+		int bUnlocked;
+		smSkills.GetValue(sIdentifier, bUnlocked);
+
+		if(!bUnlocked)
+			continue;
+
+		for(int skillIndex=0;skillIndex < g_aSkills.Length;skillIndex++)
+		{
+			enSkill skill;
+			g_aSkills.GetArray(skillIndex, skill);
+			
+			if(StrEqual(sIdentifier, skill.identifier))
+			{
+				PurchaseSkill(client, skillIndex, skill, true, transaction);
+
+				// I don't like breaking in two for loops...
+				skillIndex = g_aSkills.Length;
+			}			
+		}
+	}
+
+	g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+
+		RecalculateBotMaxHP();
+	}
+}
 
 stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, bool bAuto, Transaction transaction = null)
 {
 	g_iUnlockedPerkTrees[client][perkIndex]++;
 
 	int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex]);
+
+	if(g_iXPCurrency[client] < cost)
+	{
+		g_iUnlockedPerkTrees[client][perkIndex]--;
+		return;
+	}
+
 	g_iXPCurrency[client] -= cost;
 
 	bool bExecute = false;
@@ -3446,6 +3571,12 @@ stock void SellPerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, boo
 stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
 {
 	g_bUnlockedSkills[client][skillIndex] = true;
+
+	if(g_iXPCurrency[client] < skill.cost)
+	{
+		g_bUnlockedSkills[client][skillIndex] = false;
+		return;
+	}
 
 	g_iXPCurrency[client] -= skill.cost;
 

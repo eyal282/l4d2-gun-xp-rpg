@@ -234,9 +234,11 @@ public void OnPluginStart()
 
 public void OnMapStart()
 {
-    for( int i = 1; i < MaxClients; i++ )
+    for( int i = 1; i <= MaxClients; i++ )
     {
         g_iOwner[i] = 0;
+        g_bCarriedThisRound[i] = false;
+        g_iCarrier[i] = -1;
 
         for(int door=0;door < sizeof(g_fNextOpenDoor[]);door++)
         {
@@ -359,7 +361,7 @@ public void OnClientDisconnect(int client)
 
 public void OnPluginEnd()
 {
-    for( int i = 1; i < MaxClients; i++ )
+    for( int i = 1; i <= MaxClients; i++ )
     {
         if( g_iOwner[i] != 0 )
         {
@@ -371,7 +373,7 @@ public void OnPluginEnd()
 
 public void OnGameFrame()
 {
-    for(int i=1;i < MaxClients;i++)
+    for(int i=1;i <= MaxClients;i++)
     {
         if(!IsClientInGame(i))
             continue;
@@ -521,7 +523,7 @@ void SwitchPlugin()
         DHookDisableDetour(g_hDetTarget,		true, SelectTarget_Post);
         DHookDisableDetour(g_hDetLeap,			false, LeapJockey);
         
-        for( int i = 1; i < MaxClients; i++ )
+        for( int i = 1; i <= MaxClients; i++ )
         {
             if( g_iOwner[i] != 0 )
                 KillPet(i);
@@ -648,7 +650,7 @@ MRESReturn LeapJockey(int pThis, DHookParam hParams)
 
 void Event_Round_Start(Event event, const char[] name, bool dontBroadcast)
 {
-    for( int i = 1; i < MaxClients; i++ )
+    for( int i = 1; i <= MaxClients; i++ )
     {
         g_bCarriedThisRound[i] = false;
 
@@ -660,7 +662,7 @@ void Event_Round_Start(Event event, const char[] name, bool dontBroadcast)
 
 void Event_Round_End(Event event, const char[] name, bool dontBroadcast)
 {
-    for( int i = 1; i < MaxClients; i++ )
+    for( int i = 1; i <= MaxClients; i++ )
     {
         if( IsClientInGame(i) )
             SDKUnhook(i, SDKHook_OnTakeDamage, ScaleFF);	
@@ -801,7 +803,7 @@ Action Event_Player_Hurt(Event event, const char[] name, bool dontBroadcast)
     if( attacker <= 0 || attacker > MaxClients || GetClientTeam(attacker) != 3 )
         return Plugin_Continue;
     
-    for( int i = 0; i < MaxClients; i++ )
+    for( int i = 0; i <= MaxClients; i++ )
     {
         if( g_iOwner[i] == client && g_iTarget[i] == 0 )
             g_iTarget[i] = attacker;
@@ -1516,9 +1518,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
     if(GetNextBracketPercent(fLastBracket) < GetNextBracketPercent(g_fLastBracket[pet]))
         bShouldUpdate = true;
 
-    // float fPetFlowPercent = (L4D2Direct_GetTerrorNavAreaFlow(L4D_GetNearestNavArea(fPetOrigin)) / L4D2Direct_GetMapMaxFlowDistance()) * 100.0;
-
-    // PrintToChatAll("%f %.1f %.1f %i %.1f", GetNextBracketPercent(g_fLastBracket[pet]), g_fLastBracket[pet], fPetFlowPercent, bShouldUpdate, L4D2Direct_GetMapMaxFlowDistance());
+    float fPetFlowPercent = (L4D2Direct_GetTerrorNavAreaFlow(L4D_GetNearestNavArea(fPetOrigin)) / L4D2Direct_GetMapMaxFlowDistance()) * 100.0;
 
     if(g_iLastCommand[pet] != -2)
     {
@@ -1575,10 +1575,6 @@ stock bool GetCarryTargetOrigin(int pet, float fTargetOrigin[3] = NULL_VECTOR)
     int elevator = FindEntityByClassname(-1, "func_elevator");
 
     //PrintToChatAll("%i %f %f %f", L4D2_NavAreaBuildPath(L4D_GetNearestNavArea(fOrigin), L4D_GetNearestNavArea(g_fTargetOrigin), 65535.0, 2, false), g_fTargetOrigin[0], g_fTargetOrigin[1], g_fTargetOrigin[2]);
-
-
-    if(elevator != -1 && finale != -1)
-        return false;
 
     if(GetPlayerCarry(pet) == -1)
         return true;
@@ -1695,7 +1691,7 @@ Action CmdSayPet(int client, int args)
         GetCmdArg(1, sBuffer, sizeof(sBuffer));
         if( StrEqual( sBuffer, "remove") )
         {
-            for( int i = 1; i < MaxClients; i++ )
+            for( int i = 1; i <= MaxClients; i++ )
             {
                 if( g_iOwner[i] == client )
                     KillPet(i);

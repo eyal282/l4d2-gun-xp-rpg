@@ -197,6 +197,14 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 
 }
 
+public Action RPG_Perks_OnShouldIgnoreEntireTeamTouch(int client)
+{
+    if(IsFakeClient(client))
+        return Plugin_Handled;
+
+    return Plugin_Continue;
+}
+
 public void RPG_Perks_OnZombiePlayerSpawned(int client)
 {
     int owner = GetEntPropEnt(client, Prop_Send, "m_hOwnerEntity");

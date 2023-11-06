@@ -1208,8 +1208,11 @@ public void OnPluginStart()
 	HookEvent("charger_carry_end", Event_VictimFreeFromPin, EventHookMode_Post);
 	HookEvent("charger_pummel_end", Event_VictimFreeFromPin, EventHookMode_Post);
 
-	HookEntityOutput("trigger_multiple", "StartTouch", TriggerMultiple_StartTouch);
-	HookEntityOutput("trigger_multiple", "EndTouch", TriggerMultiple_EndTouch);
+	HookEntityOutput("trigger_multiple", "OnStartTouch", TriggerMultiple_StartTouch);
+	HookEntityOutput("trigger_multiple", "OnEndTouch", TriggerMultiple_EndTouch);
+
+	HookEntityOutput("func_elevator", "OnReachedTop", FuncElevator_ReachFloor);
+	HookEntityOutput("func_elevator", "OnReachedBottom", FuncElevator_ReachFloor);
 
 	// Plugin_Handled if not.
 	g_fwOnShouldIgnoreEntireTeamTouch = CreateGlobalForward("RPG_Perks_OnShouldIgnoreEntireTeamTouch", ET_Event, Param_Cell);
@@ -2664,8 +2667,6 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 
 public void TriggerMultiple_StartTouch(const char[] output, int caller, int activator, float delay)
 {
-	g_iIsTouching[activator][caller] = 1;
-
 	int touchCount, fakeCount, teamCount;
 
 	for(int i=1;i <= MaxClients;i++)
@@ -2674,9 +2675,6 @@ public void TriggerMultiple_StartTouch(const char[] output, int caller, int acti
 			continue;
 
 		else if(!IsPlayerAlive(i))
-			continue;
-
-		else if(g_iIsTouching[activator][caller] == 1)
 			continue;
 
 		Call_StartForward(g_fwOnShouldIgnoreEntireTeamTouch);
@@ -2688,8 +2686,13 @@ public void TriggerMultiple_StartTouch(const char[] output, int caller, int acti
 
 		if(rtn >= Plugin_Handled)
 		{
-			g_iIsTouching[activator][caller] = 2;
+			g_iIsTouching[i][caller] = 2;
 		}
+	}
+
+	if(g_iIsTouching[activator][caller] != 2)
+	{
+		g_iIsTouching[activator][caller] = 1;
 	}
 
 	for(int i=1;i <= MaxClients;i++)
@@ -2700,15 +2703,15 @@ public void TriggerMultiple_StartTouch(const char[] output, int caller, int acti
 		else if(!IsPlayerAlive(i))
 			continue;
 
-		else if(GetEntProp(caller, Prop_Data, "m_iEntireTeam") != GetClientTeam(caller))
+		else if(GetEntProp(caller, Prop_Data, "m_iEntireTeam") != GetClientTeam(i))
 			continue;
 
 		teamCount++;
 
-		if(g_iIsTouching[activator][caller] == 1)
+		if(g_iIsTouching[i][caller] == 1)
 			touchCount++;
 
-		else if(g_iIsTouching[activator][caller] == 2)
+		else if(g_iIsTouching[i][caller] == 2)
 			fakeCount++;
 	}
 
@@ -2734,15 +2737,15 @@ public void TriggerMultiple_EndTouch(const char[] output, int caller, int activa
 		else if(!IsPlayerAlive(i))
 			continue;
 
-		else if(GetEntProp(caller, Prop_Data, "m_iEntireTeam") != GetClientTeam(caller))
+		else if(GetEntProp(caller, Prop_Data, "m_iEntireTeam") != GetClientTeam(i))
 			continue;
 
 		teamCount++;
 
-		if(g_iIsTouching[activator][caller] == 1)
+		if(g_iIsTouching[i][caller] == 1)
 			touchCount++;
 
-		else if(g_iIsTouching[activator][caller] == 2)
+		else if(g_iIsTouching[i][caller] == 2)
 			fakeCount++;
 	}
 
@@ -2758,7 +2761,72 @@ public void TriggerMultiple_EndTouch(const char[] output, int caller, int activa
 		FireEntityOutput(caller, "OnEntireTeamEndTouch");
 	}
 
-	g_iIsTouching[activator][caller] = 0;
+	if(g_iIsTouching[activator][caller] != 2)
+	{
+		g_iIsTouching[activator][caller] = 0;
+	}
+}
+
+
+public void FuncElevator_ReachFloor(const char[] output, int caller, int activator, float delay)
+{
+	bool bAny;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		else if(GetEntPropEnt(i, Prop_Data, "m_hGroundEntity") != caller)
+			continue;
+
+		bAny = true;
+	}
+
+	if(!bAny)
+		return;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		int pet = -1;
+		
+		if(GetFeatureStatus(FeatureType_Native, "L4D2_Pets_GetCarrier") == FeatureStatus_Available)
+		{
+			pet = L4D2_Pets_GetCarrier(i);
+		}
+
+		float fOrigin[3];
+		GetEntPropVector(caller, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+		if(pet != -1)
+		{
+			TeleportEntity(pet, fOrigin, NULL_VECTOR, NULL_VECTOR);
+		}
+
+		pet = L4D_GetPinnedInfected(i);
+
+		if(pet != 0)
+		{
+			TeleportEntity(pet, fOrigin, NULL_VECTOR, NULL_VECTOR);
+		}
+
+		TeleportEntity(i, fOrigin, NULL_VECTOR, NULL_VECTOR);
+	}
 }
 
 public void OnClientPutInServer(int client)

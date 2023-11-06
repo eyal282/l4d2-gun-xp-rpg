@@ -435,7 +435,6 @@ public void OnPluginStart()
 
 	HookEntityOutput("trigger_gravity", "OnStartTouch", OnStartTouchTriggerGravity);
 
-
 	g_hCarAlarmTankChance = CreateConVar("rpg_tanks_car_alarm_tank_chance", "50", "Chance to spawn tank when an alarm is tripped", _, true, 0.0, true, 100.0);
 
 	g_hDifficulty = FindConVar("z_difficulty");
@@ -1806,6 +1805,20 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 	else if(g_iCurrentTank[victim] < 0)
 	{
 		g_iCurrentTank[victim] = TANK_TIER_UNKNOWN;
+		return Plugin_Continue;
+	}
+
+	if(RPG_Perks_GetClientHealth(victim) >= 10000)
+	{
+		PrintToChatAll("%N died in mysterious ways and will be converted to a normal Tank now.", victim);
+
+		SetClientName(victim, "Tank");
+
+		// Don't heal incapped tank please...
+		// RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+		g_iCurrentTank[victim] = TANK_TIER_UNKNOWN;
+
 		return Plugin_Continue;
 	}
 
