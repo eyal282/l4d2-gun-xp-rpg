@@ -23,9 +23,11 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/RPG-Tanks.smx"
     
     
-    
+
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_AdrenalineAmplifier.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_AdrenalineRun.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_CombatMedic.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Cowboy.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Empathy.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Endurance.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_ExtendedHand.smx"
@@ -37,7 +39,6 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_MeleeDamage.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_NadeCollector.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Pet.smx"
-	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Saboteur.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_SleightOfHand.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_StartingPoints.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Tenacity.smx"
@@ -64,6 +65,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_MedkitClearsDebuffs.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_OutWithABlast.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_RetroactiveRecovery.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Saboteur.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Sniper.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_StickyBile.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_UltimateSamurai.smx"
