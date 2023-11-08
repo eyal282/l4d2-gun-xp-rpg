@@ -1166,6 +1166,8 @@ public void OnPluginStart()
 	
 	LoadTranslations("common.phrases");
 
+	AddNormalSoundHook(SoundHook_NeverOnLevelUp);
+
 	RegConsoleCmd("sm_xp", Command_XP);
 	RegConsoleCmd("sm_guns", Command_Guns);
 	//RegConsoleCmd("sm_ul", Command_UnlockShop);
@@ -3016,7 +3018,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 		return;
 
 	else if(!IsValidEntityIndex(entity))
-        return;
+		return;
 
 
 	for(int i=0;i < sizeof(g_sForbiddenMapWeapons);i++)
@@ -3064,6 +3066,30 @@ public void OnWeaponReload(int weapon, bool bSuccessful)
 		return;
 		
 	GivePlayerAmmo(owner, 999, GetEntProp(weapon, Prop_Data, "m_iPrimaryAmmoType"), true);
+}
+
+// I tabbed the irrelevant parameters away :)
+public Action SoundHook_NeverOnLevelUp(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH],																									 int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
+{
+	int newClients[MAXPLAYERS+1], newNumClients;
+
+	for(int i=0;i < numClients;i++)
+	{
+		int client = clients[i];
+
+		if(!RPG_Perks_IsEntityTimedAttribute(client, "Ignore All Sounds"))
+			newClients[newNumClients++] = client;
+	}
+
+	if(newNumClients == numClients)
+		return Plugin_Continue;
+
+	for(int i=0;i < newNumClients;i++)
+	{
+		clients[i] = newClients[i];
+	}
+
+	return Plugin_Changed;
 }
 
 public Action Command_XP(int client, int args)
@@ -3250,10 +3276,12 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 
 stock void EmitLevelUpSound(int client)
 {
-    for(int i=0;i < LEVEL_UP_SOUND_MULTIPLIER;i++)
-    {
-        EmitSoundToClient(client, LEVEL_UP_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 110);
-    }
+	for(int i=0;i < LEVEL_UP_SOUND_MULTIPLIER;i++)
+	{
+		EmitSoundToClient(client, LEVEL_UP_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 110);
+	}
+
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Ignore All Sounds", 9.5, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 stock int GetClientXP(int client)
@@ -4009,10 +4037,10 @@ stock bool StripWeaponFromPlayer(int client, const char[] Classname)
 stock void TeleportEntityToGround(int entity)
 {
 	float vecMins[3], vecMaxs[3], vecOrigin[3], vecFakeOrigin[3];
-    
+	
 	GetEntPropVector(entity, Prop_Data, "m_vecMins", vecMins);
 	GetEntPropVector(entity, Prop_Data, "m_vecMaxs", vecMins);
-    
+	
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vecOrigin);
 
 	vecOrigin[2] += 32.0;
@@ -4020,7 +4048,7 @@ stock void TeleportEntityToGround(int entity)
 	vecFakeOrigin = vecOrigin;
 	
 	vecFakeOrigin[2] = MIN_FLOAT;
-    
+	
 	TR_TraceHullFilter(vecOrigin, vecFakeOrigin, vecMins, vecMaxs, MASK_SHOT, TraceRayDontHitPlayers);
 	
 	float fEndOrigin[3];
@@ -4034,7 +4062,7 @@ stock void TeleportEntityToGround(int entity)
 
 public bool TraceRayDontHitPlayers(int entityhit, int mask) 
 {
-    return (entityhit>MaxClients || entityhit == 0);
+	return (entityhit>MaxClients || entityhit == 0);
 }
 
 
@@ -4444,5 +4472,5 @@ stock void RecalculateBotMaxHP()
 
 bool IsValidEntityIndex(int entity)
 {
-    return (MaxClients+1 <= entity <= GetMaxEntities());
+	return (MaxClients+1 <= entity <= GetMaxEntities());
 }

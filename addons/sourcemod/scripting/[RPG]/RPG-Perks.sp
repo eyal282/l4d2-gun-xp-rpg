@@ -2873,7 +2873,6 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 	if(weapon == -1)
 		return Plugin_Continue;
 
-
 	else if(RPG_Perks_IsEntityTimedAttribute(client, "Punch Cooldown Live"))
 		return Plugin_Continue;
 

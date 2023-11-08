@@ -34,7 +34,6 @@
 
 // https://forums.alliedmods.net/showpost.php?p=1712698&postcount=1
 
-#tryinclude <GunXP-RPG>
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
@@ -57,7 +56,7 @@ public Plugin myinfo =
 	version = "1.0"
 }
 
-GlobalForward g_fwOnDoesHaveBileGoggles;
+GlobalForward g_fwOnDoesHaveBileGoggles;+
 
 public void OnPluginStart()
 {
