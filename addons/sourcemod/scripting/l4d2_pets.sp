@@ -922,7 +922,7 @@ Action OnHurtPet(int victim, int& attacker, int& inflictor, float& damage, int& 
 
 public Action RPG_Perks_OnShouldIgnoreEntireTeamTouch(int client)
 {
-    if(g_bCarriedThisRound[client])
+    if(g_bCarriedThisRound[client] && L4D2_GetCurrentFinaleStage() != FINALE_GAUNTLET_ESCAPE)
         return Plugin_Handled;
 
     return Plugin_Continue;
@@ -1518,7 +1518,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
     if(GetNextBracketPercent(fLastBracket) < GetNextBracketPercent(g_fLastBracket[pet]))
         bShouldUpdate = true;
 
-    float fPetFlowPercent = (L4D2Direct_GetTerrorNavAreaFlow(L4D_GetNearestNavArea(fPetOrigin)) / L4D2Direct_GetMapMaxFlowDistance()) * 100.0;
+    //float fPetFlowPercent = (L4D2Direct_GetTerrorNavAreaFlow(L4D_GetNearestNavArea(fPetOrigin)) / L4D2Direct_GetMapMaxFlowDistance()) * 100.0;
 
     if(g_iLastCommand[pet] != -2)
     {
@@ -1572,7 +1572,7 @@ stock bool GetCarryTargetOrigin(int pet, float fTargetOrigin[3] = NULL_VECTOR)
     GetEntPropVector(pet, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
     int finale = FindEntityByClassname(-1, "trigger_finale");
-    int elevator = FindEntityByClassname(-1, "func_elevator");
+    //int elevator = FindEntityByClassname(-1, "func_elevator");
 
     //PrintToChatAll("%i %f %f %f", L4D2_NavAreaBuildPath(L4D_GetNearestNavArea(fOrigin), L4D_GetNearestNavArea(g_fTargetOrigin), 65535.0, 2, false), g_fTargetOrigin[0], g_fTargetOrigin[1], g_fTargetOrigin[2]);
 

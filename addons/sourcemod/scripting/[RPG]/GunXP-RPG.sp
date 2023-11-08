@@ -525,6 +525,26 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
+	if(StrEqual(attributeName, "Ignore All Sounds"))
+	{
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(entity == i)
+				continue;
+
+			else if(!RPG_Perks_IsEntityTimedAttribute(i, "Ignore All Sounds"))
+				continue;
+
+			// Break the whole function to avoid RemoveNormalSoundHook.
+			return;
+		}
+
+		RemoveNormalSoundHook(SoundHook_NeverOnLevelUp);
+		return;
+	}
 	if(!StrEqual(attributeName, "Mutated"))
 		return;
 
@@ -1165,8 +1185,6 @@ public void OnPluginStart()
 	#endif
 	
 	LoadTranslations("common.phrases");
-
-	AddNormalSoundHook(SoundHook_NeverOnLevelUp);
 
 	RegConsoleCmd("sm_xp", Command_XP);
 	RegConsoleCmd("sm_guns", Command_Guns);
@@ -3281,6 +3299,7 @@ stock void EmitLevelUpSound(int client)
 		EmitSoundToClient(client, LEVEL_UP_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 110);
 	}
 
+	AddNormalSoundHook(SoundHook_NeverOnLevelUp);
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Ignore All Sounds", 9.5, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
@@ -3507,7 +3526,9 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree,
 
 	int cost = perkTree.costs.Get(g_iUnlockedPerkTrees[client][perkIndex]);
 
-	if(g_iXPCurrency[client] < cost)
+	int levelReq = perkTree.levelReqs.Get(g_iUnlockedPerkTrees[client][perkIndex]);
+
+	if(g_iXPCurrency[client] < cost || levelReq > GetClientLevel(client))
 	{
 		g_iUnlockedPerkTrees[client][perkIndex]--;
 		return;
@@ -3600,7 +3621,8 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, 
 {
 	g_bUnlockedSkills[client][skillIndex] = true;
 
-	if(g_iXPCurrency[client] < skill.cost)
+
+	if(g_iXPCurrency[client] < skill.cost || skill.levelReq > GetClientLevel(client))
 	{
 		g_bUnlockedSkills[client][skillIndex] = false;
 		return;
