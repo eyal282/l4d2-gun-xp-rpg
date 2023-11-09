@@ -29,6 +29,7 @@ int strongerPsychicPowersIndex;
 int psychicPowersIndex;
 int weakerPsychicPowersIndex;
 
+float g_fLastHeight[MAXPLAYERS+1];
 float g_fEndDamageReflect[MAXPLAYERS+1];
 bool g_bNightmare[MAXPLAYERS+1];
 int g_iBulletRelease[MAXPLAYERS+1];
@@ -46,6 +47,17 @@ public void OnConfigsExecuted()
 {
 	RegisterTank();
 
+}
+
+public void OnPluginEnd()
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		SetEntityGravity(i, 1.0);
+	}
 }
 public void OnPluginStart()
 {
@@ -175,8 +187,41 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	g_bNightmare[entity] = true;
 }
 
+// Last Clear bad attributes.
+float g_fLastClear[MAXPLAYERS+1];
+
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
+	if(strncmp(attributeName, "Psychokinesis Height Check", 26, false) == 0)
+	{
+		// Player cleared this attribute with Special Medkit
+		if(g_fLastClear[entity] == GetGameTime())
+		{
+			SetEntityGravity(entity, 1.0);
+			return;
+		}
+
+		float fOrigin[3];
+		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+		if(g_fLastHeight[entity] == fOrigin[2])
+		{
+			float fDuration = StringToFloat(attributeName[26]);
+
+			SetEntityGravity(entity, 1.0);
+
+			RPG_Perks_ApplyEntityTimedAttribute(entity, "Stun", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+
+			return;
+		}
+
+		g_fLastHeight[entity] = fOrigin[2];
+		SetEntityGravity(entity, -0.5);
+
+		RPG_Perks_ApplyEntityTimedAttribute(entity, attributeName, 0.2, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+
+		return;
+	}
 	if(!StrEqual(attributeName, "Nightmare"))
 		return;
 
@@ -186,6 +231,24 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
+	if(strncmp(attributeName, "Psychokinesis Height Check", 26, false) == 0)
+	{
+		if(oldClient == newClient)
+		{
+			SetEntityGravity(newClient, 1.0);
+			g_fLastClear[newClient] = GetGameTime();
+			return;
+		}
+
+		float fOrigin[3];
+		GetEntPropVector(newClient, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+		g_fLastHeight[newClient] = fOrigin[2];
+		SetEntityGravity(newClient, -0.5);
+		SetEntityGravity(oldClient, 1.0);
+		TeleportEntity(newClient, NULL_VECTOR, NULL_VECTOR, view_as<float>({ 0.0, 0.0, 285.0 }));
+		return;
+	}
 	if(!StrEqual(attributeName, "Nightmare"))
 		return;
 
@@ -224,15 +287,9 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 	switch(GetRandomInt(minRNG, 3))
 	{
 		case 0:	CastBulletRelease(client);
-		case 1:
-		{
-			CastPsychoKinesis(client);
-		}
+		case 1: CastPsychoKinesis(client);
 		case 2:	CastNightmare(client);
-		case 3:
-		{
-			CastDamageReflect(client);
-		}
+		case 3: CastDamageReflect(client);
 	}	
 }
 
@@ -320,16 +377,36 @@ public void CastPsychoKinesis(int client)
 	if(survivor == -1)
 		return;
 
-	TeleportToCeiling(survivor);	
+	PrintToChatAll("%N is hit with Psycho Kinesis.", survivor);
 
+	float fOrigin[3];
+	GetEntPropVector(survivor, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	g_fLastHeight[survivor] = fOrigin[2];
+	SetEntityGravity(survivor, -0.5);
+	TeleportEntity(survivor, NULL_VECTOR, NULL_VECTOR, view_as<float>({ 0.0, 0.0, 285.0 }));
+	
 	float fDuration = 12.0;
 
 	if(RPG_Tanks_GetClientTank(client) == strongerTankIndex)
 		fDuration = 15.0;
 
-	RPG_Perks_ApplyEntityTimedAttribute(survivor, "Stun", fDuration, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEGATIVE);
+	char attributeName[64];
+	FormatEx(attributeName, sizeof(attributeName), "Psychokinesis Height Check%i", RoundFloat(fDuration));
 
-	PrintToChatAll("%N is hit with Psycho Kinesis.", survivor);
+	RPG_Perks_ApplyEntityTimedAttribute(survivor, attributeName, 0.2, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+}
+
+public Action RocketLiftoff(Handle hTimer, int UserId)
+{
+	int client = GetClientOfUserId(UserId);
+
+	if (client == 0)
+		return Plugin_Stop;
+
+	
+
+	return Plugin_Stop;
 }
 
 stock void TeleportToCeiling(int client)
