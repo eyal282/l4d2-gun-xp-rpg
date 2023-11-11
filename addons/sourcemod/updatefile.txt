@@ -18,6 +18,7 @@
 	
 	
 	"Plugin"	"Path_SM/plugins/[RPG]/GunXP-RPG.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/GunXP-UpdaterRPG2.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/RPG-DynamicDifficulty.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/RPG-Perks.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/RPG-Tanks.smx"
