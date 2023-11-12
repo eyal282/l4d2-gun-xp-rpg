@@ -1139,6 +1139,9 @@ Action ScaleFF(int victim, int& attacker, int& inflictor, float& damage, int& da
 * ========================================================================================= */
 Action ChangeVictim_Timer(Handle timer, int pet)
 {
+    
+    UpdatePetCollisionGroup(pet);
+
     float vPet[3];
     GetClientAbsOrigin(pet, vPet);
 
@@ -1769,8 +1772,7 @@ bool SpawnPet(int client, int zClass)
     SetEntProp(pet, Prop_Send, "m_glowColorOverride", 39168);	// Glow color green
     if( zClass == 5 ) SetEntPropFloat(pet, Prop_Send, "m_flModelScale", g_hJockSize.FloatValue); // Only for jockeys
 
-    // Eyal282 here, 1 is DEBRIS so "Don't collide". It's probably better to use DEBRIS_TRIGGER to allow pet to die from falling out of bounds.
-    SetEntProp(pet, Prop_Send, "m_CollisionGroup", 2); // Prevent collisions with player.
+    UpdatePetCollisionGroup(pet);
     SDKHook(pet, SDKHook_TraceAttack, OnShootPet);	// Allows bullets to pass through the pet
     SDKHook(pet, SDKHook_OnTakeDamage, OnHurtPet);	// Prevents pet from taking any type of damage from survivors
     SetEntPropEnt(pet, Prop_Send, "m_hOwnerEntity", client);
@@ -1787,6 +1789,21 @@ bool SpawnPet(int client, int zClass)
     return bReturn;
 }
 
+void UpdatePetCollisionGroup(int pet)
+{
+    if(L4D_IsInLastCheckpoint(pet))
+    {
+        // Debris, prevents collision and also prevents counting as a Special Infected for the Safe Room count.
+        // Debris makes the pet immune to trigger_hurt.
+        SetEntProp(pet, Prop_Send, "m_CollisionGroup", 1);
+    }
+    else
+    {
+        // Debris trigger, prevents collision but counts as a Special Infected in the same room.
+        // Unlike debris, pet is no longer immune to trigger_hurt
+        SetEntProp(pet, Prop_Send, "m_CollisionGroup", 2);
+    }
+}
 int GetSurvivorPets(int client)
 {
     int result = 0;
