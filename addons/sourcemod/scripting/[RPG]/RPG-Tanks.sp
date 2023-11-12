@@ -2121,6 +2121,7 @@ float GetAimDistanceFromTarget(int client, int target)
 
 	return GetVectorDistance(vOrigin, g_fPos, false);
 }
+
 public bool TraceFilterHitTarget(int entity, int contentsMask, int target)
 {
 	if (entity == target)

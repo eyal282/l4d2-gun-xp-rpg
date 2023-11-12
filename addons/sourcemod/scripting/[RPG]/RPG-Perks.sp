@@ -44,6 +44,8 @@ public Plugin myinfo =
 #define MAX_SPEED				650.0
 #define MIN_SPEED				65.0	
 
+float ANGLE_STRAIGHT_DOWN[3] = { 90.0, 0.0, 0.0 };
+
 // Player Absolute Speeds
 float g_fAbsRunSpeed[MAXPLAYERS+1];			// Normal player speed (default = 220.0)
 float g_fAbsWalkSpeed[MAXPLAYERS+1];		// Player speed while walking (default = 85.0)
@@ -1214,7 +1216,7 @@ public void OnPluginStart()
 	HookEntityOutput("func_elevator", "OnReachedTop", FuncElevator_ReachFloor);
 	HookEntityOutput("func_elevator", "OnReachedBottom", FuncElevator_ReachFloor);
 	HookEntityOutput("func_tracktrain", "OnStart", FuncElevator_ReachFloor);
-	HookEntityOutput("func_tracktrain", "OnArrivedAtDestinationNode", FuncElevator_ReachFloor);
+	HookEntityOutput("func_tracktrain", "OnNextPoint", FuncElevator_CalculateReachFloor);
 
 	// Plugin_Handled if not.
 	g_fwOnShouldIgnoreEntireTeamTouch = CreateGlobalForward("RPG_Perks_OnShouldIgnoreEntireTeamTouch", ET_Event, Param_Cell);
@@ -1460,6 +1462,9 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
+	// For ease of access, this is func_tracktrain's reach floor calculations.
+	_RPG_Perks_OnTimedAttributeExpired(entity, attributeName);
+
 	RPG_CalculateColorByAttributes(entity, attributeName);
 
 	if(StrEqual(attributeName, "Frozen") || StrEqual(attributeName, "Stun"))
@@ -2769,6 +2774,19 @@ public void TriggerMultiple_EndTouch(const char[] output, int caller, int activa
 	}
 }
 
+public void FuncElevator_CalculateReachFloor(const char[] output, int caller, int activator, float delay)
+{
+	RPG_Perks_ApplyEntityTimedAttribute(caller, "Calculate Reach Floor", 0.2, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+}
+
+// Variation of RPG_Perks_OnTimedAttributeExpired for ease of access.
+public void _RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
+{
+	if(StrEqual(attributeName, "Calculate Reach Floor"))
+	{
+		FuncElevator_ReachFloor("Bruh", entity, entity, 0.0);
+	}
+}
 
 public void FuncElevator_ReachFloor(const char[] output, int caller, int activator, float delay)
 {
@@ -2785,7 +2803,7 @@ public void FuncElevator_ReachFloor(const char[] output, int caller, int activat
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
 
-		else if(GetEntPropEnt(i, Prop_Data, "m_hGroundEntity") != caller)
+		else if(RPG_GetLiteralGroundEntity(i, caller) != caller)
 			continue;
 
 		bAny = true;
@@ -3845,6 +3863,28 @@ stock int RPG_GetPlayerUsingATarget(int victim)
 	}
 
 	return -1;
+}
+
+// Like m_hGroundEntity but if you're in the air, gets the same ground entity.
+stock int RPG_GetLiteralGroundEntity(int client, int potentialEntity)
+{
+	float fOrigin[3];
+	GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	TR_TraceRayFilter(fOrigin, ANGLE_STRAIGHT_DOWN, MASK_PLAYERSOLID, RayType_Infinite, TraceFilter_HitTarget, potentialEntity);
+
+	if(TR_DidHit() && TR_GetEntityIndex() == potentialEntity)
+		return potentialEntity;
+
+	return -1;
+}
+
+public bool TraceFilter_HitTarget(int entity, int contentsMask, int target)
+{
+	if (entity == target)
+		return true;
+
+	return false;
 }
 
 stock void TeleportToStartArea(int client)
