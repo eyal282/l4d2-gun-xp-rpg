@@ -1213,6 +1213,8 @@ public void OnPluginStart()
 
 	HookEntityOutput("func_elevator", "OnReachedTop", FuncElevator_ReachFloor);
 	HookEntityOutput("func_elevator", "OnReachedBottom", FuncElevator_ReachFloor);
+	HookEntityOutput("func_tracktrain", "OnStart", FuncElevator_ReachFloor);
+	HookEntityOutput("func_tracktrain", "OnArrivedAtDestinationNode", FuncElevator_ReachFloor);
 
 	// Plugin_Handled if not.
 	g_fwOnShouldIgnoreEntireTeamTouch = CreateGlobalForward("RPG_Perks_OnShouldIgnoreEntireTeamTouch", ET_Event, Param_Cell);

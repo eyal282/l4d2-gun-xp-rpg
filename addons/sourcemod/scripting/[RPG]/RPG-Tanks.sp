@@ -38,6 +38,7 @@ ConVar g_hDifficulty;
 
 ConVar g_hCarAlarmTankChance;
 
+ConVar g_hInstantFinale;
 ConVar g_hComboNeeded;
 ConVar g_hMinigunDamageMultiplier;
 ConVar g_hRPGDamageMultiplier;
@@ -402,6 +403,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 	RegConsoleCmd("sm_tankhp", Command_TankHP);
 
+	g_hInstantFinale = UC_CreateConVar("rpg_tanks_instant_finale", "1", "Finale is instant? WARNING! This can cheese the tanks due to low common infected");
 	g_hComboNeeded = UC_CreateConVar("rpg_tanks_finale_combo_needed", "3", "Amount of Tank kills needed to trigger a powerful tank event");
 
 	g_hMinigunDamageMultiplier = UC_CreateConVar("rpg_tanks_minigun_damage_multiplier", "0.1", "Minigun damage multiplier");
@@ -1710,7 +1712,7 @@ public Action Event_FinaleStart(Handle hEvent, char[] Name, bool dontBroadcast)
 	{
 		int type = GetEntProp(entity, Prop_Data, "m_type");
 		
-		if(type == 2 && L4D_IsCoopMode())
+		if(type == 2 && L4D_IsCoopMode() && g_hInstantFinale.BoolValue)
 		{
 			g_bButtonLive = false;
 			PrintToChatAll("Rescue vehicle is here. Either leave or defeat the Tanks.");
@@ -2067,7 +2069,7 @@ stock void CalculateIsEnoughDamage(int survivor, int tank, float &fDamageRatio, 
 
 	fMinDamageRatio = 0.05;
 
-	if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientRealLevel(survivor) <= 21)
+	if(LibraryExists("GunXP-RPG") && GunXP_RPG_GetClientRealLevel(survivor) <= 23)
 		fMinDamageRatio = 0.01;
 }
 

@@ -29,25 +29,19 @@ public void OnPluginEnd()
 	RemoveServerTag2("RPG");
 }
 
-public void OnConfigsExecuted()
+public void OnMapStart()
 {
 	g_Timer = INVALID_HANDLE;
-
-	CreateTimer(0.1, Timer_ServerTags, _, TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public Action Timer_ServerTags(Handle hTimer)
+public void OnPluginStart()
 {
+	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
+
 	AddServerTag2("GunXP");
 	AddServerTag2("GunXP-RPG");
 	AddServerTag2("GunXPRPG");
 	AddServerTag2("RPG");
-
-	return Plugin_Stop;
-}
-public void OnPluginStart()
-{
-	HookEvent("player_spawn", Event_PlayerSpawn, EventHookMode_Post);
 }
 
 public Action Event_PlayerSpawn(Handle hEvent, const char[] Name, bool dontBroadcast)
