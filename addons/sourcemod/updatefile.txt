@@ -10,6 +10,7 @@
     
 "Files"
 {
+	"Plugin"	"Path_SM/plugins/AlarmInformer.smx"
 	"Plugin"	"Path_SM/plugins/BileGoggles.smx"
 	"Plugin"	"Path_SM/plugins/l4d2_karma_kill_system.smx"
 	"Plugin"	"Path_SM/plugins/sm_vote.smx"
