@@ -43,6 +43,13 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
+public Action RPG_Perks_OnShouldIgnoreEntireTeamTouch(int client)
+{
+    if(IsFakeClient(client) && L4D2_GetCurrentFinaleStage() != FINALE_GAUNTLET_ESCAPE)
+        return Plugin_Handled;
+
+    return Plugin_Continue;
+}
 
 public Action L4D2_OnEntityShoved(int client, int victim, int weapon, float vecDir[3], bool bIsHighPounce)
 {
