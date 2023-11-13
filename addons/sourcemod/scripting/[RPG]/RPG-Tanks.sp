@@ -429,7 +429,6 @@ public void OnPluginStart()
 
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
 	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Post);
-	HookEvent("player_entered_checkpoint", Event_EnterCheckpoint, EventHookMode_Post);
 	HookEvent("finale_start", Event_FinaleStart, EventHookMode_PostNoCopy);
 	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
@@ -477,6 +476,55 @@ public void OnEntityDestroyed(int entity)
     g_iSpawnflags[entity] = -1;
 }
 
+public void OnEntityCreated(int entity, const char[] classname)
+{
+	if(!IsValidEntityIndex(entity))
+        return;
+
+	if(StrEqual(classname, "info_changelevel"))
+	{
+		SDKHook(entity, SDKHook_StartTouchPost, Event_TrueEnterEndCheckpoint);
+	}
+}
+
+public void Event_TrueEnterEndCheckpoint(int zoneEntity, int toucher)
+{
+	if(!IsPlayer(toucher))
+		return;
+
+	else if(L4D_GetClientTeam(toucher) != L4DTeam_Survivor && RPG_Perks_GetZombieType(toucher) != ZombieType_Tank)
+		return;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(L4D_IsPlayerIncapacitated(i))
+			continue;
+
+		else if(g_iCurrentTank[i] < 0)
+			continue;
+
+		else if(!L4D2_IsGenericCooperativeMode())
+			continue;
+
+		PrintToChatAll(" \x03%N\x01 entered a safe room. %N will be converted to a normal Tank now.", toucher, i);
+
+		SetClientName(i, "Tank");
+
+		RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+		//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
+
+		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
+	}
+}
 #define MAX_BUTTONS 26
 
 int g_iLastButtons[MAXPLAYERS+1];
@@ -1654,55 +1702,6 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	return Plugin_Continue;
 }
-
-public Action Event_EnterCheckpoint(Handle hEvent, char[] Name, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	
-	if(client == 0)
-		return Plugin_Continue;
-
-	else if(L4D_GetClientTeam(client) != L4DTeam_Survivor && RPG_Perks_GetZombieType(client) != ZombieType_Tank)
-		return Plugin_Continue;
-
-	int door = GetEventInt(hEvent, "door");
-
-	if(L4D_GetCheckpointLast() == door)
-	{
-		for(int i=1;i <= MaxClients;i++)
-		{
-			if(!IsClientInGame(i))
-				continue;
-
-			else if(!IsPlayerAlive(i))
-				continue;
-
-			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-				continue;
-
-			else if(L4D_IsPlayerIncapacitated(i))
-				continue;
-
-			else if(g_iCurrentTank[i] < 0)
-				continue;
-
-			else if(!L4D2_IsGenericCooperativeMode())
-				continue;
-
-			PrintToChatAll(" \x03%N\x01 entered a safe room. %N will be converted to a normal Tank now.", client, i);
-
-			SetClientName(i, "Tank");
-
-			RPG_Perks_SetClientHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
-			//RPG_Perks_SetClientMaxHealth(i, GetConVarInt(FindConVar("rpg_z_tank_health")));
-
-			g_iCurrentTank[i] = TANK_TIER_UNTIERED;
-		}
-	}
-
-	return Plugin_Continue;
-}
-
 
 public Action Event_FinaleStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
