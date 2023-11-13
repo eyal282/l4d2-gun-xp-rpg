@@ -66,6 +66,7 @@ float g_fMaterializedTimestamp[MAXPLAYERS+1];
 bool g_bLate;
 
 // 0 = no, 1 = yes, 2 = ignore.
+float g_fLastElevatorHeight[2049];
 int g_iIsTouching[MAXPLAYERS+1][2049];
 
 float g_fSpawnPoint[3];
@@ -1375,7 +1376,53 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if(StrEqual(classname, "infected") || StrEqual(classname, "witch"))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
-	}	
+	}
+	if(StrEqual(classname, "func_elevator"))
+	{
+		SDKHook(entity, SDKHook_SpawnPost, Event_ElevatorSpawnPost);
+	}
+}
+
+
+public void Event_ElevatorSpawnPost(int entity)
+{
+	float fOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	g_fLastElevatorHeight[entity] = fOrigin[2];
+
+	CreateTimer(0.7, Timer_CalculateElevatorPosition, EntIndexToEntRef(entity), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+}
+
+public Action Timer_CalculateElevatorPosition(Handle hTimer, int ref)
+{
+	int entity = EntRefToEntIndex(ref);
+
+	if(entity == INVALID_ENT_REFERENCE)
+		return Plugin_Stop;
+
+	float fOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	float fLastHeight = g_fLastElevatorHeight[entity];
+
+	g_fLastElevatorHeight[entity] = fOrigin[2];
+
+	if(FloatAbs(fLastHeight - fOrigin[2]) <= 1.1)
+		return Plugin_Continue;
+
+	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Calculate Elevator Reach Floor"))
+	{
+		// 5.0 seconds because of Atrium doing funny stuff...
+		RPG_Perks_ApplyEntityTimedAttribute(entity, "Calculate Elevator Reach Floor", 5.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+		return Plugin_Continue;
+	}
+	
+	// 5.0 seconds because of Atrium doing funny stuff...
+	RPG_Perks_ApplyEntityTimedAttribute(entity, "Calculate Elevator Reach Floor", 5.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	FuncElevator_ReachFloor("Bruh Train", entity, entity, 0.0);
+
+	return Plugin_Continue;
 }
 
 public void Event_ZombieSpawnPost(int entity)
@@ -2776,15 +2823,15 @@ public void TriggerMultiple_EndTouch(const char[] output, int caller, int activa
 
 public void FuncElevator_CalculateReachFloor(const char[] output, int caller, int activator, float delay)
 {
-	RPG_Perks_ApplyEntityTimedAttribute(caller, "Calculate Reach Floor", 0.2, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	RPG_Perks_ApplyEntityTimedAttribute(caller, "Calculate Train Reach Floor", 0.2, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 // Variation of RPG_Perks_OnTimedAttributeExpired for ease of access.
 public void _RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
-	if(StrEqual(attributeName, "Calculate Reach Floor"))
+	if(StrEqual(attributeName, "Calculate Train Reach Floor"))
 	{
-		FuncElevator_ReachFloor("Bruh", entity, entity, 0.0);
+		FuncElevator_ReachFloor("Bruh Train", entity, entity, 0.0);
 	}
 }
 

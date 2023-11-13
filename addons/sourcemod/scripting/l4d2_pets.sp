@@ -1269,7 +1269,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
         {
             for( int i = 1; i <= MaxClients; i++ )
             {
-                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && g_iCarrier[i] == -1 && !IsNotCarryable(i) && L4D_GetPinnedInfected(i) == 0 && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
+                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && g_iCarrier[i] == -1 && !IsNotCarryable(i) && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
                 {
                     GetClientAbsOrigin(i, vTarget);
                     GetClientAbsOrigin(owner, vPet);
@@ -1339,7 +1339,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
             }
         }
     }
-    else
+    if(nextTarget == 0)
     {
         if(g_iLastCommand[pet] == -2)
         {
