@@ -86,6 +86,9 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
                 else if(L4D_GetClientTeam(i) != L4DTeam_Infected)
                     continue;
+
+                else if(RPG_Perks_GetZombieType(i) == ZombieType_Tank)
+                    continue;
                 
                 int owner = GetEntPropEnt(i, Prop_Send, "m_hOwnerEntity");
 
@@ -393,7 +396,7 @@ public Action Timer_MonitorSniper(Handle hTimer)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "All weapons have Laser Sight\nPerfect accuracy when incapped and camera won't shake.\nSniper Rifles do +100{PERCENT} damage to non-Tanks, shoot +100{PERCENT} faster, have infinite ammo.\nAWP and Scout have Aimbot.");
+    FormatEx(sDescription, sizeof(sDescription), "All weapons have Laser Sight\nPerfect accuracy when incapped and camera won't shake.\nSniper Rifles do +100{PERCENT} damage to non-Tanks, shoot +100{PERCENT} faster, have infinite ammo.\nAWP and Scout have Aimbot, but cannot hit tanks.");
 
     sniperIndex = GunXP_RPGShop_RegisterSkill("Sniper", "Sniper", sDescription,
     200000, 0);
