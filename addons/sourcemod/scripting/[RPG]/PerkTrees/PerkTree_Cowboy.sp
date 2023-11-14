@@ -95,6 +95,11 @@ public void WH_OnReloadModifier(int client, int weapon, int weapontype, float &s
         return;
 
     speedmodifier += 1.0;
+
+    if(perkLevel <= 3)
+        return Plugin_Continue;
+
+    speedmodifier += 9.0;
 }
 
 public void WH_OnGetRateOfFire(int client, int weapon, int weapontype, float &speedmodifier)
