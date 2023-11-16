@@ -1034,6 +1034,17 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	// Prediction error fix.
 	g_hCriticalSpeed.FloatValue = DEFAULT_RUN_SPEED;
 
+	char sGamemode[64];
+	GetConVarString(g_hGamemode, sGamemode, sizeof(sGamemode));
+
+	if(LibraryExists("GunXP-RPG"))
+	{
+		if(!StrEqual(sGamemode, "coop"))
+		{
+			g_hGamemode.SetString("coop");
+			ServerCommand("changelevel c1m1_hotel");
+		}
+	}
 	Call_StartForward(g_fwOnShouldClosetsRescue);
 
 	Action rtn;
