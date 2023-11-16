@@ -1965,7 +1965,7 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 	return 0;
 }	
 
-public Action ShowConfirmResetMenu(int client)
+public void ShowConfirmResetMenu(int client)
 {
 	Handle hMenu = CreateMenu(ConfirmReset_MenuHandler);
 

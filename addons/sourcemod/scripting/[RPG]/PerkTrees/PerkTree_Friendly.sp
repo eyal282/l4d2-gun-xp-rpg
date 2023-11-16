@@ -53,9 +53,9 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
     else if(!IsPlayer(victim) || !IsPlayer(attacker))
         return;
 
-    else if(L4D_GetClientTeam(victim) != L4D_GetClientTeam(attacker) && L4D_GetClientTeam(victim) == L4DTeam_Survivor)
+    else if(L4D_GetClientTeam(victim) != L4D_GetClientTeam(attacker))
     {
-        if(L4D_GetClientTeam(attacker) == L4DTeam_Spectator || L4D_GetClientTeam(attacker) == L4DTeam_Unassigned)
+        if(L4D_GetClientTeam(victim) == L4DTeam_Survivor && (L4D_GetClientTeam(attacker) == L4DTeam_Spectator || L4D_GetClientTeam(attacker) == L4DTeam_Unassigned))
         {
             damage = 0.0;
             bImmune = true;

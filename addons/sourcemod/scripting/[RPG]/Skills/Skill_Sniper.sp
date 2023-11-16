@@ -169,14 +169,18 @@ public bool SetupAimbotStrike(int client, int victim)
 
     GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
 
-    for(float i=0.0;i <= 64.0;i += 8.0)
+    float fIncrementList[] = { 0.0, 1.0, 3.0, 5.0, 8.0, 16.0, 32.0, 60.0, 64.0 };
+
+    float fOriginalHeight = fVictimOrigin[2];
+
+    for(int i=0;i < sizeof(fIncrementList);i++)
     {
-        fVictimOrigin[2] += 8.0;
+        fVictimOrigin[2] += fOriginalHeight + fIncrementList[i];
 
         float fAngle[3];
-  	    MakeVectorFromPoints(fOrigin, fVictimOrigin, fAngle);
+        MakeVectorFromPoints(fOrigin, fVictimOrigin, fAngle);
     
-    	GetVectorAngles(fAngle, fAngle);
+        GetVectorAngles(fAngle, fAngle);
 
         TR_TraceRayFilter(fOrigin, fAngle, MASK_SHOT, RayType_Infinite, TraceFilter_HitTarget, victim);
 
