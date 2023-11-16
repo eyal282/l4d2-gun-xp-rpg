@@ -99,7 +99,7 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 public void RegisterSkill()
 {
     fullAutoIndex = GunXP_RPGShop_RegisterSkill("Full Auto", "Full Auto", "All weapons are fully automatic",
-    90000, 0);
+    30000, 0);
 }
 
 

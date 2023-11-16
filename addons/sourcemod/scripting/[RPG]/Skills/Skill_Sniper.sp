@@ -399,7 +399,7 @@ public void RegisterSkill()
     FormatEx(sDescription, sizeof(sDescription), "All weapons have Laser Sight\nPerfect accuracy when incapped and camera won't shake.\nSniper Rifles do +100{PERCENT} damage to non-Tanks, shoot +100{PERCENT} faster, have infinite ammo.\nAWP and Scout have Aimbot, but cannot hit tanks.");
 
     sniperIndex = GunXP_RPGShop_RegisterSkill("Sniper", "Sniper", sDescription,
-    200000, 0);
+    260000, 0);
 }
 
 stock void GiveClientWeaponUpgrade(int client, int upgrade)
