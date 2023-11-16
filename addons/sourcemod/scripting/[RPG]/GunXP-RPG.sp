@@ -878,7 +878,7 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
 		return false;
-		
+
 	else if(g_iMidSell[client] != -1)
 	{
 		if(g_iMidSell[client] == skillIndex)
@@ -1933,9 +1933,7 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 		{
 			case 0:
 			{
-				ResetPerkTreesAndSkills(client);
-
-				PrintToChat(client, "\x04[Gun-XP] \x01You have successfully reset all your\x03 Perk Trees and Skills\x01.");
+				ShowConfirmResetMenu(client);
 			}
 
 			case 1:
@@ -1967,7 +1965,52 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 	return 0;
 }	
 
+public Action ShowConfirmResetMenu(int client)
+{
+	Handle hMenu = CreateMenu(ConfirmReset_MenuHandler);
 
+	AddMenuItem(hMenu, "", "No");
+	AddMenuItem(hMenu, "", "No");
+	AddMenuItem(hMenu, "", "RESET ALL PERKS");
+	AddMenuItem(hMenu, "", "No");
+	AddMenuItem(hMenu, "", "No");
+	AddMenuItem(hMenu, "", "No");
+
+	SetMenuTitle(hMenu, "Are you sure you want to reset?");
+	SetMenuExitBackButton(hMenu, true);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+}
+
+public int ConfirmReset_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		// -1 instead of 0 is important for calculating a target.
+		Command_RPG(client, -1);
+	}
+	else if(action == MenuAction_Select)
+	{		
+		if(item == 2)
+		{
+			ResetPerkTreesAndSkills(client);
+
+			PrintToChat(client, "\x04[Gun-XP] \x01You have successfully reset all your\x03 Perk Trees and Skills\x01.");
+		}
+		else
+		{
+			// -1 instead of 0 is important for calculating a target.
+			Command_RPG(client, -1);
+		}
+	}	
+
+	return 0;
+}	
 public Action Command_Commands(int client, int args)
 {
 	// sPossessionNameTarget = You have / Rick Grimes has
