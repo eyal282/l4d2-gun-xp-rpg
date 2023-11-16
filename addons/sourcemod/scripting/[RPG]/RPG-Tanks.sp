@@ -1186,7 +1186,10 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 public void TryPlayImmunitySound(int attacker)
 {
-	if(IsFakeClient(attacker))
+	if(!IsPlayer(attacker))
+		return;
+
+	else if(IsFakeClient(attacker))
 		return;
 
 	else if(RPG_Perks_IsEntityTimedAttribute(attacker, "Immunity Sound Cooldown"))

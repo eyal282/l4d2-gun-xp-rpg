@@ -3068,6 +3068,7 @@ public Action RPG_OnTraceAttack(int victim, int &attacker, int inflictor, float&
 	{
 		damage = CalculateTankBurnDamage(victim);
 	}
+
 	
 	for(int i=-10;i <= 10;i++)
 	{

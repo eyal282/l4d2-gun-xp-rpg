@@ -876,6 +876,9 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 	if(!g_bLoadedFromDB[client])
 		return false;
 
+	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+		return false;
+		
 	else if(g_iMidSell[client] != -1)
 	{
 		if(g_iMidSell[client] == skillIndex)
@@ -884,9 +887,6 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 		else
 			return false;
 	}
-
-	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
-		return false;
 
 	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return false;
@@ -1024,6 +1024,9 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 	if(!g_bLoadedFromDB[client])
 		return PERK_TREE_NOT_UNLOCKED;
 
+	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+		return PERK_TREE_NOT_UNLOCKED;
+
 	else if(g_iMidSell[client] != -1)
 	{
 		if(g_iMidSell[client] == perkIndex)
@@ -1032,9 +1035,6 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 		else
 			return PERK_TREE_NOT_UNLOCKED;
 	}
-
-	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
-		return PERK_TREE_NOT_UNLOCKED;
 
 	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return PERK_TREE_NOT_UNLOCKED;

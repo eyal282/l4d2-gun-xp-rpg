@@ -942,7 +942,7 @@ Action OnCalculateDamage(int priority, int victim, int attacker, int inflictor, 
         return Plugin_Continue;
 
     // If both attacker and defender are not pets, ignore damage calculation
-    else if(g_iOwner[victim] == 0 && (IsPlayer(attacker) && g_iOwner[attacker] == 0))
+    else if(g_iOwner[victim] == 0 && (!IsPlayer(attacker) || g_iOwner[attacker] == 0))
         return Plugin_Continue;
 
     if(priority == -10)
