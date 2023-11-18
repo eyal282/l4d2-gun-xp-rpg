@@ -109,8 +109,14 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
             if(winner != 0)
             {
-                if(SetupAimbotStrike(entity, winner))
+                if(GunXP_SetupAimbotStrike(entity, winner, AimbotLevel_Two))
+                {
+                    int weapon = L4D_GetPlayerCurrentWeapon(entity);
+
+                    RPG_Perks_TakeDamage(winner, entity, weapon, 115.0, DMG_BULLET);
+
                     return;
+                }
             }
 
             winner = 0;
@@ -132,8 +138,14 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
             if(winner != 0)
             {
-                if(SetupAimbotStrike(entity, winner))
+                if(GunXP_SetupAimbotStrike(entity, winner, AimbotLevel_Two))
+                {
+                    int weapon = L4D_GetPlayerCurrentWeapon(entity);
+
+                    RPG_Perks_TakeDamage(winner, entity, weapon, 115.0, DMG_BULLET);
+                    
                     return;
+                }
             }
 
             winner = 0;
@@ -155,59 +167,17 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
             if(winner != 0)
             {
-                if(SetupAimbotStrike(entity, winner))
+                if(GunXP_SetupAimbotStrike(entity, winner, AimbotLevel_Two))
+                {
+                    int weapon = L4D_GetPlayerCurrentWeapon(entity);
+
+                    RPG_Perks_TakeDamage(winner, entity, weapon, 115.0, DMG_BULLET);
+                    
                     return;
+                }
             }
         }
     }
-}
-
-public bool SetupAimbotStrike(int client, int victim)
-{
-    float fOrigin[3], fVictimOrigin[3];
-    GetClientEyePosition(client, fOrigin);
-
-    GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
-
-    float fIncrementList[] = { 0.0, 1.0, 3.0, 5.0, 8.0, 16.0, 32.0, 60.0, 64.0 };
-
-    float fOriginalHeight = fVictimOrigin[2];
-
-    for(int i=0;i < sizeof(fIncrementList);i++)
-    {
-        fVictimOrigin[2] += fOriginalHeight + fIncrementList[i];
-
-        float fAngle[3];
-        MakeVectorFromPoints(fOrigin, fVictimOrigin, fAngle);
-    
-        GetVectorAngles(fAngle, fAngle);
-
-        TR_TraceRayFilter(fOrigin, fAngle, MASK_SHOT, RayType_Infinite, TraceFilter_HitTarget, victim);
-
-        float fTest[3];
-        TR_GetEndPosition(fTest);
-
-        //TE_SetupBeamPoints(fOrigin, fTest, PrecacheModel("materials/vgui/white_additive.vmt"), 0, 0, 0, 10.0, 10.0, 10.0, 0, 10.0, { 255, 0, 0, 255 }, 50);
-        //TE_SendToAllInRange(fOrigin, RangeType_Audibility);
-
-        if(TR_DidHit() && TR_GetEntityIndex() == victim)
-        {
-            int weapon = L4D_GetPlayerCurrentWeapon(client);
-
-            RPG_Perks_TakeDamage(victim, client, weapon, 115.0, DMG_BULLET);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-public bool TraceFilter_HitTarget(int entity, int contentsMask, int target)
-{
-    if (entity == target)
-        return true;
-
-    return false;
 }
 
 public Action Event_BulletImpact(Handle hEvent, char[] Name, bool dontBroadcast)

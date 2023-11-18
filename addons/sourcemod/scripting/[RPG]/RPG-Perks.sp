@@ -1365,7 +1365,29 @@ public void OnPluginStart()
 public void GunXP_OnReloadRPGPlugins()
 {
 	#if defined _GunXP_RPG_included
-		GunXP_ReloadPlugin();
+
+	if(GetFeatureStatus(FeatureType_Native, "RPG_Tanks_GetClientTank") == FeatureStatus_Available)
+	{
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+				continue;
+
+			else if(!IsPlayerAlive(i))
+				continue;
+
+			else if(RPG_Tanks_GetClientTank(i) < 0)
+				continue;
+
+			UC_PrintToChatRoot("Didn't reload RPG-Perks.smx because a tiered tank is alive.");
+			return;
+		}
+	}
+
+	GunXP_ReloadPlugin();
 	#endif
 
 }
@@ -3938,6 +3960,7 @@ stock int RPG_GetLiteralGroundEntity(int client, int potentialEntity)
 	return -1;
 }
 
+#if !defined _GunXP_RPG_included
 public bool TraceFilter_HitTarget(int entity, int contentsMask, int target)
 {
 	if (entity == target)
@@ -3945,7 +3968,7 @@ public bool TraceFilter_HitTarget(int entity, int contentsMask, int target)
 
 	return false;
 }
-
+#endif
 stock void TeleportToStartArea(int client)
 {	
 	ArrayList aAreas = CreateArray(1);

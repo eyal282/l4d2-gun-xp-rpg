@@ -473,6 +473,85 @@ stock ZombieType RPG_Perks_GetZombieType(int entity, bool bAllowDead = false)
 		return ZombieType_Invalid;
 	}
 }
+
+enum AimbotLevels
+{
+	AimbotLevel_One,
+	AimbotLevel_Two	
+}
+
+public bool GunXP_SetupAimbotStrike(int client, int victim, AimbotLevels aimbotLevel)
+{
+	switch(aimbotLevel)
+	{
+		case AimbotLevel_One:
+		{
+			float fOrigin[3], fVictimOrigin[3];
+			GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+			GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
+
+			TR_TraceRayFilter(fOrigin, fVictimOrigin, MASK_PLAYERSOLID, RayType_EndPoint, TraceFilter_DontHitTarget, client);
+
+			if(!TR_DidHit())
+				return false;
+
+			else if(TR_GetEntityIndex() != victim)
+				return false;
+
+			return true;
+		}
+		case AimbotLevel_Two:
+		{
+			float fOrigin[3], fVictimOrigin[3];
+			GetClientEyePosition(client, fOrigin);
+
+			GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
+
+			float fIncrementList[] = { 0.0, 1.0, 3.0, 5.0, 8.0, 16.0, 32.0, 60.0, 64.0 };
+
+			float fOriginalHeight = fVictimOrigin[2];
+
+			for(int i=0;i < sizeof(fIncrementList);i++)
+			{
+				fVictimOrigin[2] = fOriginalHeight + fIncrementList[i];
+
+				float fAngle[3];
+				MakeVectorFromPoints(fOrigin, fVictimOrigin, fAngle);
+			
+				GetVectorAngles(fAngle, fAngle);
+
+				TR_TraceRayFilter(fOrigin, fAngle, MASK_SHOT, RayType_Infinite, TraceFilter_HitTarget, victim);
+
+				float fTest[3];
+				TR_GetEndPosition(fTest);
+
+				if(TR_DidHit() && TR_GetEntityIndex() == victim)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+	}
+
+	return false;
+}
+
+public bool TraceFilter_HitTarget(int entity, int contentsMask, int target)
+{
+    if (entity == target)
+        return true;
+
+    return false;
+}
+
+public bool TraceFilter_DontHitTarget(int entityhit, int mask, int target) 
+{
+    return (entityhit != target);
+}
+
+
 stock void UC_ReplyToCommand(int client, const char[] format, any ...)
 {
 	SetGlobalTransTarget(client);
@@ -532,6 +611,25 @@ stock void UC_PrintToChatAll(const char[] format, any ...)
 		if(!IsClientInGame(i))
 			continue;
 		
+		SetGlobalTransTarget(i);
+		VFormat(buffer, sizeof(buffer), format, 2);
+		
+		UC_PrintToChat(i, buffer);
+	}
+}
+
+
+stock void UC_PrintToChatRoot(const char[] format, any ...)
+{	
+	char buffer[256];
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+		
+		else if(!CheckCommandAccess(i, "sm_reloadrpg", ADMFLAG_ROOT))
+			continue;
+			
 		SetGlobalTransTarget(i);
 		VFormat(buffer, sizeof(buffer), format, 2);
 		

@@ -771,7 +771,26 @@ public void Func_DifficultyChanged(const char[] newValue)
 public void GunXP_OnReloadRPGPlugins()
 {
 	#if defined _GunXP_RPG_included
-		GunXP_ReloadPlugin();
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(g_iCurrentTank[i] < 0)
+			continue;
+
+		UC_PrintToChatRoot("Didn't reload RPG-Tanks.smx because a tiered tank is alive.");
+		return;
+	}
+
+	GunXP_ReloadPlugin();
 	#endif
 
 }

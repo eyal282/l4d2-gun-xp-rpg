@@ -331,6 +331,11 @@ public Action Timer_BulletRelease(Handle hTimer, int userid)
 	float fOrigin[3];
 	GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
+	AimbotLevels aimbotLevel = AimbotLevel_Two;
+
+	if(RPG_Tanks_GetClientTank(client) == weakerTankIndex)
+		aimbotLevel = AimbotLevel_One;
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -345,15 +350,7 @@ public Action Timer_BulletRelease(Handle hTimer, int userid)
 		else if(!IsPlayerAlive(i))
 			continue;
 
-		float fSurvivorOrigin[3];
-		GetEntPropVector(i, Prop_Data, "m_vecAbsOrigin", fSurvivorOrigin);
-		
-		TR_TraceRayFilter(fOrigin, fSurvivorOrigin, MASK_PLAYERSOLID, RayType_EndPoint, TraceRayDontHitTarget, client);
-
-		if(!TR_DidHit())
-			continue;
-
-		else if(TR_GetEntityIndex() != i)
+		else if(!GunXP_SetupAimbotStrike(client, i, aimbotLevel))
 			continue;
 		
 		float ratio = 1.0 - (float(RPG_Perks_GetClientHealth(client)) / float(RPG_Perks_GetClientMaxHealth(client)));
@@ -433,10 +430,6 @@ public bool TraceRayDontHitPlayers(int entityhit, int mask)
     return (entityhit>MaxClients || entityhit == 0);
 }
 
-public bool TraceRayDontHitTarget(int entityhit, int mask, int target) 
-{
-    return (entityhit != target);
-}
 
 public void CastNightmare(int client)
 {
