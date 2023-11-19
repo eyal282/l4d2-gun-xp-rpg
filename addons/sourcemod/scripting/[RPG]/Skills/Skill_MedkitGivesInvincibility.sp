@@ -1,0 +1,159 @@
+
+#include <GunXP-RPG>
+#include <sdkhooks>
+#include <sdktools>
+#include <sourcemod>
+#include <left4dhooks>
+
+#pragma semicolon 1
+#pragma newdecls required
+
+#define PLUGIN_VERSION "1.0"
+
+public Plugin myinfo =
+{
+    name        = "Protective Medkit Skill --> Gun XP - RPG",
+    author      = "Eyal282",
+    description = "Skill that makes medkit make you temporarily invincible.",
+    version     = PLUGIN_VERSION,
+    url         = ""
+};
+
+int skillIndex;
+
+float g_fChancePerLevels = 0.1;
+int g_iChanceLevels = 5;
+
+public void OnLibraryAdded(const char[] name)
+{
+    if (StrEqual(name, "GunXP_SkillShop"))
+    {
+        RegisterSkill();
+    }
+}
+
+public void OnConfigsExecuted()
+{
+    RegisterSkill();
+
+}
+public void OnPluginStart()
+{
+    HookEvent("heal_success", Event_HealSuccess);
+    HookEvent("adrenaline_used", Event_AdrenalineUsed);
+    HookEvent("pills_used", Event_PillsUsed);
+
+    RegisterSkill();
+}
+
+public void GunXP_OnReloadRPGPlugins()
+{
+    GunXP_ReloadPlugin();
+}
+
+public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &speedmodifier)
+{
+    if(!GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
+        return;
+
+    switch(L4D2_GetWeaponId(weapon))
+    {
+        case L4D2WeaponId_FirstAidKit:
+        {
+            speedmodifier = 10.0;
+        }
+    }
+}
+
+public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(event.GetInt("userid"));
+
+    int healed = GetClientOfUserId(GetEventInt(event, "subject"));
+
+    if(client == 0)
+        return Plugin_Continue;
+    
+    TryClearDebuffs(healed, client, true);
+
+    return Plugin_Continue;
+}
+
+public Action Event_AdrenalineUsed(Event event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(event.GetInt("userid"));
+
+    if(client == 0)
+        return Plugin_Continue;
+
+    TryClearDebuffs(client, client);
+
+    return Plugin_Continue;
+}
+
+
+public Action Event_PillsUsed(Event event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(event.GetInt("userid"));
+
+    if(client == 0)
+        return Plugin_Continue;
+
+    TryClearDebuffs(client, client);
+
+    return Plugin_Continue;
+}
+
+stock void TryClearDebuffs(int victim, int healer, bool bCertain = false)
+{
+    float fDuration = -1.0;
+
+    bool bSkillActive = false;
+
+    if(RPG_Perks_IsEntityTimedAttribute(healer, "Mutated", fDuration))
+    {
+        RPG_Perks_ApplyEntityTimedAttribute(healer, "Mutated", 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+    }
+
+    bSkillActive = GunXP_RPGShop_IsSkillUnlocked(healer, skillIndex);    
+
+    if(!bCertain)
+    {
+        float fChance = g_fChancePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(victim)) / float(g_iChanceLevels)));
+
+        float fGamble = GetRandomFloat(0.0, 1.0);
+
+        if(fGamble >= fChance)
+            bSkillActive = false;
+    }
+
+    if(fDuration != -1.0)
+    {
+        RPG_Perks_ApplyEntityTimedAttribute(healer, "Mutated", fDuration, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+    }
+
+    if(bSkillActive)
+    {
+        ArrayList aAttributes = RPG_Perks_GetEntityTimedAttributes(victim, ATTRIBUTE_NEGATIVE);
+
+        for(int i=0;i < aAttributes.Length;i++)
+        {
+            char attributeName[64];
+            aAttributes.GetString(i, attributeName, sizeof(attributeName));
+
+            RPG_Perks_ApplyEntityTimedAttribute(victim, attributeName, 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+        }
+
+        delete aAttributes;
+    }
+}
+
+public void RegisterSkill()
+{
+    char sDescription[512];
+    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit makes you invincible.\nDuration = (level % 10) + 6.5 sec\nDeploy medkit instantly.");
+    skillIndex = GunXP_RPGShop_RegisterSkill("Medkit Gives Invincibility", "Protective Medkit", sDescription,
+    55000, 0);
+}
+
+

@@ -252,7 +252,7 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 
 public void WH_OnGetRateOfFire(int client, int weapon, int weapontype, float &speedmodifier)
 {
-    if(!IsWeaponSniperRifle(weapon))
+    if(!IsWeaponBadSniperRifle(weapon))
         return;
     
     else if(!GunXP_RPGShop_IsSkillUnlocked(client, sniperIndex))
@@ -370,7 +370,7 @@ public Action Timer_MonitorSniper(Handle hTimer)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "All weapons have Laser Sight\nPerfect accuracy when incapped and camera won't shake.\nSniper Rifles do +100{PERCENT} damage to non-Tanks, shoot +100{PERCENT} faster, have infinite ammo.\nAWP and Scout have Aimbot, but cannot hit tanks.");
+    FormatEx(sDescription, sizeof(sDescription), "All weapons have Laser Sight\nPerfect accuracy when incapped and camera won't shake.\nSniper Rifles do +100{PERCENT} damage to non-Tanks, have infinite ammo.\nAWP and Scout shoot +100{PERCENT} faster, have Aimbot\nAimbot doesn't locate tanks.");
 
     sniperIndex = GunXP_RPGShop_RegisterSkill("Sniper", "Sniper", sDescription,
     260000, 0);

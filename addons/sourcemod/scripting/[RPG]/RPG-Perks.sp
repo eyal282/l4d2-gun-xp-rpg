@@ -3132,7 +3132,7 @@ public Action RPG_OnTraceAttack(int victim, int &attacker, int inflictor, float&
 	{
 		int owner = GetEntPropEnt(attacker, Prop_Send, "m_hOwnerEntity");
 
-		if(owner != -1)
+		if(owner != -1 && owner != victim)
 			attacker = owner;
 	}
 	if(bImmune)

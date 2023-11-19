@@ -951,6 +951,12 @@ Action OnCalculateDamage(int priority, int victim, int attacker, int inflictor, 
 
         if(pinner != 0 && L4D2_GetPlayerZombieClass(pinner) == L4D2ZombieClass_Jockey)
         {
+            
+            damage = 0.0;
+            bDontInterruptActions = true;
+            bDontInstakill = true;
+            bDontStagger = true;
+            bImmune = true;
             SDKHooks_TakeDamage(pinner, inflictor, attacker, damage, damagetype|DMG_DROWNRECOVER, _, _, _, false);
 
             return Plugin_Stop;
