@@ -39,9 +39,9 @@ public void OnConfigsExecuted()
 }
 public void OnPluginStart()
 {
-    HookEvent("heal_success", Event_HealSuccess);
-    HookEvent("adrenaline_used", Event_AdrenalineUsed);
-    HookEvent("pills_used", Event_PillsUsed);
+    HookEvent("heal_success", Event_HealSuccess, EventHookMode_Pre);
+    HookEvent("adrenaline_used", Event_AdrenalineUsed, EventHookMode_Pre);
+    HookEvent("pills_used", Event_PillsUsed, EventHookMode_Pre);
 
     RegisterSkill();
 }

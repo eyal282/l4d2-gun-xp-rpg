@@ -367,7 +367,7 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 
 	float fMinRatio = 0.15;
 
-	if(RPG_Tanks_GetClientTank(client) == tankIndex)
+	if(RPG_Tanks_GetClientTank(client) == tankIndex || RPG_Tanks_GetClientTank(client) == strongerTankIndex)
 		fMinRatio = 0.3;
 
 	if(float(RPG_Perks_GetClientHealth(client)) / float(RPG_Perks_GetClientMaxHealth(client)) <= fMinRatio)

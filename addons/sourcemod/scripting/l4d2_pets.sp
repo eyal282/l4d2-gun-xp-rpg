@@ -965,7 +965,7 @@ Action OnCalculateDamage(int priority, int victim, int attacker, int inflictor, 
     if(priority != 9)
         return Plugin_Continue;
 
-    else if(IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
+    else if(IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker) && g_iOwner[victim] == 0)
     {
         damage *= g_hPetDmg.FloatValue;
         return Plugin_Changed;

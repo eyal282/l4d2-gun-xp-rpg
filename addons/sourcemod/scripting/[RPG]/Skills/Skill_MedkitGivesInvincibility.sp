@@ -40,8 +40,6 @@ public void OnConfigsExecuted()
 public void OnPluginStart()
 {
     HookEvent("heal_success", Event_HealSuccess);
-    HookEvent("adrenaline_used", Event_AdrenalineUsed);
-    HookEvent("pills_used", Event_PillsUsed);
 
     RegisterSkill();
 }
@@ -74,78 +72,16 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
     if(client == 0)
         return Plugin_Continue;
     
-    TryClearDebuffs(healed, client, true);
-
-    return Plugin_Continue;
-}
-
-public Action Event_AdrenalineUsed(Event event, const char[] name, bool dontBroadcast)
-{
-    int client = GetClientOfUserId(event.GetInt("userid"));
-
-    if(client == 0)
+    else if(!GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
         return Plugin_Continue;
 
-    TryClearDebuffs(client, client);
+    float fDuration = 6.5;
+
+    fDuration += (float(GunXP_RPG_GetClientLevel(client)) / 10.0);
+
+    RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
 
     return Plugin_Continue;
-}
-
-
-public Action Event_PillsUsed(Event event, const char[] name, bool dontBroadcast)
-{
-    int client = GetClientOfUserId(event.GetInt("userid"));
-
-    if(client == 0)
-        return Plugin_Continue;
-
-    TryClearDebuffs(client, client);
-
-    return Plugin_Continue;
-}
-
-stock void TryClearDebuffs(int victim, int healer, bool bCertain = false)
-{
-    float fDuration = -1.0;
-
-    bool bSkillActive = false;
-
-    if(RPG_Perks_IsEntityTimedAttribute(healer, "Mutated", fDuration))
-    {
-        RPG_Perks_ApplyEntityTimedAttribute(healer, "Mutated", 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
-    }
-
-    bSkillActive = GunXP_RPGShop_IsSkillUnlocked(healer, skillIndex);    
-
-    if(!bCertain)
-    {
-        float fChance = g_fChancePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(victim)) / float(g_iChanceLevels)));
-
-        float fGamble = GetRandomFloat(0.0, 1.0);
-
-        if(fGamble >= fChance)
-            bSkillActive = false;
-    }
-
-    if(fDuration != -1.0)
-    {
-        RPG_Perks_ApplyEntityTimedAttribute(healer, "Mutated", fDuration, COLLISION_SET, ATTRIBUTE_NEGATIVE);
-    }
-
-    if(bSkillActive)
-    {
-        ArrayList aAttributes = RPG_Perks_GetEntityTimedAttributes(victim, ATTRIBUTE_NEGATIVE);
-
-        for(int i=0;i < aAttributes.Length;i++)
-        {
-            char attributeName[64];
-            aAttributes.GetString(i, attributeName, sizeof(attributeName));
-
-            RPG_Perks_ApplyEntityTimedAttribute(victim, attributeName, 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
-        }
-
-        delete aAttributes;
-    }
 }
 
 public void RegisterSkill()
