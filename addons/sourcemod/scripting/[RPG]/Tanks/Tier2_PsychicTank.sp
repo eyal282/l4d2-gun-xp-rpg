@@ -273,8 +273,11 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 		float fDelay;
 		RPG_Perks_IsEntityTimedAttribute(entity, attributeName, fDelay);
 
+		float fMinRatio;
+		GetMinRatioForBulletRelease(entity, fMinRatio);
+		
 		char sName[64];
-		FormatEx(sName, sizeof(sName), "(%i) %s", RoundToFloor(fDelay), g_sLastTankName[entity]);
+		FormatEx(sName, sizeof(sName), "(%i%s) %s", RoundToFloor(fDelay), float(RPG_Perks_GetClientHealth(entity)) / float(RPG_Perks_GetClientMaxHealth(entity)) <= fMinRatio ? "‼" : "", g_sLastTankName[entity]);
 
 		SetClientName(entity, sName);
 		return;
@@ -365,10 +368,8 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 	if(float(RPG_Perks_GetClientHealth(client)) / float(RPG_Perks_GetClientMaxHealth(client)) >= 0.9)
 		minRNG = 1;
 
-	float fMinRatio = 0.15;
-
-	if(RPG_Tanks_GetClientTank(client) == tankIndex || RPG_Tanks_GetClientTank(client) == strongerTankIndex)
-		fMinRatio = 0.3;
+	float fMinRatio;
+	GetMinRatioForBulletRelease(client, fMinRatio);
 
 	if(float(RPG_Perks_GetClientHealth(client)) / float(RPG_Perks_GetClientMaxHealth(client)) <= fMinRatio)
 	{
@@ -386,6 +387,13 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 	}	
 }
 
+public void GetMinRatioForBulletRelease(int client, float &fMinRatio)
+{
+	fMinRatio = 0.15;
+
+	if(RPG_Tanks_GetClientTank(client) == tankIndex || RPG_Tanks_GetClientTank(client) == strongerTankIndex)
+		fMinRatio = 0.3;
+}
 public void CastBulletRelease(int client)
 {
 	float interval = 0.5;
@@ -667,6 +675,7 @@ public void RegisterTank()
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 10 seconds.", 0, 0);
 
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Brains, Not Brawn", "Tank deals 3x less damage with punches.");
+	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Depression", "Tank telepathically tells you when his next ability activates\nA symbol '‼' appears when Adaptability ability is live");
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Adaptability", "When the tank is under 30{PERCENT} HP, it will only cast Bullet Release");
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Psychic Rock", "The Tank's rock instantly kills a survivor it hits.");
 
