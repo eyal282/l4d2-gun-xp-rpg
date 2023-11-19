@@ -18,7 +18,7 @@
 
 #define PLUGIN_VERSION "1.0"
 
-#define SOUND_CHANNEL 7254
+#define SOUND_CHANNEL SNDCHAN_STATIC
 
 #define IMMUNITY_SOUND "level/puck_fail.wav"
 
@@ -1223,7 +1223,7 @@ stock void EmitImmunitySound(int client)
 {
     for(int i=0;i < IMMUNITY_SOUND_MULTIPLIER;i++)
     {
-        EmitSoundToClient(client, IMMUNITY_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 100);
+        EmitSoundToClient(client, IMMUNITY_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 100);
     }
 }
 

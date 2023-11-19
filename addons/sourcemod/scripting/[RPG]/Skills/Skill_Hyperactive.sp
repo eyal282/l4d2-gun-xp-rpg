@@ -10,7 +10,7 @@
 
 #define PLUGIN_VERSION "1.0"
 
-#define SOUND_CHANNEL 7284
+#define SOUND_CHANNEL SNDCHAN_STATIC
 
 #define HYPERACTIVE_SOUND "*music/wam_music.mp3"
 
@@ -160,6 +160,7 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
     StopHyperactiveSound(oldClient);
     RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
+
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
     if(priority != g_hDamagePriority.IntValue)
@@ -214,7 +215,7 @@ stock void EmitHyperactiveSound(int client)
 {
     for(int i=0;i < HYPERACTIVE_SOUND_MULTIPLIER;i++)
     {
-        EmitSoundToClient(client, HYPERACTIVE_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 100);
+        EmitSoundToClient(client, HYPERACTIVE_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 100);
     }
 }
 
@@ -222,6 +223,6 @@ stock void StopHyperactiveSound(int client)
 {
     for(int i=0;i < HYPERACTIVE_SOUND_MULTIPLIER;i++)
     {
-        StopSound(client, SOUND_CHANNEL + i, HYPERACTIVE_SOUND);
+        StopSound(client, SOUND_CHANNEL, HYPERACTIVE_SOUND);
     }
 }

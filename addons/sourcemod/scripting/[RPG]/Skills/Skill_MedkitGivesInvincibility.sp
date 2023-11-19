@@ -21,9 +21,6 @@ public Plugin myinfo =
 
 int skillIndex;
 
-float g_fChancePerLevels = 0.1;
-int g_iChanceLevels = 5;
-
 public void OnLibraryAdded(const char[] name)
 {
     if (StrEqual(name, "GunXP_SkillShop"))
@@ -77,7 +74,7 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 
     float fDuration = 6.5;
 
-    fDuration += (float(GunXP_RPG_GetClientLevel(client)) / 10.0);
+    fDuration += (float(GunXP_RPG_GetClientLevel(healed)) / 10.0);
 
     RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
 
@@ -87,7 +84,7 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit makes you invincible.\nDuration = (level % 10) + 6.5 sec\nDeploy medkit instantly.");
+    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit makes you invincible.\nDuration = (level / 10) + 6.5 sec\nDeploy medkit instantly.");
     skillIndex = GunXP_RPGShop_RegisterSkill("Medkit Gives Invincibility", "Protective Medkit", sDescription,
     55000, 0);
 }

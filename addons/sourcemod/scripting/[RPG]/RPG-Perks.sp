@@ -31,6 +31,13 @@ public Plugin myinfo =
 	url         = ""
 };
 
+#define SOUND_CHANNEL SNDCHAN_STATIC
+
+#define INVINCIBLE_SOUND "@#music/tank/onebadtank.wav"
+
+// How much times to play the sound?
+#define INVINCIBLE_SOUND_MULTIPLIER 2
+
 // Those are the default speeds
 #define DEFAULT_RUN_SPEED		220.0
 #define DEFAULT_WATER_SPEED 	115.0
@@ -93,6 +100,7 @@ ConVar g_hRPGDeathCheckMode;
 ConVar g_hRPGTriggerHurtMultiplier;
 
 ConVar g_hRPGIncapPistolPriority;
+ConVar g_hInvincibleDamagePriority;
 
 ConVar g_hRPGTankHealth;
 
@@ -994,6 +1002,7 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 public void OnMapStart()
 {
+	PrecacheSound(INVINCIBLE_SOUND);
 	PrecacheSound("physics/glass/glass_impact_bullet4.wav");
 	if(!g_bLate)
 	{
@@ -1144,6 +1153,23 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		}
 
 		g_iAbsLastLimpHealth[i] = g_iAbsLimpHealth[i];
+
+		if(!RPG_Perks_IsEntityTimedAttribute(i, "Invincible"))
+		{
+			if(RPG_Perks_IsEntityTimedAttribute(i, "Invincible Music"))
+			{
+				RPG_Perks_ApplyEntityTimedAttribute(i, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+				StopInvincibleSound(i);
+			}
+
+			continue;
+		}
+
+		if(!RPG_Perks_IsEntityTimedAttribute(i, "Invincible Music"))
+		{
+			RPG_Perks_ApplyEntityTimedAttribute(i, "Invincible Music", 60.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+			EmitInvincibleSound(i);
+		}
 	}
 
 	char sCode[128];
@@ -1280,6 +1306,7 @@ public void OnPluginStart()
 	g_hRPGDeathCheckMode = AutoExecConfig_CreateConVar("rpg_death_check_mode", "1", "0: Normal behaviour. 1: Round won't end until humans are dead. 2: Round won't end until survivors are dead.");
 
 	g_hRPGIncapPistolPriority = AutoExecConfig_CreateConVar("rpg_incap_pistol_priority", "0", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
+	g_hInvincibleDamagePriority = AutoExecConfig_CreateConVar("rpg_invincible_damage_priority", "5", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
 
 	g_hRPGTriggerHurtMultiplier = AutoExecConfig_CreateConVar("rpg_trigger_hurt_multiplier", "10.0", "Multiplier of damage inflicted to ZOMBIES by trigger_hurt that has greater than 600 damage.\nOn rooftop finale if a charger doesn't instantly die from the trigger_hurt, bugs can easily occur.");
 
@@ -1400,7 +1427,7 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(!IsValidEntityIndex(entity))
-        return;
+		return;
 
 	if(StrEqual(classname, "info_survivor_position"))
 	{
@@ -1488,8 +1515,145 @@ public void Event_OnSpawnpointSpawnPost(int entity)
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", g_fSpawnPoint);
 }
 
-public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
+public Action L4D_TankClaw_OnPlayerHit_Pre(int tank, int claw, int player)
 {
+	if(RPG_Perks_IsEntityTimedAttribute(player, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public Action L4D2_OnPlayerFling(int client, int attacker, float vecDir[3])
+{
+	if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public Action L4D_OnLedgeGrabbed(int client)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public Action L4D2_OnStagger(int target, int source)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(target, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+// The survivor that is about to get stumbled as a result of "attacker" capping someone in close proximity
+public Action L4D2_OnPounceOrLeapStumble(int victim, int attacker)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+// Called when someone is about to be hit by a Tank rock or lunged by a Hunter
+public Action L4D_OnKnockedDown(int client, int reason)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+// Called when a player is about to be flung probably by Charger impact.
+public Action L4D2_OnThrowImpactedSurvivor(int attacker, int victim)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public Action L4D_OnPouncedOnSurvivor(int victim, int attacker)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public Action L4D_OnGrabWithTongue(int victim, int attacker)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public Action L4D2_OnJockeyRide(int victim, int attacker)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public Action L4D2_OnStartCarryingVictim(int victim, int attacker)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+	{
+		L4D_StaggerPlayer(attacker, attacker, {0.0, 0.0, 0.0});
+
+		char TempFormat[128];
+		FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(attacker), GetClientUserId(attacker));
+		L4D2_ExecVScriptCode(TempFormat);
+
+		return Plugin_Handled;
+	}
+
+	return Plugin_Continue;
+}
+
+
+public Action L4D_OnVomitedUpon(int victim, int& attacker, bool& boomerExplosion)
+{
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
+public void RPG_Perks_OnShouldInstantKill(int priority, int victim, int attacker, int inflictor, int damagetype, bool &bImmune)
+{
+	if(priority != g_hInvincibleDamagePriority.IntValue)
+		return;
+
+	else if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+		return;
+
+	else if(!RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return;
+
+	bImmune = true;
+}
+
+public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
+{   
+	if(priority != g_hInvincibleDamagePriority.IntValue)
+		return;
+
+	else if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+		return;
+
+	else if(!RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return;
+
+	bImmune = true;
+
+}
+
+public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
+{	
 	float fOrigin[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
@@ -1542,6 +1706,8 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
+	Invincible_RPG_Perks_OnTimedAttributeExpired(entity, attributeName);
+
 	// For ease of access, this is func_tracktrain's reach floor calculations.
 	_RPG_Perks_OnTimedAttributeExpired(entity, attributeName);
 
@@ -1584,6 +1750,8 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
+	Invincible_RPG_Perks_OnTimedAttributeTransfered(oldClient, newClient, attributeName);
+
 	RPG_CalculateColorByAttributes(newClient, attributeName);
 
 	if(oldClient == newClient)
@@ -1632,6 +1800,64 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 
 	SetEntityRenderColor(entity, 255, 255, 255, 255);
 }
+
+public void Invincible_RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
+{
+    if(StrEqual(attributeName, "Invincible Music"))
+    {
+        int client = attributeEntity;
+        
+        if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+            return;
+
+        EmitInvincibleSound(client);
+        RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+    }
+    else if(StrEqual(attributeName, "Invincible"))
+    {
+        int client = attributeEntity;
+
+        if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
+        {
+            RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+            StopInvincibleSound(client);
+        }
+    }
+}
+
+
+public void Invincible_RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
+{
+    if(!StrEqual(attributeName, "Invincible Music"))
+        return;
+
+    // Infinite loop otherwise
+    else if(oldClient == newClient)
+    {
+        StopInvincibleSound(oldClient);
+        return;
+    }
+
+    StopInvincibleSound(oldClient);
+    RPG_Perks_ApplyEntityTimedAttribute(newClient, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+}
+
+stock void EmitInvincibleSound(int client)
+{
+	for(int i=0;i < INVINCIBLE_SOUND_MULTIPLIER;i++)
+	{
+		EmitSoundToClient(client, INVINCIBLE_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 103);
+	}
+}
+
+stock void StopInvincibleSound(int client)
+{
+	for(int i=0;i < INVINCIBLE_SOUND_MULTIPLIER;i++)
+	{
+		StopSound(client, SOUND_CHANNEL, INVINCIBLE_SOUND);
+	}
+}
+
 // Must add natives for after a player spawns for incap hidden pistol.
 public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
 {
@@ -4003,7 +4229,7 @@ stock void TeleportToStartArea(int client)
 
 bool IsValidEntityIndex(int entity)
 {
-    return (MaxClients+1 <= entity <= GetMaxEntities());
+	return (MaxClients+1 <= entity <= GetMaxEntities());
 }
 
 stock void RPG_ClearTimedAttributes(int entity = 0)

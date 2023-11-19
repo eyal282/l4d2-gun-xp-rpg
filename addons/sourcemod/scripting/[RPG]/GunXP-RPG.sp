@@ -16,7 +16,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define SOUND_CHANNEL 7154
+#define SOUND_CHANNEL SNDCHAN_STATIC
 
 #define LEVEL_UP_SOUND "music/safe/themonsterswithout_l4d1.wav"
 
@@ -3339,7 +3339,7 @@ stock void EmitLevelUpSound(int client)
 {
 	for(int i=0;i < LEVEL_UP_SOUND_MULTIPLIER;i++)
 	{
-		EmitSoundToClient(client, LEVEL_UP_SOUND, _, SOUND_CHANNEL + i, 150, _, 1.0, 110);
+		EmitSoundToClient(client, LEVEL_UP_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 110);
 	}
 
 	AddNormalSoundHook(SoundHook_NeverOnLevelUp);
