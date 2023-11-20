@@ -15,7 +15,7 @@
 #define HYPERACTIVE_SOUND "*music/wam_music.mp3"
 
 // How much times to play the sound?
-#define HYPERACTIVE_SOUND_MULTIPLIER 100
+#define HYPERACTIVE_SOUND_MULTIPLIER 10
 
 public Plugin myinfo =
 {
@@ -69,6 +69,13 @@ public Action Timer_MonitorHyperactive(Handle hTimer)
         else if(!GunXP_RPGShop_IsSkillUnlocked(i, hyperactiveIndex))
             continue;
 
+        else if(RPG_Perks_IsEntityTimedAttribute(i, "Invincible"))
+        {
+            //RPG_Perks_ApplyEntityTimedAttribute(i, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+            StopHyperactiveSound(i);
+
+            continue;
+        }
         else if(!RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive") && !GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) <= 0.0)
         {
             if(RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music"))
@@ -117,13 +124,34 @@ public void WH_OnGetRateOfFire(int client, int weapon, int weapontype, float &sp
     speedmodifier += g_fFireRate;
 }
 
+public void RPG_Perks_OnTimedAttributeStart(int attributeEntity, char attributeName[64], float fDuration)
+{
+    if(StrEqual(attributeName, "Invincible"))
+    {
+        RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+        StopHyperactiveSound(attributeEntity);
+    }
+}
 public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
 {
+    if(StrEqual(attributeName, "Invincible"))
+    {
+        if(!RPG_Perks_IsEntityTimedAttribute(attributeEntity, "Hyperactive") && !GetEntProp(attributeEntity, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(attributeEntity) <= 0.0)
+            return;
+
+        EmitHyperactiveSound(attributeEntity);
+        RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+
+        return;
+    }
     if(StrEqual(attributeName, "Hyperactive Music"))
     {
         int client = attributeEntity;
         
         if(!RPG_Perks_IsEntityTimedAttribute(client, "Hyperactive") && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(client) <= 0.0)
+            return;
+
+        else if(RPG_Perks_IsEntityTimedAttribute(attributeEntity, "Invincible"))
             return;
 
         EmitHyperactiveSound(client);
@@ -147,6 +175,11 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
 
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
+    if(StrEqual(attributeName, "Invincible"))
+    {
+        RPG_Perks_ApplyEntityTimedAttribute(newClient, "Hyperactive Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+        return;
+    }
     if(!StrEqual(attributeName, "Hyperactive Music"))
         return;
 
