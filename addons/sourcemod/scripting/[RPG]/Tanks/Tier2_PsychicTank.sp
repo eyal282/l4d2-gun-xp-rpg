@@ -689,6 +689,7 @@ public void RegisterTank()
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 7 seconds.", 0, 0);
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Brains, Not Brawn", "Tank deals 5x less damage with punches.");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Depression", "Tank telepathically tells you when his next ability activates\nA symbol '‼' appears when Adaptability ability is live");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Adaptability", "When the tank is under 30{PERCENT} HP, it will only cast Bullet Release");
 
 	weakerTankIndex = RPG_Tanks_RegisterTank(1, 5, "Jr. Psychic", "A weak Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 25 seconds.",
@@ -701,6 +702,7 @@ public void RegisterTank()
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 4 seconds.", 0, 0);
 
 	RPG_Tanks_RegisterPassiveAbility(weakerTankIndex, "Brains, Not Brawn", "Tank deals 5x less damage with punches.");
+	RPG_Tanks_RegisterPassiveAbility(weakerTankIndex, "Depression", "Tank telepathically tells you when his next ability activates\nA symbol '‼' appears when Adaptability ability is live");
 	RPG_Tanks_RegisterPassiveAbility(weakerTankIndex, "Adaptability", "When the tank is under 15{PERCENT} HP, it will only cast Bullet Release");
 }
 
