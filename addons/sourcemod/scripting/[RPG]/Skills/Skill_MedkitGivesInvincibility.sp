@@ -64,7 +64,7 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 {
     int client = GetClientOfUserId(event.GetInt("userid"));
 
-    int healed = GetClientOfUserId(GetEventInt(event, "subject"));
+    int healed = GetClientOfUserId(event.GetInt("subject"));
 
     if(client == 0)
         return Plugin_Continue;
@@ -76,7 +76,7 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 
     fDuration += (float(GunXP_RPG_GetClientLevel(healed)) / 10.0);
 
-    RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
+    RPG_Perks_ApplyEntityTimedAttribute(healed, "Invincible", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
 
     return Plugin_Continue;
 }
