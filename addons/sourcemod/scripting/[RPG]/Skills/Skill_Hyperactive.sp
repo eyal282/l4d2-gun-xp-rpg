@@ -15,7 +15,7 @@
 #define HYPERACTIVE_SOUND "*music/wam_music.mp3"
 
 // How much times to play the sound?
-#define HYPERACTIVE_SOUND_MULTIPLIER 10
+#define HYPERACTIVE_SOUND_MULTIPLIER 5
 
 public Plugin myinfo =
 {

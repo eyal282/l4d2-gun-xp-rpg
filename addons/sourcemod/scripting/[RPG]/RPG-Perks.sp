@@ -260,6 +260,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_GetEntityTimedAttributes", Native_GetEntityTimedAttributes);
 	CreateNative("RPG_Perks_ApplyEntityTimedAttribute", Native_ApplyEntityTimedAttribute);
 	CreateNative("RPG_Perks_GetClientLimitedAbility", Native_GetClientLimitedAbility);
+	CreateNative("RPG_Perks_GetClientLimitedAbilitiesList", Native_GetClientLimitedAbilitiesList);
 	CreateNative("RPG_Perks_UseClientLimitedAbility", Native_UseClientLimitedAbility);
 	CreateNative("RPG_Perks_ReuseClientLimitedAbility", Native_ReuseClientLimitedAbility);
 
@@ -815,6 +816,40 @@ public int Native_GetClientLimitedAbility(Handle caller, int numParams)
 	SetNativeCellRef(4, maxUses);
 
 	return 0;
+}
+
+
+public any Native_GetClientLimitedAbilitiesList(Handle caller, int numParams)
+{
+	ArrayList array = new ArrayList(sizeof(enLimitedAbility::identifier));
+
+	if(g_aLimitedAbilities == null)
+	{
+		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
+
+		return array;
+	}
+
+	int client = GetNativeCell(1);
+
+	int size = g_aLimitedAbilities.Length;
+
+	char sAuthId[64];
+	GetClientAuthId(client, AuthId_Steam2, sAuthId, sizeof(sAuthId));
+
+	for(int i=0;i < size;i++)
+	{
+		enLimitedAbility ability;
+
+		g_aLimitedAbilities.GetArray(i, ability);
+
+		if(StrEqual(sAuthId, ability.authId))
+		{
+			array.PushString(ability.identifier);
+		}
+	}
+
+	return array;
 }
 
 public int Native_UseClientLimitedAbility(Handle caller, int numParams)

@@ -117,6 +117,8 @@ native void RPG_Perks_IgniteWithOwnership(int victim, int attacker);
 
 native void RPG_Perks_GetClientLimitedAbility(int entity, char attributeName[64], int &timesUsed, int &maxUses);
 
+// Must close the array returned by this native.
+native ArrayList RPG_Perks_GetClientLimitedAbilitiesList(int client);
 
 // Returns true if ability was used, false if maxed or another error was thrown.
 native bool RPG_Perks_UseClientLimitedAbility(int client, char identifier[32], char sError[256] = {EOS, ...});
@@ -221,6 +223,7 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("RPG_Perks_UseAdrenaline");
 	MarkNativeAsOptional("RPG_Perks_IgniteWithOwnership");
 	MarkNativeAsOptional("RPG_Perks_GetClientLimitedAbility");
+	MarkNativeAsOptional("RPG_Perks_GetClientLimitedAbilitiesList");
 	MarkNativeAsOptional("RPG_Perks_UseClientLimitedAbility");
 	MarkNativeAsOptional("RPG_Perks_ReuseClientLimitedAbility");
 	MarkNativeAsOptional("RPG_Perks_IsEntityTimedAttribute");
