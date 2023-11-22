@@ -70,14 +70,19 @@ int g_iOverrideSpeedState[MAXPLAYERS+1] = { SPEEDSTATE_NULL, ... };
 
 float g_fMaterializedTimestamp[MAXPLAYERS+1];
 
+float g_fSpawnPoint[3];
+float g_fLastStunOrigin[MAXPLAYERS+1][3];
+
 bool g_bLate;
 
 // 0 = no, 1 = yes, 2 = ignore.
 float g_fLastElevatorHeight[2049];
 int g_iIsTouching[MAXPLAYERS+1][2049];
 
-float g_fSpawnPoint[3];
-float g_fLastStunOrigin[MAXPLAYERS+1][3];
+int g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+int g_refLastFog[MAXPLAYERS+1] = { INVALID_ENT_REFERENCE, ... };
+
+bool g_bNightmare[MAXPLAYERS+1];
 
 bool g_bTeleported[MAXPLAYERS+1];
 bool g_bRoundStarted = false;
@@ -220,6 +225,14 @@ ArrayList g_aLimitedAbilities;
 
 public void OnPluginEnd()
 {
+	int fog = EntRefToEntIndex(g_refNightmareFogControl);
+
+	if(fog != INVALID_ENT_REFERENCE)
+	{
+		AcceptEntityInput(fog, "Kill");
+		g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+	}
+
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
 	g_hReviveDuration.FloatValue = g_hRPGReviveDuration.FloatValue;
 	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
@@ -1039,13 +1052,19 @@ public void OnMapStart()
 {
 	PrecacheSound(INVINCIBLE_SOUND);
 	PrecacheSound("physics/glass/glass_impact_bullet4.wav");
+
 	if(!g_bLate)
 	{
 		for(int i=1;i < sizeof(g_bTeleported);i++)
 		{
 			g_bTeleported[i] = false;
+			g_bNightmare[i] = false;
 			g_iAbsLastLimpHealth[i] = -1;
 		}
+	}
+	else
+	{
+		TryCreateNightmareFogEntity();
 	}
 
 	g_hCheckAttributeExpire = INVALID_HANDLE;
@@ -1406,6 +1425,7 @@ public void OnPluginStart()
 	}
 
 	int count = GetEntityCount();
+
 	for (int i = MaxClients+1;i < count;i++)
 	{
 		if(!IsValidEdict(i))
@@ -1414,11 +1434,7 @@ public void OnPluginStart()
 		char sClassname[64];
 		GetEdictClassname(i, sClassname, sizeof(sClassname));
 
-		if(StrEqual(sClassname, "infected") || StrEqual(sClassname, "witch"))
-		{
-			SDKHook(i, SDKHook_TraceAttack, Event_TraceAttack);
-			SDKHook(i, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
-		}
+		OnEntityCreated(i, sClassname);
 	}
 
 	RegPluginLibrary("RPG_Perks");
@@ -1471,13 +1487,13 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if(StrEqual(classname, "infected") || StrEqual(classname, "witch"))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
+		SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
 	}
 	if(StrEqual(classname, "func_elevator"))
 	{
 		SDKHook(entity, SDKHook_SpawnPost, Event_ElevatorSpawnPost);
 	}
 }
-
 
 public void Event_ElevatorSpawnPost(int entity)
 {
@@ -1543,6 +1559,24 @@ public void Event_ZombieSpawnPost(int entity)
 
 	SDKHook(entity, SDKHook_TraceAttack, Event_TraceAttack);
 	SDKHook(entity, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
+	SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
+}
+
+public Action SDKEvent_SetTransmit(int victim, int viewer)
+{
+	if(!IsPlayer(viewer))
+		return Plugin_Continue;
+
+	else if(victim == viewer)
+		return Plugin_Continue;
+
+	else if(!g_bNightmare[viewer])
+		return Plugin_Continue;
+
+	else if(L4D_GetPinnedInfected(viewer) == victim)
+		return Plugin_Continue;
+
+	return Plugin_Handled;
 }
 
 public void Event_OnSpawnpointSpawnPost(int entity)
@@ -1707,7 +1741,6 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	}
 	if(StrEqual(attributeName, "Frozen"))
 	{
-
 		SetEntityFlags(entity, GetEntityFlags(entity) | FL_FROZEN);
 
 		if(RPG_Perks_GetZombieType(entity) != ZombieType_CommonInfected && RPG_Perks_GetZombieType(entity) != ZombieType_Witch)
@@ -1719,6 +1752,22 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 		
 		
+		return;
+	}
+	if(StrEqual(attributeName, "Nightmare"))
+	{
+		if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
+			return;
+
+		g_bNightmare[entity] = true;
+
+		int fog = GetEntPropEnt(entity, Prop_Data, "m_hCtrl");
+
+		if(fog != -1)
+		{
+			g_refLastFog[entity] = EntIndexToEntRef(GetEntPropEnt(entity, Prop_Data, "m_hCtrl"));
+		}
+
 		return;
 	}
 	if(!StrEqual(attributeName, "Stun"))
@@ -1768,6 +1817,21 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 		return;
 	}
+	if(StrEqual(attributeName, "Nightmare"))
+	{
+		g_bNightmare[entity] = false;
+
+		if(EntRefToEntIndex(g_refNightmareFogControl) == INVALID_ENT_REFERENCE)
+			return;
+
+		// If current fog is not nightmare fog, the game changed it for the player and we need to not reset to old, because old is gone.
+		else if(GetEntPropEnt(entity, Prop_Data, "m_hCtrl") != EntRefToEntIndex(g_refNightmareFogControl))
+			return;
+
+		SetEntPropEnt(entity, Prop_Data, "m_hCtrl", EntRefToEntIndex(g_refLastFog[entity]));
+
+		return;
+	}
 	if(!StrEqual(attributeName, "Stun"))
 		return;
 
@@ -1799,6 +1863,13 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 
 		SetEntityMoveType(oldClient, MOVETYPE_WALK);
 		SetEntityMoveType(newClient, MOVETYPE_NONE);
+
+		return;
+	}
+	if(StrEqual(attributeName, "Nightmare"))
+	{
+		g_bNightmare[newClient] = true;
+		g_bNightmare[oldClient] = false;
 
 		return;
 	}
@@ -2084,9 +2155,14 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
+	AcceptEntityInput(g_refNightmareFogControl, "Kill");
+
+	g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+
 	for(int i=0;i < sizeof(g_bTeleported);i++)
 	{
 		g_bTeleported[i] = false;
+		g_bNightmare[i] = false;
 	}
 	
 	g_bRoundStarted = true;
@@ -2285,6 +2361,8 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 		bFirstSpawn = false;
 	}
 
+	TryCreateNightmareFogEntity();
+
 	g_iHealth[client] = -1;
 	g_iMaxHealth[client] = -1;
 
@@ -2438,6 +2516,39 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 		L4D_SetPlayerTempHealth(client, 0);
 	}
+}
+
+public void TryCreateNightmareFogEntity()
+{
+	int fog = EntRefToEntIndex(g_refNightmareFogControl);
+
+	if(fog != INVALID_ENT_REFERENCE)
+		return;
+
+	int entity = CreateEntityByName("env_fog_controller");
+
+	if(IsValidEntity(entity))
+	{	
+		DispatchKeyValue(entity, "fogenable", "1"); 	
+		DispatchKeyValue(entity, "spawnflags", "1"); 
+		DispatchKeyValue(entity, "fogmaxdensity", "1"); 
+		DispatchKeyValue(entity, "fogstart", "0");
+		DispatchKeyValue(entity, "fogend", "256");
+		DispatchKeyValue(entity, "farz", "8192");
+		DispatchKeyValue(entity, "fogcolor", "32 32 32"); 
+		DispatchKeyValue(entity, "foglerptime", "0.0"); 
+		
+		DispatchSpawn(entity);				
+		ActivateEntity(entity);
+
+		AcceptEntityInput(entity, "TurnOn");
+	}
+	else
+	{
+		entity = INVALID_ENT_REFERENCE;
+	}
+
+	g_refNightmareFogControl = EntIndexToEntRef(entity);
 }
 
 public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool dontBroadcast)
@@ -3194,11 +3305,38 @@ public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
 	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
-
+	SDKHook(client, SDKHook_SetTransmit, SDKEvent_SetTransmit);
+	SDKHook(client, SDKHook_PostThinkPost, SDKEvent_Think);
 	AnimHookEnable(client, INVALID_FUNCTION, OnTankStartSwingPost);
 
 }
 
+
+public void SDKEvent_Think(int client)
+{
+	if(!g_bNightmare[client])
+		return;
+
+	int nightmareFog = EntRefToEntIndex(g_refNightmareFogControl);
+
+	// Note the fact we break here instead of continue.
+	if(nightmareFog == INVALID_ENT_REFERENCE)
+		return;
+
+	int curFogRef = INVALID_ENT_REFERENCE;
+	int curFog = GetEntPropEnt(client, Prop_Data, "m_hCtrl");
+
+	if(curFog != INVALID_ENT_REFERENCE)
+		EntIndexToEntRef(curFog);
+
+	if(curFogRef != g_refLastFog[client] && curFogRef != g_refNightmareFogControl)
+		g_refLastFog[client] = curFogRef;
+
+	if(curFogRef != nightmareFog)
+	{
+		SetEntPropEnt(client, Prop_Data, "m_hCtrl", nightmareFog);
+	}
+}
 public Action OnTankStartSwingPost(int client, int &sequence)
 {
 	// 0 Clue how the other two got here...
@@ -3743,7 +3881,6 @@ public void Frame_GhostState(int userid)
 
 	return;
 }
-
 
 public Action L4D_OnGetRunTopSpeed(int client, float &retVal)
 {

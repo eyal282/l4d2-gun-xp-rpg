@@ -10,7 +10,8 @@
 
 #define PLUGIN_VERSION "1.0"
 
-#define ACID_TIME			7.2
+#define ACID_TIME				7.2
+#define BILE_TANK_COOLDOWN		60
 
 #define MAX_LIGHTS 10
 
@@ -76,7 +77,24 @@ public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &s
 	else if(!GunXP_RPGShop_IsSkillUnlocked(client, bileIndex))
 		return;
 
-	speedmodifier = 10.0;
+	bool bFoundAny = false;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(!RPG_Perks_IsEntityTimedAttribute(i, "Sticky Bile Cooldown"))
+			continue;
+
+		bFoundAny = true;
+	}
+
+	if(!bFoundAny)
+		speedmodifier = 10.0;
 }
 
 public void OnEntityDestroyed(int entity)
@@ -317,14 +335,19 @@ public Action Event_PlayerNowIt(Handle hEvent, const char[] Name, bool dontBroad
 	else if(!GunXP_RPGShop_IsSkillUnlocked(attacker, bileIndex))
 		return Plugin_Continue;
 
-	
-	float fDuration = g_fStunTimeSpecials;
-
 	if(RPG_Perks_GetZombieType(victim) == ZombieType_Tank)
-		fDuration = g_fStunTimeTanks;
+	{
+		float fDuration = g_fStunTimeTanks;
+		RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", fDuration, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(victim, "Sticky Bile Cooldown", float(BILE_TANK_COOLDOWN), COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	}
+	else
+	{
+		float fDuration = g_fStunTimeSpecials;
 
-	RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", fDuration, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEGATIVE);
-	RPG_Perks_ApplyEntityTimedAttribute(victim, "Sticky Bile Cooldown", ACID_TIME + 1.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+		RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", fDuration, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(victim, "Sticky Bile Cooldown", ACID_TIME + 1.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	}
 	
 	return Plugin_Continue;
 }
@@ -344,7 +367,7 @@ public void L4D2_Infected_HitByVomitJar_Post(int victim, int attacker)
 public void RegisterSkill()
 {
 	char sDescription[512];
-	FormatEx(sDescription, sizeof(sDescription), "Bile jar becomes extremely sticky\nStuns Common/Special/Tank for %.0f/%.0f/%.0f sec\nBile sticks to the ground, allowing to bile enemies that go through it.\nDeploy Bile jar instantly", g_fStunTimeCommons, g_fStunTimeSpecials, g_fStunTimeTanks);
+	FormatEx(sDescription, sizeof(sDescription), "Bile jar becomes extremely sticky\nStuns Common/Special/Tank for %.0f/%.0f/%.0f sec\nBile sticks to the ground, allowing to bile enemies that go through it.\n%i second cooldown for Tanks.\nIf Tank(s) aren't on cooldown, you deploy Bile Jar instantly.", g_fStunTimeCommons, g_fStunTimeSpecials, g_fStunTimeTanks, BILE_TANK_COOLDOWN);
 	bileIndex = GunXP_RPGShop_RegisterSkill("Sticky Bile", "Sticky Bile", sDescription,
 	500000, 0);
 }

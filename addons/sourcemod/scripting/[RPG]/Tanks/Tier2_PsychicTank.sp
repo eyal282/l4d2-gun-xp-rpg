@@ -31,7 +31,6 @@ int weakerPsychicPowersIndex;
 
 float g_fLastHeight[MAXPLAYERS+1];
 float g_fEndDamageReflect[MAXPLAYERS+1];
-bool g_bNightmare[MAXPLAYERS+1];
 int g_iBulletRelease[MAXPLAYERS+1];
 
 char g_sLastTankName[MAXPLAYERS+1][64];
@@ -74,14 +73,6 @@ public void OnPluginStart()
 	AutoExecConfig_CleanFile();
 
 	RegisterTank();
-
-	for(int i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
-
-		Event_ZombieSpawnPost(i);
-	}
 }
 
 public void OnMapStart()
@@ -89,7 +80,6 @@ public void OnMapStart()
 	for(int i=0;i < sizeof(g_fEndDamageReflect);i++)
 	{
 		g_fEndDamageReflect[i] = 0.0;
-		g_bNightmare[i] = false;
 		g_iBulletRelease[i] = 0;
 	}
 }
@@ -116,12 +106,6 @@ public void GunXP_OnReloadRPGPlugins()
 
 	GunXP_ReloadPlugin();
 }
-
-public void OnClientPutInServer(int client)
-{
-	Event_ZombieSpawnPost(client);
-}
-
 
 public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 {
@@ -184,19 +168,6 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 	return Plugin_Continue;
 }
 
-public void OnEntityCreated(int entity, const char[] classname)
-{
-	if(!IsValidEntityIndex(entity))
-        return;
-
-	if(StrEqual(classname, "infected") || StrEqual(classname, "witch"))
-	{
-		SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
-	}	
-}
-
-
-
 public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64])
 {
 	if(strncmp(attributeName, "Cast Active Ability #", 21) == 0)
@@ -224,13 +195,6 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64])
 
 		return;
 	}
-	if(!StrEqual(attributeName, "Nightmare"))
-		return;
-
-	else if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
-		return;
-
-	g_bNightmare[entity] = true;
 }
 
 public void Frame_CheckCastedAbility(Handle DP)
@@ -312,11 +276,6 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 		return;
 	}
-	if(!StrEqual(attributeName, "Nightmare"))
-		return;
-
-
-	g_bNightmare[entity] = false;
 }
 
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
@@ -339,14 +298,6 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 		TeleportEntity(newClient, NULL_VECTOR, NULL_VECTOR, view_as<float>({ 0.0, 0.0, 285.0 }));
 		return;
 	}
-	if(!StrEqual(attributeName, "Nightmare"))
-		return;
-
-	else if(oldClient == newClient)
-		return;
-
-	g_bNightmare[newClient] = true;
-	g_bNightmare[oldClient] = false;
 }
 
 public void RPG_Perks_OnZombiePlayerSpawned(int client)
@@ -611,7 +562,7 @@ stock int FindRandomSurvivorWithoutStatus(int client)
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
 			continue;
 
-		else if(g_bNightmare[i])
+		else if(RPG_Perks_IsEntityTimedAttribute(i, "Nightmare"))
 			continue;
 
 		float fSurvivorOrigin[3];
@@ -640,29 +591,6 @@ public void CastDamageReflect(int client)
 
 	PrintToChatAll("Damage Reflect is live for %.0f seconds, don't shoot the tank!!!", fDuration);
 }
-
-public void Event_ZombieSpawnPost(int entity)
-{
-	SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
-}
-
-public Action SDKEvent_SetTransmit(int victim, int viewer)
-{
-	if(!IsPlayer(viewer))
-		return Plugin_Continue;
-
-	else if(victim == viewer)
-		return Plugin_Continue;
-
-	else if(!g_bNightmare[viewer])
-		return Plugin_Continue;
-
-	else if(L4D_GetPinnedInfected(viewer) == victim)
-		return Plugin_Continue;
-
-	return Plugin_Handled;
-}
-
 public void RegisterTank()
 {
 	strongerTankIndex = RPG_Tanks_RegisterTank(3, 3, "Ulti. Psychic", "The ultimate Psychic Tank. The strongest the survivors will ever witness\nCasts a random psychic ability every 20 seconds.",
@@ -729,23 +657,4 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 		
 		return;
 	}
-
-	if(priority == 0)
-	{
-		if(IsPlayer(victim) && IsPlayer(attacker) && L4D_GetClientTeam(victim) == L4D_GetClientTeam(attacker))
-			return;
-
-		else if(!IsPlayer(attacker) || L4D_GetClientTeam(attacker) != L4DTeam_Survivor)
-    	    return;
-
-		else if(!IsPlayer(victim) || !g_bNightmare[victim])
-			return;
-
-		damage *= 2.0;
-	}
-}
-
-bool IsValidEntityIndex(int entity)
-{
-    return (MaxClients+1 <= entity <= GetMaxEntities());
 }
