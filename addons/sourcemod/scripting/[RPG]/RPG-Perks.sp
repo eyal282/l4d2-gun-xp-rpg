@@ -2615,6 +2615,8 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
+	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
+
 	int entity = -1;
 
 	while((entity = FindEntityByClassname(entity, "trigger_multiple")) != -1)
@@ -2658,6 +2660,8 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_iLastTemporaryHealth[newPlayer] = 0;
 	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
+
+	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
 
 	int entity = -1;
 
