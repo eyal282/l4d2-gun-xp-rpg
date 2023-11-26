@@ -47,6 +47,7 @@ char g_sAllowedDropWeapons[][] =
 {
 	"weapon_adrenaline",
 	"weapon_cola_bottles",
+	"weapon_first_aid_kit",
 	"weapon_defibrillator",
 	"weapon_fireworkcrate",
 	"weapon_gascan",
