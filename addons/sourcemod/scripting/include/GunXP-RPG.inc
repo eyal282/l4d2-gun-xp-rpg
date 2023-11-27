@@ -137,6 +137,9 @@ native ArrayList RPG_Perks_GetEntityTimedAttributes(int entity, int attributeTyp
 // If COLLISION_RETURN, COLLISION_SET_IF_HIGHER, or COLLISION_SET_IF_LOWER are used, returns false if attribute was not set.
 native bool RPG_Perks_ApplyEntityTimedAttribute(int entity, char attributeName[64], float fDuration, int collision, int attributeType, int transferRules = TRANSFER_NORMAL);
 
+// Registers a cvar that fires "RPG_Perks_OnGetReplicateCvarValue"
+native void RPG_Perks_RegisterReplicateCvar(char cvarName[64]);
+
 // If something that requires recalculating what's the max HP of a client, use this.
 native void RPG_Perks_RecalculateMaxHP(int client);
 
@@ -308,6 +311,14 @@ forward void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64
 
 // if oldClient == newClient, the duration was modified.
 forward void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64]);
+
+// WARNING! THIS FORWARD FIRES 20 TIMES PER SPAWN, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
+// When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
+// If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
+// If you're altering on a positive priority, the closer it is to 10 it will run LAST.
+// I can't think of a reason to use a priority closer to -10.
+// &sValue is a copyback string
+forward void RPG_Perks_OnGetReplicateCvarValue(int priority, int client, const char cvarName[64], char sValue[256]);
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER SPAWN, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"

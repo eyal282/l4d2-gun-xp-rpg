@@ -104,6 +104,14 @@ public void WH_OnReloadModifier(int client, int weapon, int weapontype, float &s
     }
 }
 
+public void WH_OnGetRateOfFire(int client, int weapon, int weapontype, float &speedmodifier)
+{
+     if(L4D2_GetWeaponId(weapon) == L4D2WeaponId_GrenadeLauncher)
+    {
+        speedmodifier = 10.0;
+    }
+}
+
 public void RegisterPerkTree()
 {
     ArrayList descriptions, costs, xpReqs;

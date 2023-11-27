@@ -23,9 +23,6 @@ int sniperIndex;
 
 ConVar g_hDamagePriority;
 
-ConVar hcv_IncapAccuracyPenalty;
-ConVar hcv_IncapCameraShake;
-
 int g_iTargetsHit[MAXPLAYERS+1];
 
 public void OnLibraryAdded(const char[] name)
@@ -39,16 +36,12 @@ public void OnLibraryAdded(const char[] name)
 public void OnConfigsExecuted()
 {
     RegisterSkill();
-
 }
 
 public void OnPluginStart()
 {
     HookEvent("bullet_impact", Event_BulletImpact, EventHookMode_Post);
     HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
-
-    hcv_IncapAccuracyPenalty = FindConVar("survivor_incapacitated_accuracy_penalty");
-    hcv_IncapCameraShake = FindConVar("survivor_incapacitated_dizzy_severity");
 
     AutoExecConfig_SetFile("GunXP-SniperSkill.cfg");
 
@@ -227,14 +220,6 @@ public void GunXP_RPGShop_OnResetRPG(int client)
     if(!GunXP_RPGShop_IsSkillUnlocked(client, sniperIndex))
         return;
 
-    char sValue[32];
-
-    FloatToString(hcv_IncapAccuracyPenalty.FloatValue, sValue, sizeof(sValue));
-    RPG_SendConVarValue(client, hcv_IncapAccuracyPenalty, sValue);
-
-    FloatToString(hcv_IncapCameraShake.FloatValue, sValue, sizeof(sValue));
-    RPG_SendConVarValue(client, hcv_IncapCameraShake, sValue);
-
     int weapon = GetPlayerWeaponSlot(client, view_as<int>(L4DWeaponSlot_Primary));
 
     if(weapon != -1)
@@ -273,6 +258,21 @@ public void WH_OnReloadModifier(int client, int weapon, int weapontype, float &s
     speedmodifier += 10.0;
 }
 
+// Requires RPG_Perks_RegisterReplicateCvar to fire.
+public void RPG_Perks_OnGetReplicateCvarValue(int priority, int client, const char cvarName[64], char sValue[256])
+{
+    if(priority != 0)
+        return;
+
+    else if(!GunXP_RPGShop_IsSkillUnlocked(client, sniperIndex))
+        return;
+
+    else if(!StrEqual(cvarName, "survivor_incapacitated_dizzy_severity", false) && !StrEqual(cvarName, "survivor_incapacitated_accuracy_penalty"))
+        return;
+
+    sValue = "0.0";
+}
+
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
     if(priority == -10)
@@ -306,27 +306,6 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
         return;
 
     damage *= 2.0;
-}
-
-public void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
-{
-    if(skillIndex != sniperIndex)
-        return;
-
-    RPG_SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
-    RPG_SendConVarValue(client, hcv_IncapCameraShake, "0.0");
-}
-
-public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn)
-{
-    if(priority != 0)
-        return;
-
-    else if(!GunXP_RPGShop_IsSkillUnlocked(client, sniperIndex))
-        return;
-
-    RPG_SendConVarValue(client, hcv_IncapAccuracyPenalty, "0.0");
-    RPG_SendConVarValue(client, hcv_IncapCameraShake, "0.0");
 }
 
 public void OnMapStart()
@@ -374,6 +353,12 @@ public void RegisterSkill()
 
     sniperIndex = GunXP_RPGShop_RegisterSkill("Sniper", "Sniper", sDescription,
     260000, 0);
+
+    if(LibraryExists("RPG_Perks"))
+    {
+        RPG_Perks_RegisterReplicateCvar("survivor_incapacitated_accuracy_penalty");
+        RPG_Perks_RegisterReplicateCvar("survivor_incapacitated_dizzy_severity");
+    }
 }
 
 stock void GiveClientWeaponUpgrade(int client, int upgrade)
@@ -390,21 +375,6 @@ stock void RemoveClientWeaponUpgrade(int client, int upgrade)
 
     FormatEx(code, sizeof(code), "GetPlayerFromUserID(%d).RemoveUpgrade(%i);", GetClientUserId(client), upgrade);
     L4D2_ExecVScriptCode(code);
-}
-
-stock void RPG_SendConVarValue(int client, ConVar cvar, char[] sValue)
-{
-    if(IsFakeClient(client))
-    {
-        char sCvarName[256];
-        cvar.GetName(sCvarName, sizeof(sCvarName));
-
-        SetFakeClientConVar(client, sCvarName, sValue);
-    }
-    else
-    {
-        SendConVarValue(client, cvar, sValue);
-    }
 }
 
 stock bool IsWeaponSniperRifle(int weapon)

@@ -115,6 +115,37 @@ public void WH_OnGetRateOfFire(int client, int weapon, int weapontype, float &sp
     speedmodifier += 1.0;
 }
 
+// Requires RPG_Perks_RegisterReplicateCvar to fire.
+public void RPG_Perks_OnGetReplicateCvarValue(int priority, int client, const char cvarName[64], char sValue[256])
+{
+    if(priority != 0)
+        return;
+
+    int weapon = L4D_GetPlayerCurrentWeapon(client);
+
+    if(weapon == -1)
+        return;
+        
+    else if(L4D2_GetWeaponId(weapon) != L4D2WeaponId_PistolMagnum)
+        return;
+
+    else if(GunXP_RPGShop_IsPerkTreeUnlocked(client, cowboyIndex) <= 4)
+        return;
+
+    if(StrEqual(cvarName, "punch_angle_decay_rate"))
+    {
+        sValue = "999999999";
+    }
+    else if(StrEqual(cvarName, "z_gun_vertical_punch"))
+    {
+        sValue = "0";
+    }
+    else if(StrEqual(cvarName, "survivor_incapacitated_dizzy_severity", false) || StrEqual(cvarName, "survivor_incapacitated_accuracy_penalty"))
+    {
+        sValue = "0.0";
+    }
+}
+
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
     if(priority == 10 && damage > 0.0 && !bImmune && damage < GetEntityHealth(victim))
@@ -205,9 +236,17 @@ public void RegisterPerkTree()
     costs.Push(25000);
     xpReqs.Push(GunXP_RPG_GetXPForLevel(55));
 
-    descriptions.PushString("Double Magnum's Firerate, but halve damage to Tank.");
+    descriptions.PushString("Double Magnum's Firerate, but halve damage to Tank\nPerfect Steadiness with Magnum.");
     costs.Push(50000);
     xpReqs.Push(GunXP_RPG_GetXPForLevel(56));
 
     cowboyIndex = GunXP_RPGShop_RegisterPerkTree("Stronger Magnum", "Cowboy", descriptions, costs, xpReqs);
+
+    if(LibraryExists("RPG_Perks"))
+    {
+        RPG_Perks_RegisterReplicateCvar("survivor_incapacitated_accuracy_penalty");
+        RPG_Perks_RegisterReplicateCvar("survivor_incapacitated_dizzy_severity");
+        RPG_Perks_RegisterReplicateCvar("punch_angle_decay_rate");
+        RPG_Perks_RegisterReplicateCvar("z_gun_vertical_punch");
+    }
 }

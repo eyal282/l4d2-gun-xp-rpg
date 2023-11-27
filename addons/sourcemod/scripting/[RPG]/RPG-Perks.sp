@@ -163,6 +163,8 @@ GlobalForward g_fwOnTimedAttributeStart;
 GlobalForward g_fwOnTimedAttributeExpired;
 GlobalForward g_fwOnTimedAttributeTransfered;
 
+GlobalForward g_fwOnGetRPGReplicateCvarValue;
+
 GlobalForward g_fwOnGetRPGSpecialInfectedClass;
 
 GlobalForward g_fwOnGetRPGMaxHP;
@@ -223,6 +225,15 @@ enum struct enLimitedAbility
 
 ArrayList g_aLimitedAbilities;
 
+enum struct enReplicateCvar
+{
+	char cvarName[64];
+
+	StringMap smLastValues;
+}
+
+ArrayList g_aReplicateCvars;
+
 public void OnPluginEnd()
 {
 	int fog = EntRefToEntIndex(g_refNightmareFogControl);
@@ -276,6 +287,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_GetClientLimitedAbilitiesList", Native_GetClientLimitedAbilitiesList);
 	CreateNative("RPG_Perks_UseClientLimitedAbility", Native_UseClientLimitedAbility);
 	CreateNative("RPG_Perks_ReuseClientLimitedAbility", Native_ReuseClientLimitedAbility);
+	CreateNative("RPG_Perks_RegisterReplicateCvar", Native_RegisterReplicateCvar);
 
 	g_bLate = bLate;
 
@@ -999,6 +1011,40 @@ public int Native_ReuseClientLimitedAbility(Handle caller, int numParams)
 	return true;
 }
 
+
+public int Native_RegisterReplicateCvar(Handle caller, int numParams)
+{
+	if(g_aReplicateCvars == null)
+	{
+		g_aReplicateCvars = CreateArray(sizeof(enReplicateCvar));
+	}
+
+	char cvarName[64];
+	GetNativeString(1, cvarName, sizeof(cvarName));
+
+	int size = g_aReplicateCvars.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enReplicateCvar repCvar;
+
+		g_aReplicateCvars.GetArray(i, repCvar);
+
+		if(StrEqual(cvarName, repCvar.cvarName))
+		{
+			return 0;
+		}
+	}	
+
+	enReplicateCvar repCvar;
+	
+	repCvar.cvarName = cvarName;
+	repCvar.smLastValues = new StringMap();
+
+	g_aReplicateCvars.PushArray(repCvar);
+
+	return 0;
+}
 public Action Timer_CheckAttributeExpire(Handle hTimer)
 {
 	g_hCheckAttributeExpire = INVALID_HANDLE;
@@ -1206,6 +1252,48 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 			SendConVarValue(i, g_hLimpHealth, sValue);
 		}
 
+		int size = g_aReplicateCvars.Length;
+
+		char sKey[16];
+		IntToString(GetClientUserId(i), sKey, sizeof(sKey));
+
+		for(int pos=0;pos < size;pos++)
+		{
+			enReplicateCvar repCvar;
+
+			g_aReplicateCvars.GetArray(pos, repCvar);
+
+			char sValue[256];
+
+			ConVar cvar = FindConVar(repCvar.cvarName);
+
+			if(cvar != null)
+			{			
+				cvar.GetString(sValue, sizeof(sValue));
+
+				for(int prio=-10;prio <= 10;prio++)
+				{
+					Call_StartForward(g_fwOnGetRPGReplicateCvarValue);
+
+					Call_PushCell(prio);
+					Call_PushCell(i);
+					Call_PushString(repCvar.cvarName);
+					Call_PushStringEx(sValue, sizeof(sValue), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+
+					Call_Finish();
+				}
+
+				char sLastValue[256];
+
+				if(!repCvar.smLastValues.GetString(sKey, sLastValue, sizeof(sLastValue)) || !StrEqual(sValue, sLastValue, false))
+				{
+					repCvar.smLastValues.SetString(sKey, sValue);
+					
+					RPG_SendConVarValue(i, cvar, sValue);
+				}
+			}
+		}	
+
 		g_iAbsLastLimpHealth[i] = g_iAbsLimpHealth[i];
 
 		if(!RPG_Perks_IsEntityTimedAttribute(i, "Invincible"))
@@ -1276,6 +1364,9 @@ public void OnPluginStart()
 	if(g_aLimitedAbilities == null)
 		g_aLimitedAbilities = CreateArray(sizeof(enLimitedAbility));
 
+	if(g_aReplicateCvars == null)
+		g_aReplicateCvars = CreateArray(sizeof(enReplicateCvar));
+
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_first_spawn", Event_PlayerFirstSpawn);
@@ -1311,6 +1402,7 @@ public void OnPluginStart()
 	HookEntityOutput("func_tracktrain", "OnNextPoint", FuncElevator_CalculateReachFloor);
 
 	// Plugin_Handled if not.
+
 	g_fwOnShouldIgnoreEntireTeamTouch = CreateGlobalForward("RPG_Perks_OnShouldIgnoreEntireTeamTouch", ET_Event, Param_Cell);
 
 	g_fwOnShouldClosetsRescue = CreateGlobalForward("RPG_Perks_OnShouldClosetsRescue", ET_Event);
@@ -1327,6 +1419,8 @@ public void OnPluginStart()
 	g_fwOnTimedAttributeStart = CreateGlobalForward("RPG_Perks_OnTimedAttributeStart", ET_Ignore, Param_Cell, Param_String, Param_Cell);
 	g_fwOnTimedAttributeExpired = CreateGlobalForward("RPG_Perks_OnTimedAttributeExpired", ET_Ignore, Param_Cell, Param_String);
 	g_fwOnTimedAttributeTransfered = CreateGlobalForward("RPG_Perks_OnTimedAttributeTransfered", ET_Ignore, Param_Cell, Param_Cell, Param_String);
+
+	g_fwOnGetRPGReplicateCvarValue = CreateGlobalForward("RPG_Perks_OnGetReplicateCvarValue", ET_Ignore, Param_Cell, Param_Cell, Param_String, Param_String);
 
 	g_fwOnGetRPGSpecialInfectedClass = CreateGlobalForward("RPG_Perks_OnGetSpecialInfectedClass", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 
@@ -2617,6 +2711,9 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 
 	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
 
+	ClearReplicateCvarsLastValues(oldPlayer);
+	ClearReplicateCvarsLastValues(newPlayer);
+	
 	int entity = -1;
 
 	while((entity = FindEntityByClassname(entity, "trigger_multiple")) != -1)
@@ -2663,6 +2760,9 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 
 	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
 
+	ClearReplicateCvarsLastValues(oldPlayer);
+	ClearReplicateCvarsLastValues(newPlayer);
+
 	int entity = -1;
 
 	while((entity = FindEntityByClassname(entity, "trigger_multiple")) != -1)
@@ -2692,6 +2792,25 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	RequestFrame(Event_PlayerSpawnFrame, DP);
 
 	return Plugin_Continue;
+}
+
+public void ClearReplicateCvarsLastValues(int client)
+{
+	int size = g_aReplicateCvars.Length;
+
+	char sKey[16];
+	IntToString(GetClientUserId(client), sKey, sizeof(sKey));
+
+	for(int i=0;i < size;i++)
+	{
+		enReplicateCvar repCvar;
+
+		g_aReplicateCvars.GetArray(i, repCvar);
+		
+		StringMap map = repCvar.smLastValues;
+
+		map.SetString(sKey, "RPG_Perks_Null");
+	}	
 }
 
 // This is to allow editing the array in g_fwOnTimedAttributeTransfered
@@ -4346,6 +4465,24 @@ stock int RPG_GetPlayerUsingATarget(int victim)
 	}
 
 	return -1;
+}
+
+stock void RPG_SendConVarValue(int client, ConVar cvar, char[] sValue)
+{
+    if(IsFakeClient(client))
+    {
+        char sCvarName[256];
+        cvar.GetName(sCvarName, sizeof(sCvarName));
+
+        SetFakeClientConVar(client, sCvarName, sValue);
+    }
+    else
+    {
+        char sCvarName[256];
+        cvar.GetName(sCvarName, sizeof(sCvarName));
+
+        SendConVarValue(client, cvar, sValue);
+    }
 }
 
 // Like m_hGroundEntity but if you're in the air, gets the same ground entity.
