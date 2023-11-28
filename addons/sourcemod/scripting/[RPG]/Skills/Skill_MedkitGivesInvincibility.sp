@@ -84,7 +84,7 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit makes you invincible.\nDuration = (level / 10) + 6.5 sec\nDeploy medkit instantly.");
+    FormatEx(sDescription, sizeof(sDescription), "Using a First Aid Kit makes you invincible.\nDuration = (level / 10) + 1.5 sec\nDeploy medkit instantly.");
     skillIndex = GunXP_RPGShop_RegisterSkill("Medkit Gives Invincibility", "Protective Medkit", sDescription,
     55000, 0);
 }
