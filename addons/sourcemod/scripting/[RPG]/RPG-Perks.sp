@@ -1324,6 +1324,9 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 public Action Command_KinesisTest(int client, int args)
 {
+	SetEntityGravity(client, -0.5);
+	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, view_as<float>({ 0.0, 0.0, 285.0 }));
+	
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Psychokinesis Height Check5", 0.2, COLLISION_SET, ATTRIBUTE_NEGATIVE);
 
 	return Plugin_Handled;
@@ -1331,9 +1334,6 @@ public Action Command_KinesisTest(int client, int args)
 
 public Action Command_StunTest(int client, int args)
 {
-	SetEntityGravity(client, -0.5);
-	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, view_as<float>({ 0.0, 0.0, 285.0 }));
-
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Stun", 15.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
 
 	return Plugin_Handled;
