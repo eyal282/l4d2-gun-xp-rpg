@@ -741,6 +741,7 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 			}
 			
 			g_aTimedAttributes.SetArray(i, attribute);
+
 			if(attribute.fExpire <= GetGameTime())
 			{
 				Call_StartForward(g_fwOnTimedAttributeTransfered);
@@ -1161,6 +1162,7 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 			ServerCommand("changelevel c1m1_hotel");
 		}
 	}
+
 	Call_StartForward(g_fwOnShouldClosetsRescue);
 
 	Action rtn;
@@ -1260,6 +1262,30 @@ public void CheckClientSpeedModifiers(int client)
 		}
 	}
 
+	CheckClientReplicatedCvars(client);
+
+	g_iAbsLastLimpHealth[client] = g_iAbsLimpHealth[client];
+
+	if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+	{
+		if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
+		{
+			RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+			StopInvincibleSound(client);
+		}
+
+		return;
+	}
+
+	if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 60.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+		EmitInvincibleSound(client);
+	}
+}
+
+public void CheckClientReplicatedCvars(int client)
+{
 	int size = g_aReplicateCvars.Length;
 
 	char sKey[16];
@@ -1301,27 +1327,7 @@ public void CheckClientSpeedModifiers(int client)
 			}
 		}
 	}	
-
-	g_iAbsLastLimpHealth[client] = g_iAbsLimpHealth[client];
-
-	if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
-	{
-		if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
-		{
-			RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-			StopInvincibleSound(client);
-		}
-
-		return;
-	}
-
-	if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
-	{
-		RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 60.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-		EmitInvincibleSound(client);
-	}
 }
-
 public Action Command_KinesisTest(int client, int args)
 {
 	SetEntityGravity(client, -0.5);
@@ -1543,6 +1549,12 @@ public void OnPluginStart()
 	}
 
 	RegPluginLibrary("RPG_Perks");
+
+	// Fixes the fact sv_glowenable is a launcher cvar that doesn't exist.
+	if(FindConVar("sv_glowenable") == null)
+	{
+		CreateConVar("sv_glowenable", "1", "Bug fixing cvar, lets replicating disabling glow.", FCVAR_CLIENTDLL|FCVAR_REPLICATED);
+	}
 
 	RPG_Perks_RegisterReplicateCvar("sv_glowenable");
 }
@@ -2749,7 +2761,7 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
-	ClearReplicateCvarsLastValues(oldPlayer);
+	ClearReplicateCvarsLastValues(oldPlayer, true);
 	ClearReplicateCvarsLastValues(newPlayer);
 	
 	CheckClientSpeedModifiers(newPlayer);
@@ -2775,6 +2787,7 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 
 	return Plugin_Continue;
 }
+
 public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool dontBroadcast)
 {
 	int oldPlayer = GetClientOfUserId(GetEventInt(event, "bot"));
@@ -2800,7 +2813,7 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
 
-	ClearReplicateCvarsLastValues(oldPlayer);
+	ClearReplicateCvarsLastValues(oldPlayer, true);
 	ClearReplicateCvarsLastValues(newPlayer);
 	
 	CheckClientSpeedModifiers(newPlayer);
@@ -2827,7 +2840,7 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	return Plugin_Continue;
 }
 
-public void ClearReplicateCvarsLastValues(int client)
+stock void ClearReplicateCvarsLastValues(int client, bool bReset = false)
 {
 	int size = g_aReplicateCvars.Length;
 
@@ -2843,6 +2856,20 @@ public void ClearReplicateCvarsLastValues(int client)
 		StringMap map = repCvar.smLastValues;
 
 		map.SetString(sKey, "RPG_Perks_Null");
+
+		if(bReset)
+		{
+			ConVar cvar = FindConVar(repCvar.cvarName);
+
+			if(cvar != null)
+			{
+				char sValue[256];
+
+				cvar.GetString(sValue, sizeof(sValue));
+
+				RPG_SendConVarValue(client, cvar, sValue);
+			}
+		}
 	}	
 }
 
