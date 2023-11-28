@@ -1328,6 +1328,16 @@ public void CheckClientReplicatedCvars(int client)
 		}
 	}	
 }
+/*
+public Action Command_ConcussionTest(int client, int args)
+{
+	ChangeClientTeam(client, 3);
+
+	L4D_RespawnPlayer(client);
+
+	return Plugin_Continue;
+}
+*/
 public Action Command_KinesisTest(int client, int args)
 {
 	SetEntityGravity(client, -0.5);
@@ -1370,6 +1380,7 @@ public void OnPluginStart()
 		}
 	}
 
+	//RegAdminCmd("sm_concussiontest", Command_ConcussionTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_psychotest", Command_KinesisTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_kinesistest", Command_KinesisTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_psychokinesistest", Command_KinesisTest, ADMFLAG_ROOT);

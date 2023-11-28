@@ -1360,6 +1360,16 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                 {
                     if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
                     {
+                        int ability = L4D_GetPlayerCustomAbility(i);
+
+                        if(GetEntProp(i, Prop_Send, "m_zombieClass") == view_as<int>(L4D2ZombieClass_Tank) && ability != -1)
+                        {
+                            if(GetEntPropFloat(ability, Prop_Send, "m_timestamp") > GetGameTime())
+                            {
+                                continue;
+                            }
+                        }
+
                         GetClientAbsOrigin(i, vTarget);
                         float tempDist = GetVectorDistance(vOwner, vTarget, true);
 
@@ -1503,6 +1513,16 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                     {
                         if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
                         {
+                            int ability = L4D_GetPlayerCustomAbility(i);
+
+                            if(GetEntProp(i, Prop_Send, "m_zombieClass") == view_as<int>(L4D2ZombieClass_Tank) && ability != -1)
+                            {
+                                if(GetEntPropFloat(ability, Prop_Send, "m_timestamp") > GetGameTime())
+                                {
+                                    continue;
+                                }
+                            }
+
                             GetClientAbsOrigin(i, vTarget);
                             float tempDist = GetVectorDistance(vOwner, vTarget, true);
                             if( tempDist < fDist )
