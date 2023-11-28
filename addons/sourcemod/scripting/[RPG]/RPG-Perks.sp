@@ -100,8 +100,6 @@ ConVar g_bRescueDisabled;
 ConVar g_hTankSwingInterval;
 ConVar g_hTankAttackInterval;
 
-ConVar g_hRPGDeathCheckMode;
-
 ConVar g_hRPGTriggerHurtMultiplier;
 
 ConVar g_hRPGIncapPistolPriority;
@@ -754,6 +752,10 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 				Call_Finish();
 			}
 
+			if(IsPlayer(entity))
+			{
+				CheckClientSpeedModifiers(entity);
+			}
 
 			// Can be null while applying an attribute DURING g_fwOnTimedAttributeTransfered
 			if(g_hCheckAttributeExpire == INVALID_HANDLE)
@@ -781,6 +783,11 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 	Call_PushCell(duration);
 
 	Call_Finish();
+
+	if(IsPlayer(entity))
+	{
+		CheckClientSpeedModifiers(entity);
+	}
 
 	if(g_hCheckAttributeExpire == INVALID_HANDLE)
 		g_hCheckAttributeExpire = CreateTimer(duration, Timer_CheckAttributeExpire, _, TIMER_FLAG_NO_MAPCHANGE);
@@ -1170,57 +1177,57 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 		g_bRescueDisabled.BoolValue = false;
 	}
 
-	bool g_bEndConditionMet = true;
-
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
 			continue;
 
-		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
-			continue;
-
 		else if(!IsPlayerAlive(i))
 			continue;
 
-		if(!L4D_IsPlayerIncapacitated(i))
-		{
-			g_iLastTemporaryHealth[i] = RPG_Perks_GetClientTempHealth(i);
-			g_iLastPermanentHealth[i] = GetEntityHealth(i);
-		}
-		if(RPG_Perks_IsEntityTimedAttribute(i, "Stun"))
-		{
-			TeleportEntity(i, g_fLastStunOrigin[i], NULL_VECTOR, NULL_VECTOR);
-		}
-		if(g_hRPGDeathCheckMode.IntValue == 2)
-			g_bEndConditionMet = false;
+		CheckClientSpeedModifiers(i);
+	}
 
-		else if(g_hRPGDeathCheckMode.IntValue == 1 && !IsFakeClient(i))
-			g_bEndConditionMet = false;
+	return Plugin_Continue;
+}
+
+public void CheckClientSpeedModifiers(int client)
+{
+	if(L4D_GetClientTeam(client) == L4DTeam_Survivor)
+	{
+		if(!L4D_IsPlayerIncapacitated(client))
+		{
+			g_iLastTemporaryHealth[client] = RPG_Perks_GetClientTempHealth(client);
+			g_iLastPermanentHealth[client] = GetEntityHealth(client);
+		}
+		if(RPG_Perks_IsEntityTimedAttribute(client, "Stun"))
+		{
+			TeleportEntity(client, g_fLastStunOrigin[client], NULL_VECTOR, NULL_VECTOR);
+		}
 
 		if(!L4D_HasAnySurvivorLeftSafeArea() && !L4D2_IsTankInPlay())
 		{
-			if(IsPlayerSpawnStuck(i) && !g_bTeleported[i])
+			if(IsPlayerSpawnStuck(client) && !g_bTeleported[client])
 			{
-				TeleportToStartArea(i);
+				TeleportToStartArea(client);
 			}
 
-			ExecuteFullHeal(i);
+			ExecuteFullHeal(client);
 
-			L4D_SetPlayerTempHealth(i, 0);
-			g_iTemporaryHealth[i] = 0;
+			L4D_SetPlayerTempHealth(client, 0);
+			g_iTemporaryHealth[client] = 0;
 		}
-		g_iOverrideSpeedState[i] = SPEEDSTATE_NULL;
-		g_iAbsLimpHealth[i] = g_hRPGLimpHealth.IntValue;
-		g_fAbsRunSpeed[i] = DEFAULT_RUN_SPEED;
-		g_fAbsWalkSpeed[i] = DEFAULT_WALK_SPEED;
-		g_fAbsCrouchSpeed[i] = DEFAULT_CROUCH_SPEED;
-		g_fAbsLimpSpeed[i] = DEFAULT_LIMP_SPEED;
-		g_fAbsCriticalSpeed[i] = DEFAULT_CRITICAL_SPEED;
-		g_fAbsWaterSpeed[i] = DEFAULT_WATER_SPEED;
-		g_fAbsAdrenalineSpeed[i] = g_hRPGAdrenalineRunSpeed.FloatValue;
-		g_fAbsScopeSpeed[i] = DEFAULT_SCOPE_SPEED;
-		g_fAbsCustomSpeed[i] = 0.0;
+		g_iOverrideSpeedState[client] = SPEEDSTATE_NULL;
+		g_iAbsLimpHealth[client] = g_hRPGLimpHealth.IntValue;
+		g_fAbsRunSpeed[client] = DEFAULT_RUN_SPEED;
+		g_fAbsWalkSpeed[client] = DEFAULT_WALK_SPEED;
+		g_fAbsCrouchSpeed[client] = DEFAULT_CROUCH_SPEED;
+		g_fAbsLimpSpeed[client] = DEFAULT_LIMP_SPEED;
+		g_fAbsCriticalSpeed[client] = DEFAULT_CRITICAL_SPEED;
+		g_fAbsWaterSpeed[client] = DEFAULT_WATER_SPEED;
+		g_fAbsAdrenalineSpeed[client] = g_hRPGAdrenalineRunSpeed.FloatValue;
+		g_fAbsScopeSpeed[client] = DEFAULT_SCOPE_SPEED;
+		g_fAbsCustomSpeed[client] = 0.0;
 
 
 		for(int prio=-10;prio <= 10;prio++)
@@ -1228,105 +1235,98 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 			Call_StartForward(g_fwOnGetRPGSpeedModifiers);
 
 			Call_PushCell(prio);
-			Call_PushCell(i);
-			Call_PushCellRef(g_iOverrideSpeedState[i]);
-			Call_PushCellRef(g_iAbsLimpHealth[i]);
-			Call_PushFloatRef(g_fAbsRunSpeed[i]);
-			Call_PushFloatRef(g_fAbsWalkSpeed[i]);
-			Call_PushFloatRef(g_fAbsCrouchSpeed[i]);
-			Call_PushFloatRef(g_fAbsLimpSpeed[i]);
-			Call_PushFloatRef(g_fAbsCriticalSpeed[i]);
-			Call_PushFloatRef(g_fAbsWaterSpeed[i]);
-			Call_PushFloatRef(g_fAbsAdrenalineSpeed[i]);
-			Call_PushFloatRef(g_fAbsScopeSpeed[i]);
-			Call_PushFloatRef(g_fAbsCustomSpeed[i]);
+			Call_PushCell(client);
+			Call_PushCellRef(g_iOverrideSpeedState[client]);
+			Call_PushCellRef(g_iAbsLimpHealth[client]);
+			Call_PushFloatRef(g_fAbsRunSpeed[client]);
+			Call_PushFloatRef(g_fAbsWalkSpeed[client]);
+			Call_PushFloatRef(g_fAbsCrouchSpeed[client]);
+			Call_PushFloatRef(g_fAbsLimpSpeed[client]);
+			Call_PushFloatRef(g_fAbsCriticalSpeed[client]);
+			Call_PushFloatRef(g_fAbsWaterSpeed[client]);
+			Call_PushFloatRef(g_fAbsAdrenalineSpeed[client]);
+			Call_PushFloatRef(g_fAbsScopeSpeed[client]);
+			Call_PushFloatRef(g_fAbsCustomSpeed[client]);
 
 			Call_Finish();
 		}
 
-		if(!IsFakeClient(i) && g_iAbsLastLimpHealth[i] != g_iAbsLimpHealth[i])
+		if(!IsFakeClient(client) && g_iAbsLastLimpHealth[client] != g_iAbsLimpHealth[client])
 		{
 			char sValue[11];
-			IntToString(g_iAbsLimpHealth[i], sValue, sizeof(sValue));
+			IntToString(g_iAbsLimpHealth[client], sValue, sizeof(sValue));
 
-			SendConVarValue(i, g_hLimpHealth, sValue);
-		}
-
-		int size = g_aReplicateCvars.Length;
-
-		char sKey[16];
-		IntToString(GetClientUserId(i), sKey, sizeof(sKey));
-
-		for(int pos=0;pos < size;pos++)
-		{
-			enReplicateCvar repCvar;
-
-			g_aReplicateCvars.GetArray(pos, repCvar);
-
-			char sValue[256];
-
-			ConVar cvar = FindConVar(repCvar.cvarName);
-
-			if(cvar != null)
-			{			
-				cvar.GetString(sValue, sizeof(sValue));
-
-				for(int prio=-10;prio <= 10;prio++)
-				{
-					Call_StartForward(g_fwOnGetRPGReplicateCvarValue);
-
-					Call_PushCell(prio);
-					Call_PushCell(i);
-					Call_PushString(repCvar.cvarName);
-					Call_PushStringEx(sValue, sizeof(sValue), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
-
-					Call_Finish();
-				}
-
-				char sLastValue[256];
-
-				if(!repCvar.smLastValues.GetString(sKey, sLastValue, sizeof(sLastValue)) || !StrEqual(sValue, sLastValue, false))
-				{
-					repCvar.smLastValues.SetString(sKey, sValue);
-
-					RPG_SendConVarValue(i, cvar, sValue);
-				}
-			}
-		}	
-
-		g_iAbsLastLimpHealth[i] = g_iAbsLimpHealth[i];
-
-		if(!RPG_Perks_IsEntityTimedAttribute(i, "Invincible"))
-		{
-			if(RPG_Perks_IsEntityTimedAttribute(i, "Invincible Music"))
-			{
-				RPG_Perks_ApplyEntityTimedAttribute(i, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-				StopInvincibleSound(i);
-			}
-
-			continue;
-		}
-
-		if(!RPG_Perks_IsEntityTimedAttribute(i, "Invincible Music"))
-		{
-			RPG_Perks_ApplyEntityTimedAttribute(i, "Invincible Music", 60.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-			EmitInvincibleSound(i);
+			SendConVarValue(client, g_hLimpHealth, sValue);
 		}
 	}
 
-	char sCode[128];
-	FormatEx(sCode, sizeof(sCode), "g_ModeScript.GetDirectorOptions().EndScriptedMode <- function() { return %i }", g_bEndConditionMet ? 1 : -1);
+	int size = g_aReplicateCvars.Length;
 
-	//L4D2_ExecVScriptCode(sCode);
+	char sKey[16];
+	IntToString(GetClientUserId(client), sKey, sizeof(sKey));
 
-	return Plugin_Continue;
+	for(int pos=0;pos < size;pos++)
+	{
+		enReplicateCvar repCvar;
+
+		g_aReplicateCvars.GetArray(pos, repCvar);
+
+		char sValue[256];
+
+		ConVar cvar = FindConVar(repCvar.cvarName);
+
+		if(cvar != null)
+		{			
+			cvar.GetString(sValue, sizeof(sValue));
+
+			for(int prio=-10;prio <= 10;prio++)
+			{
+				Call_StartForward(g_fwOnGetRPGReplicateCvarValue);
+
+				Call_PushCell(prio);
+				Call_PushCell(client);
+				Call_PushString(repCvar.cvarName);
+				Call_PushStringEx(sValue, sizeof(sValue), SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+
+				Call_Finish();
+			}
+
+			char sLastValue[256];
+
+			if(!repCvar.smLastValues.GetString(sKey, sLastValue, sizeof(sLastValue)) || !StrEqual(sValue, sLastValue, false))
+			{
+				repCvar.smLastValues.SetString(sKey, sValue);
+
+				RPG_SendConVarValue(client, cvar, sValue);
+			}
+		}
+	}	
+
+	g_iAbsLastLimpHealth[client] = g_iAbsLimpHealth[client];
+
+	if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+	{
+		if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
+		{
+			RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+			StopInvincibleSound(client);
+		}
+
+		return;
+	}
+
+	if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 60.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+		EmitInvincibleSound(client);
+	}
 }
 
 public Action Command_KinesisTest(int client, int args)
 {
 	SetEntityGravity(client, -0.5);
 	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, view_as<float>({ 0.0, 0.0, 285.0 }));
-	
+
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Psychokinesis Height Check5", 0.2, COLLISION_SET, ATTRIBUTE_NEGATIVE);
 
 	return Plugin_Handled;
@@ -1464,8 +1464,6 @@ public void OnPluginStart()
 	g_hGamemode = FindConVar("mp_gamemode");
 	g_hDifficulty = FindConVar("z_difficulty");
 
-	g_hRPGDeathCheckMode = AutoExecConfig_CreateConVar("rpg_death_check_mode", "1", "0: Normal behaviour. 1: Round won't end until humans are dead. 2: Round won't end until survivors are dead.");
-
 	g_hRPGIncapPistolPriority = AutoExecConfig_CreateConVar("rpg_incap_pistol_priority", "0", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
 	g_hInvincibleDamagePriority = AutoExecConfig_CreateConVar("rpg_invincible_damage_priority", "5", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
 
@@ -1545,6 +1543,8 @@ public void OnPluginStart()
 	}
 
 	RegPluginLibrary("RPG_Perks");
+
+	RPG_Perks_RegisterReplicateCvar("sv_glowenable");
 }
 
 public void GunXP_OnReloadRPGPlugins()
@@ -1797,6 +1797,22 @@ public Action L4D_OnVomitedUpon(int victim, int& attacker, bool& boomerExplosion
 		return Plugin_Handled;
 
 	return Plugin_Continue;
+}
+
+
+// Requires RPG_Perks_RegisterReplicateCvar to fire.
+public void RPG_Perks_OnGetReplicateCvarValue(int priority, int client, const char cvarName[64], char sValue[256])
+{
+	if(priority != 0)
+		return;
+
+	else if(!RPG_Perks_IsEntityTimedAttribute(client, "Nightmare"))
+		return;
+
+	else if(!StrEqual(cvarName, "sv_glowenable"))
+		return;
+
+	sValue = "0";
 }
 
 public void RPG_Perks_OnShouldInstantKill(int priority, int victim, int attacker, int inflictor, int damagetype, bool &bImmune)
@@ -2723,9 +2739,6 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
 	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
-
-	ClearReplicateCvarsLastValues(oldPlayer);
-	ClearReplicateCvarsLastValues(newPlayer);
 	
 	int entity = -1;
 
@@ -2735,6 +2748,11 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	}
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
+
+	ClearReplicateCvarsLastValues(oldPlayer);
+	ClearReplicateCvarsLastValues(newPlayer);
+	
+	CheckClientSpeedModifiers(newPlayer);
 
 	if(!L4D_IsPlayerIncapacitated(newPlayer))
 	{
@@ -2773,9 +2791,6 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 
 	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
 
-	ClearReplicateCvarsLastValues(oldPlayer);
-	ClearReplicateCvarsLastValues(newPlayer);
-
 	int entity = -1;
 
 	while((entity = FindEntityByClassname(entity, "trigger_multiple")) != -1)
@@ -2784,6 +2799,11 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	}
 
 	TransferTimedAttributes(oldPlayer, newPlayer); 
+
+	ClearReplicateCvarsLastValues(oldPlayer);
+	ClearReplicateCvarsLastValues(newPlayer);
+	
+	CheckClientSpeedModifiers(newPlayer);
 
 	if(!L4D_IsPlayerIncapacitated(newPlayer))
 	{
