@@ -66,6 +66,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Leader_And_ParryTactics.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_MedkitClearsDebuffs.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_MedkitGivesInvincibility.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_MultiJump.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_OutWithABlast.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Recharge.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_RetroactiveRecovery.smx"
