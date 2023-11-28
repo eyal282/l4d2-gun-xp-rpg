@@ -1288,7 +1288,7 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 				if(!repCvar.smLastValues.GetString(sKey, sLastValue, sizeof(sLastValue)) || !StrEqual(sValue, sLastValue, false))
 				{
 					repCvar.smLastValues.SetString(sKey, sValue);
-					
+
 					RPG_SendConVarValue(i, cvar, sValue);
 				}
 			}
@@ -1322,8 +1322,18 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 	return Plugin_Continue;
 }
 
+public Action Command_KinesisTest(int client, int args)
+{
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Psychokinesis Height Check5", 0.2, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+
+	return Plugin_Handled;
+}
+
 public Action Command_StunTest(int client, int args)
 {
+	SetEntityGravity(client, -0.5);
+	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, view_as<float>({ 0.0, 0.0, 285.0 }));
+
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Stun", 15.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
 
 	return Plugin_Handled;
@@ -1354,6 +1364,9 @@ public void OnPluginStart()
 		}
 	}
 
+	RegAdminCmd("sm_psychotest", Command_KinesisTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_kinesistest", Command_KinesisTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_psychokinesistest", Command_KinesisTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_nightmaretest", Command_NightmareTest, ADMFLAG_ROOT);
