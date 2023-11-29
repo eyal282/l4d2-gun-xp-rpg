@@ -1961,10 +1961,6 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
-	if(StrEqual(attributeName, "Invincible Rainbow Color"))
-	{
-		RPG_Perks_ApplyEntityTimedAttribute(entity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
-	}
 	if(StrEqual(attributeName, "RPG Perks Manual Director"))
 	{
 		RPG_Perks_ApplyEntityTimedAttribute(0, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
@@ -1979,7 +1975,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 		return;
 	}
-	
+
 	Invincible_RPG_Perks_OnTimedAttributeExpired(entity, attributeName);
 
 	// For ease of access, this is func_tracktrain's reach floor calculations.
@@ -2078,13 +2074,12 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 	if(!StrEqual(attributeName, "Stun") && !StrEqual(attributeName, "Frozen") && !StrEqual(attributeName, "Mutated") && strncmp(attributeName, "Invincible", 10) != 0)
 		return;
 
-
 	if(RPG_Perks_IsEntityTimedAttribute(entity, "Invincible"))
 	{
 		SetEntityRenderColor(entity, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
 		return;
 	}
-	if(RPG_Perks_IsEntityTimedAttribute(entity, "Mutated"))
+	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Mutated"))
 	{
 		SetEntityRenderColor(entity, 255, 0, 0, 255);
 		return;
@@ -2105,43 +2100,47 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 
 public void Invincible_RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
 {
-    if(StrEqual(attributeName, "Invincible Music"))
-    {
-        int client = attributeEntity;
-        
-        if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
-            return;
+	if(StrEqual(attributeName, "Invincible Rainbow Color"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
+	}
+	if(StrEqual(attributeName, "Invincible Music"))
+	{
+		int client = attributeEntity;
+		
+		if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+			return;
 
-        EmitInvincibleSound(client);
-        RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-    }
-    else if(StrEqual(attributeName, "Invincible"))
-    {
-        int client = attributeEntity;
+		EmitInvincibleSound(client);
+		RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	}
+	else if(StrEqual(attributeName, "Invincible"))
+	{
+		int client = attributeEntity;
 
-        if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
-        {
-            RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-            StopInvincibleSound(client);
-        }
-    }
+		if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
+		{
+			RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+			StopInvincibleSound(client);
+		}
+	}
 }
 
 
 public void Invincible_RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
-    if(!StrEqual(attributeName, "Invincible Music"))
-        return;
+	if(!StrEqual(attributeName, "Invincible Music"))
+		return;
 
-    // Infinite loop otherwise
-    else if(oldClient == newClient)
-    {
-        StopInvincibleSound(oldClient);
-        return;
-    }
+	// Infinite loop otherwise
+	else if(oldClient == newClient)
+	{
+		StopInvincibleSound(oldClient);
+		return;
+	}
 
-    StopInvincibleSound(oldClient);
-    RPG_Perks_ApplyEntityTimedAttribute(newClient, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	StopInvincibleSound(oldClient);
+	RPG_Perks_ApplyEntityTimedAttribute(newClient, "Invincible Music", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 stock void EmitInvincibleSound(int client)
@@ -4592,20 +4591,20 @@ stock int RPG_GetPlayerUsingATarget(int victim)
 
 stock void RPG_SendConVarValue(int client, ConVar cvar, char[] sValue)
 {
-    if(IsFakeClient(client))
-    {
-        char sCvarName[256];
-        cvar.GetName(sCvarName, sizeof(sCvarName));
+	if(IsFakeClient(client))
+	{
+		char sCvarName[256];
+		cvar.GetName(sCvarName, sizeof(sCvarName));
 
-        SetFakeClientConVar(client, sCvarName, sValue);
-    }
-    else
-    {
-        char sCvarName[256];
-        cvar.GetName(sCvarName, sizeof(sCvarName));
+		SetFakeClientConVar(client, sCvarName, sValue);
+	}
+	else
+	{
+		char sCvarName[256];
+		cvar.GetName(sCvarName, sizeof(sCvarName));
 
-        SendConVarValue(client, cvar, sValue);
-    }
+		SendConVarValue(client, cvar, sValue);
+	}
 }
 
 // Like m_hGroundEntity but if you're in the air, gets the same ground entity.
