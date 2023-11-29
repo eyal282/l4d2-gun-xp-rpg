@@ -2074,28 +2074,53 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 	if(!StrEqual(attributeName, "Stun") && !StrEqual(attributeName, "Frozen") && !StrEqual(attributeName, "Mutated") && strncmp(attributeName, "Invincible", 10) != 0)
 		return;
 
+	L4D2GlowType glowType = L4D2Glow_Constant;
+	int color[4];
+	color = {255, 255, 255, 255};
+
 	if(RPG_Perks_IsEntityTimedAttribute(entity, "Invincible"))
 	{
-		SetEntityRenderColor(entity, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
-		return;
+		for(int i=0;i < 3;i++)
+		{
+			color[i] = GetRandomInt(0, 255);
+		}
 	}
 	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Mutated"))
 	{
-		SetEntityRenderColor(entity, 255, 0, 0, 255);
-		return;
+		color = {255, 0, 0, 255};
 	}
 	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Frozen"))
 	{
-		SetEntityRenderColor(entity, 0, 128, 255, 192);
-		return;
+		color = {0, 128, 255, 192};
 	}
 	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Stun"))
 	{
-		SetEntityRenderColor(entity, 238, 210, 2, 255);
-		return;
+		color = {238, 210, 2, 255};
+	}
+	else
+	{
+		glowType = L4D2Glow_None;
 	}
 
-	SetEntityRenderColor(entity, 255, 255, 255, 255);
+	SetEntityRenderColor(entity, color[0], color[1], color[2], color[3]);
+
+	int skin = -1;
+
+	while((skin = FindEntityByClassname(skin, "commentary_dummy")) != -1)
+	{
+		if(GetEntPropEnt(skin, Prop_Data, "m_hMoveParent") == entity)
+		{
+			SetEntityRenderColor(skin, color[0], color[1], color[2], color[3]);
+
+			int rgb[3];
+			rgb[0] = color[0];
+			rgb[1] = color[1];
+			rgb[2] = color[2];
+
+			L4D2_SetEntityGlow_Color(skin, rgb);
+			L4D2_SetEntityGlow_Type(skin, glowType);
+		}
+	}
 }
 
 public void Invincible_RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
