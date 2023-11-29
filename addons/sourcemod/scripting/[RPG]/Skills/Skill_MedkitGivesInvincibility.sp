@@ -72,7 +72,7 @@ public Action Event_HealSuccess(Event event, const char[] name, bool dontBroadca
     else if(!GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
         return Plugin_Continue;
 
-    float fDuration = 6.5;
+    float fDuration = 1.5;
 
     fDuration += (float(GunXP_RPG_GetClientLevel(healed)) / 10.0);
 

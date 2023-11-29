@@ -113,6 +113,8 @@ ConVar hcv_xpLedge;
 
 int KillStreak[MAXPLAYERS+1];
 
+bool g_bMask[MAXPLAYERS+1];
+
 int g_iLevel[MAXPLAYERS+1], g_iXP[MAXPLAYERS+1], g_iXPCurrency[MAXPLAYERS+1];
 bool g_bLoadedFromDB[MAXPLAYERS+1];
 
@@ -500,7 +502,6 @@ public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 
 	AddClientXP(attacker, XPReward);
 }
-
 
 public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
 {
@@ -1163,6 +1164,14 @@ public int Native_ReplenishProducts(Handle caller, int numParams)
 	return 0;
 }
 */
+
+public void OnLibraryAdded(const char[] name)
+{
+	if(StrEqual(name, "RPG_Perks"))
+	{
+		RPG_Perks_RegisterReplicateCvar("sv_multiplayer_sounds");
+	}
+}
 public void OnPluginStart()
 {
 	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
@@ -1186,6 +1195,8 @@ public void OnPluginStart()
 	#endif
 	
 	LoadTranslations("common.phrases");
+
+	RegAdminCmd("sm_mask", Command_Mask, ADMFLAG_GENERIC);
 
 	RegConsoleCmd("sm_xp", Command_XP);
 	RegConsoleCmd("sm_guns", Command_Guns);
@@ -1282,7 +1293,7 @@ public void OnPluginStart()
 }
 
 public void OnAllPluginsLoaded()
-{
+{	
 	if(g_bLate)
 	{
 		Call_StartForward(g_fwOnReloadRPGPlugins);
@@ -1410,6 +1421,7 @@ public Action Timer_ConvertSpawns(Handle hTimer)
 
 	return Plugin_Continue;
 }
+
 public Action Timer_AutoRPG(Handle hTimer)
 {
 	Transaction transaction = SQL_CreateTransaction();
@@ -1874,7 +1886,14 @@ public Action Command_RPG(int client, int args)
 	StringToKMB(GetClientXP(target), sXP, sizeof(sXP));
 	StringToKMB(GetClientXPCurrency(target), sXPCurrency, sizeof(sXPCurrency));
 
-	FormatEx(TempFormat, sizeof(TempFormat), "%s can buy permanent abilities here\nPerk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : %i | Total XP : %s | XP Currency : %s", sNameTarget, GetClientLevel(target), sXP, sXPCurrency);
+	if(g_bMask[target])
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy permanent abilities here\nPerk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : 0 | Total XP : 0 | XP Currency : 0", sNameTarget);
+	}
+	else
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy permanent abilities here\nPerk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : %i | Total XP : %s | XP Currency : %s", sNameTarget, GetClientLevel(target), sXP, sXPCurrency);
+	}
 
 	if(GetXPWorthOfPerkTrees(target) + GetXPWorthOfSkills(target) + GetClientXPCurrency(target) < GetClientXP(target))
 	{
@@ -2123,8 +2142,15 @@ stock void ShowPerkTreesMenu(int client, int item=0)
 	}
 
 	delete aPerkTrees;
-
-	FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade Perk Trees here for permanent boosts\nSelect a Perk Tree for more info:\nLevel : %i | Total XP : %i | XP Currency : %i%s", sNameTarget, GetClientLevel(target), GetClientXP(target), GetClientXPCurrency(target), client == target ? "\nHold SHIFT to upgrade instead of viewing" : "");
+	
+	if(g_bMask[target])
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade Perk Trees here for permanent boosts\nSelect a Perk Tree for more info:\nLevel : 0 | Total XP : 0 | XP Currency : 0%s", sNameTarget, client == target ? "\nHold SHIFT to upgrade instead of viewing" : "");
+	}
+	else
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade Perk Trees here for permanent boosts\nSelect a Perk Tree for more info:\nLevel : %i | Total XP : %i | XP Currency : %i%s", sNameTarget, GetClientLevel(target), GetClientXP(target), GetClientXPCurrency(target), client == target ? "\nHold SHIFT to upgrade instead of viewing" : "");
+	}
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);
@@ -2207,8 +2233,20 @@ public void ShowPerkTreeInfo(int client, int item)
 		{
 			perkTree.descriptions.GetString(g_iUnlockedPerkTrees[target][item], sCurrentUpgrade, sizeof(sCurrentUpgrade));
 		}
+
 		perkTree.descriptions.GetString(g_iUnlockedPerkTrees[target][item] + 1, sNextUpgrade, sizeof(sNextUpgrade));
-		FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade this Perk Tree's Level to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (Lv. %i)\nCurrent Upgrade: %s\nNext Upgrade: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1), perkTree.name, cost, g_iUnlockedPerkTrees[target][item] + 1, sCurrentUpgrade, sNextUpgrade);
+
+		if(g_bMask[target])
+		{
+			perkTree.descriptions.GetString(0, sNextUpgrade, sizeof(sNextUpgrade));
+
+			FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade this Perk Tree's Level to become permanently stronger\nLevel: 0 | XP Currency: 0\nRequired Level: %i\n%s (%i XP) - (Lv. %i)\nCurrent Upgrade: %s\nNext Upgrade: %s", sNameTarget, perkTree.levelReqs.Get(0), perkTree.name, perkTree.costs.Get(0), 0, "Nothing", sNextUpgrade);
+		}
+		else
+		{
+			FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade this Perk Tree's Level to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (Lv. %i)\nCurrent Upgrade: %s\nNext Upgrade: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1), perkTree.name, cost, g_iUnlockedPerkTrees[target][item] + 1, sCurrentUpgrade, sNextUpgrade);
+		}
+		
 		SetMenuTitle(hMenu, TempFormat);
 	}
 
@@ -2409,7 +2447,7 @@ stock void ShowSkillsMenu(int client, int item=0)
 
 		int i = skill.skillIndex;
 
-		Format(TempFormat, sizeof(TempFormat), "%s (%i XP) - (%s)", skill.name, skill.cost, g_bUnlockedSkills[target][i] ? "Bought" : "Not Bought");
+		Format(TempFormat, sizeof(TempFormat), "%s (%i XP) - (%s)", skill.name, skill.cost, g_bUnlockedSkills[target][i] && !g_bMask[target] ? "Bought" : "Not Bought");
 
 		char sInfo[11];
 		IntToString(skill.skillIndex, sInfo, sizeof(sInfo));
@@ -2420,7 +2458,15 @@ stock void ShowSkillsMenu(int client, int item=0)
 	delete aSkills;
 
 
-	FormatEx(TempFormat, sizeof(TempFormat), "%s can buy Skills here for permanent boosts\nSelect a Skill for more info:\nLevel : %i | Total XP : %i | XP Currency : %i", sNameTarget, GetClientLevel(target), GetClientXP(target), GetClientXPCurrency(target));
+	if(g_bMask[target])
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy Skills here for permanent boosts\nSelect a Skill for more info:\nLevel : 0 | Total XP : 0 | XP Currency : 0", sNameTarget);
+	}
+	else
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy Skills here for permanent boosts\nSelect a Skill for more info:\nLevel : %i | Total XP : %i | XP Currency : %i", sNameTarget, GetClientLevel(target), GetClientXP(target), GetClientXPCurrency(target));
+	}
+
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);
@@ -2478,7 +2524,15 @@ public void ShowSkillInfo(int client, int item)
 	AddMenuItem(hMenu, sInfo, "Purchase Skill", client != target || g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	AddMenuItem(hMenu, sInfo, "Refund Skill", client != target || !g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
-	FormatEx(TempFormat, sizeof(TempFormat), "%s can buy this Skill to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (%s)\nDescription: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), skill.levelReq, skill.name, skill.cost, g_bUnlockedSkills[target][item] ? "Bought" : "Not Bought", skill.description);
+	if(g_bMask[target])
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy this Skill to become permanently stronger\nLevel: 0 | XP Currency: 0\nRequired Level: 0\n%s (%i XP) - (%s)\nDescription: %s", sNameTarget, skill.name, skill.cost, "Not Bought", skill.description);
+	}
+	else
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy this Skill to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (%s)\nDescription: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), skill.levelReq, skill.name, skill.cost, g_bUnlockedSkills[target][item] ? "Bought" : "Not Bought", skill.description);
+	}
+	
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);
@@ -3039,6 +3093,8 @@ public Action Event_PlayerDisconnect(Handle hEvent, char[] Name, bool dontBroadc
 	for(int i=0;i < MAX_ITEMS;i++)
 		g_bUnlockedProducts[client][i] = false;
 
+	g_bMask[client] = false;
+
 	return Plugin_Continue;
 }
 
@@ -3154,6 +3210,14 @@ public Action SoundHook_NeverOnLevelUp(int clients[MAXPLAYERS], int &numClients,
 	return Plugin_Changed;
 }
 
+public Action Command_Mask(int client, int args)
+{
+	g_bMask[client] = !g_bMask[client];
+
+	PrintToChat(client, "Masked XP is %s", g_bMask[client] ? "Enabled" : "Disabled");
+
+	return Plugin_Handled;
+}
 public Action Command_XP(int client, int args)
 {
 	CalculateStats(client);
@@ -3185,8 +3249,18 @@ public Action Command_XP(int client, int args)
 			return Plugin_Handled;
 		}
 	
-		CalculateStats(target_list[0]);
-		PrintToChat(client, "\x04[Gun-XP] \x03%N\x01 has\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", target_list[0], GetClientXP(target_list[0]), GetClientLevel(target_list[0]), GetClientXPCurrency(target_list[0]));
+		int target = target_list[0];
+
+		CalculateStats(target);
+
+		if(g_bMask[target])
+		{
+			PrintToChat(client, "\x04[Gun-XP] \x03%N\x01 has\x03 0\x01 xp. [Level:\x03 0\x01]. [XP Currency:\x03 0\x01].", target);
+		}
+		else
+		{
+			PrintToChat(client, "\x04[Gun-XP] \x03%N\x01 has\x03 %i\x01 xp. [Level:\x03 %i\x01]. [XP Currency:\x03 %i\x01].", target, GetClientXP(target), GetClientLevel(target), GetClientXPCurrency(target));
+		}
 	}
 	return Plugin_Handled;
 }

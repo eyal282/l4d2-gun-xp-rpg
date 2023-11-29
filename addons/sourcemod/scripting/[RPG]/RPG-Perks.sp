@@ -100,6 +100,9 @@ ConVar g_bRescueDisabled;
 ConVar g_hTankSwingInterval;
 ConVar g_hTankAttackInterval;
 
+ConVar g_hRPGPetCountForManualDirector;
+ConVar g_hRPGManualDirectorInterval;
+
 ConVar g_hRPGTriggerHurtMultiplier;
 
 ConVar g_hRPGIncapPistolPriority;
@@ -753,7 +756,7 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 				Call_Finish();
 			}
 
-			if(IsPlayer(entity))
+			if(IsPlayer(entity) && duration > 1.0)
 			{
 				CheckClientSpeedModifiers(entity);
 			}
@@ -785,7 +788,7 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 
 	Call_Finish();
 
-	if(IsPlayer(entity))
+	if(IsPlayer(entity) && duration > 1.0)
 	{
 		CheckClientSpeedModifiers(entity);
 	}
@@ -1484,6 +1487,9 @@ public void OnPluginStart()
 	g_hRPGIncapPistolPriority = AutoExecConfig_CreateConVar("rpg_incap_pistol_priority", "0", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
 	g_hInvincibleDamagePriority = AutoExecConfig_CreateConVar("rpg_invincible_damage_priority", "5", "Do not blindly edit this cvar.\nSetting to an absurd number will remove incap pistol functionality\nThis is a priority from -10 to 10 indicating an order of priority to grant an incapped player their pistol when they spawn.");
 
+	g_hRPGPetCountForManualDirector = AutoExecConfig_CreateConVar("rpg_pet_count_for_manual_director", "4", "If pet count is this or higher, manually spawn a SI at fixed intervals");
+	g_hRPGManualDirectorInterval = AutoExecConfig_CreateConVar("rpg_manual_director_interval", "25", "Number of seconds to spawn an SI if manual director is live.\nSet to 0 or lower to crash the server.");
+
 	g_hRPGTriggerHurtMultiplier = AutoExecConfig_CreateConVar("rpg_trigger_hurt_multiplier", "10.0", "Multiplier of damage inflicted to ZOMBIES by trigger_hurt that has greater than 600 damage.\nOn rooftop finale if a charger doesn't instantly die from the trigger_hurt, bugs can easily occur.");
 
 	g_hRPGTankHealth = AutoExecConfig_CreateConVar("rpg_z_tank_health", "4000", "Default health of the Tank");
@@ -1823,6 +1829,20 @@ public Action L4D_OnVomitedUpon(int victim, int& attacker, bool& boomerExplosion
 }
 
 
+public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2ZombieClassType &zclass)
+{
+	if(priority != -5)
+		return;
+		
+	else if(zclass == L4D2ZombieClass_Tank)
+		return;
+
+	else if(GetPetCount() < g_hRPGPetCountForManualDirector.IntValue)
+		return;
+
+	zclass = view_as<L4D2ZombieClassType>(GetRandomInt(1, 6));
+}
+
 // Requires RPG_Perks_RegisterReplicateCvar to fire.
 public void RPG_Perks_OnGetReplicateCvarValue(int priority, int client, const char cvarName[64], char sValue[256])
 {
@@ -1873,7 +1893,12 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
 	RPG_CalculateColorByAttributes(entity, attributeName);
-
+	
+	if(StrEqual(attributeName, "Invincible"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(entity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
+		return;
+	}
 	if(StrEqual(attributeName, "Frozen") || StrEqual(attributeName, "Stun"))
 	{
 		if(IsPlayer(entity))
@@ -1936,6 +1961,25 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
+	if(StrEqual(attributeName, "Invincible Rainbow Color"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(entity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
+	}
+	if(StrEqual(attributeName, "RPG Perks Manual Director"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(0, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+
+		if(GetPetCount() < g_hRPGPetCountForManualDirector.IntValue)
+			return;
+
+		float fOrigin[3];
+		L4D_GetRandomPZSpawnPosition(L4D_GetHighestFlowSurvivor(), view_as<int>(L4D2ZombieClass_Charger), 7, fOrigin);
+
+		L4D2_SpawnSpecial(view_as<int>(L4D2ZombieClass_Charger), fOrigin, view_as<float>({0.0, 0.0, 0.0}));
+
+		return;
+	}
+	
 	Invincible_RPG_Perks_OnTimedAttributeExpired(entity, attributeName);
 
 	// For ease of access, this is func_tracktrain's reach floor calculations.
@@ -2031,9 +2075,15 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 
 public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 {
-	if(!StrEqual(attributeName, "Stun") && !StrEqual(attributeName, "Frozen") && !StrEqual(attributeName, "Mutated"))
+	if(!StrEqual(attributeName, "Stun") && !StrEqual(attributeName, "Frozen") && !StrEqual(attributeName, "Mutated") && strncmp(attributeName, "Invincible", 10) != 0)
 		return;
 
+
+	if(RPG_Perks_IsEntityTimedAttribute(entity, "Invincible"))
+	{
+		SetEntityRenderColor(entity, GetRandomInt(0, 255), GetRandomInt(0, 255), GetRandomInt(0, 255), 255);
+		return;
+	}
 	if(RPG_Perks_IsEntityTimedAttribute(entity, "Mutated"))
 	{
 		SetEntityRenderColor(entity, 255, 0, 0, 255);
@@ -2301,6 +2351,8 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
+	RPG_Perks_ApplyEntityTimedAttribute(0, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+
 	AcceptEntityInput(g_refNightmareFogControl, "Kill");
 
 	g_refNightmareFogControl = INVALID_ENT_REFERENCE;
@@ -4647,4 +4699,33 @@ stock void RPG_ClearTimedAttributes(int entity = 0)
 	}
 
 	g_bMidClearAttributes = false;
+}
+
+stock int GetPetCount()
+{
+	int count = 0;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Infected)
+			continue;
+
+		int owner = GetEntPropEnt(i, Prop_Send, "m_hOwnerEntity");
+
+		if(owner == -1)
+			continue;
+
+		else if(RPG_Perks_GetZombieType(owner) != ZombieType_NotInfected)
+			continue;
+
+		count++;
+	}
+
+	return count;
 }

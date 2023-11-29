@@ -804,6 +804,7 @@ public Action RPG_Perks_OnShouldClosetsRescue()
 
 	return Plugin_Continue;
 }
+
 public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2ZombieClassType &zclass)
 {
 	if(priority != 0)
@@ -834,6 +835,7 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
 		}
 	}
 }
+
 public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 {
 	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
