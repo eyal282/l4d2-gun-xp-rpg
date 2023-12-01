@@ -1341,6 +1341,7 @@ public Action Command_ConcussionTest(int client, int args)
 	return Plugin_Continue;
 }
 */
+
 public Action Command_KinesisTest(int client, int args)
 {
 	SetEntityGravity(client, -0.5);
@@ -2082,7 +2083,7 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 	{
 		for(int i=0;i < 3;i++)
 		{
-			color[i] = GetRandomInt(0, 255);
+			color[i] = GetRandomInt(32, 200);
 		}
 	}
 	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Mutated"))
@@ -2110,8 +2111,6 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 	{
 		if(GetEntPropEnt(skin, Prop_Data, "m_hMoveParent") == entity)
 		{
-			SetEntityRenderColor(skin, color[0], color[1], color[2], color[3]);
-
 			int rgb[3];
 			rgb[0] = color[0];
 			rgb[1] = color[1];
@@ -2125,7 +2124,7 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 
 public void Invincible_RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
 {
-	if(StrEqual(attributeName, "Invincible Rainbow Color"))
+	if(StrEqual(attributeName, "Invincible Rainbow Color") && RPG_Perks_IsEntityTimedAttribute(attributeEntity, "Invincible"))
 	{
 		RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
 	}

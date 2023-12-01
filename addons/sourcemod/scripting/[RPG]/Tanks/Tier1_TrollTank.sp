@@ -200,6 +200,10 @@ public Action SDKEvent_NeverTransmit(int victim, int viewer)
 }
 public void RegisterTank()
 {
+	// Because we call this when GunXP-RPG loads.
+	if(!LibraryExists("RPG_Tanks"))
+		return;
+
 	tankIndex = RPG_Tanks_RegisterTank(1, 3, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes almost no damage.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Mental Pain", "Tank deals no direct damage");
