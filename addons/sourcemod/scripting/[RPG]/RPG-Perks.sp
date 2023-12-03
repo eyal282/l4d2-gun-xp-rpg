@@ -825,7 +825,7 @@ public int Native_GetClientLimitedAbility(Handle caller, int numParams)
 		g_aLimitedAbilities.GetArray(i, ability);
 
 
-		if(StrEqual(sAuthId, ability.authId))
+		if(StrEqual(sAuthId, ability.authId) && StrEqual(identifier, ability.identifier))
 		{
 			timesUsed = ability.timesUsed;
 			break;
@@ -914,7 +914,7 @@ public int Native_UseClientLimitedAbility(Handle caller, int numParams)
 
 		g_aLimitedAbilities.GetArray(i, ability);
 
-		if(StrEqual(sAuthId, ability.authId))
+		if(StrEqual(sAuthId, ability.authId) && StrEqual(identifier, ability.identifier))
 		{
 			timesUsed = ability.timesUsed;
 			pos = i;
@@ -1904,6 +1904,8 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	{
 		if(IsPlayer(entity))
 		{
+			//Precache
+			//int ice = CreateEntityByName("prop_dynamic");
 			L4D_StaggerPlayer(entity, entity, {0.0, 0.0, 0.0});
 
 			char TempFormat[128];
