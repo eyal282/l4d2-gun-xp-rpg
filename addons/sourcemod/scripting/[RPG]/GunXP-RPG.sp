@@ -799,6 +799,7 @@ public int Native_AddClientXP(Handle caller, int numParams)
 
 	return 0;
 }
+
 public int Native_RegisterSkill(Handle caller, int numParams)
 {
 	enSkill skill;
@@ -814,7 +815,7 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	char description[512];
 	GetNativeString(3, description, sizeof(description));
-
+	
 	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
 
 	int cost = GetNativeCell(4);
