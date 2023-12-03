@@ -57,6 +57,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Bodyguard.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_ClusterPipeBombs.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Cowardice.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_CryoProtection.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_EternalFlame.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_FullAuto.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Hyperactive.smx"
