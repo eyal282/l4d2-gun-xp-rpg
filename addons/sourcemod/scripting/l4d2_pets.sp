@@ -1550,6 +1550,14 @@ Action ChangeVictim_Timer(Handle timer, int pet)
 
     g_fLastBracket[pet] += (fFlowIncrease / L4D2Direct_GetMapMaxFlowDistance()) * 100.0 * g_fPetUpdateRate;
 
+    if(door != -1)
+    {
+        if(GetEntProp(door, Prop_Send, "m_spawnflags") & DOOR_FLAG_IGNORE_USE)
+        {
+            g_fLastBracket[pet] = 85.0;
+        }
+    }
+
     if(GetNextBracketPercent(fLastBracket) < GetNextBracketPercent(g_fLastBracket[pet]))
         bShouldUpdate = true;
 
@@ -2005,6 +2013,15 @@ stock void SetupInitialBracket(int carrier)
     if(g_fLastBracket[carrier] > 100.0)
         g_fLastBracket[carrier] = 100.0;
 
+    int door = L4D_GetCheckpointLast();
+
+    if(door != -1)
+    {
+        if(GetEntProp(door, Prop_Send, "m_spawnflags") & DOOR_FLAG_IGNORE_USE)
+        {
+            g_fLastBracket[carrier] = 85.0;
+        }
+    }
 }
 stock void EndCarryBetweenPlayers(int carrier, int carried, bool bDontTeleport = false)
 {
