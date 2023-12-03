@@ -92,32 +92,36 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
         if(g_iJumpCount[client] >= 3 && GunXP_RPGShop_IsSkillUnlocked(client, skillIndex))
         {
+            
+            g_iJumpCount[client] = 0;
+
+            g_bSpam[client] = true;
+            
+            CreateTimer(1.0, Timer_SpamOff, client);
+
             if(RPG_Perks_IsEntityTimedAttribute(client, "Frozen") && RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
             {
                 PrintToChat(client, "You have unfrozen yourself.");
                 RPG_Perks_ApplyEntityTimedAttribute(client, "Frozen", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
                 RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
             }
-            bool success = RPG_Perks_UseClientLimitedAbility(client, "Cryo Protection");
-
-            if(success)
+            else
             {
-                int timesUsed, maxUses;
+                bool success = RPG_Perks_UseClientLimitedAbility(client, "Cryo Protection");
 
-                RPG_Perks_GetClientLimitedAbility(client, "Cryo Protection", timesUsed, maxUses);
+                if(success)
+                {
+                    int timesUsed, maxUses;
 
-                PrintToChat(client, "Cryo Protection is active (%i/%i)", timesUsed, maxUses);
+                    RPG_Perks_GetClientLimitedAbility(client, "Cryo Protection", timesUsed, maxUses);
 
-                g_iJumpCount[client] = 0;
+                    PrintToChat(client, "Cryo Protection is active (%i/%i)", timesUsed, maxUses);
 
-                g_bSpam[client] = true;
-            
-                CreateTimer(1.0, Timer_SpamOff, client);
+                    float fDuration = 12.0;
 
-                float fDuration = 12.0;
-
-                RPG_Perks_ApplyEntityTimedAttribute(client, "Frozen", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);
-                RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+                    RPG_Perks_ApplyEntityTimedAttribute(client, "Frozen", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+                    RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+                }
             }
         }
 
