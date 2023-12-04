@@ -90,8 +90,8 @@ native int GunXP_RPG_GetClientRealLevel(int client);
 // reqIdentifiers is unimplemented at the moment, and is the list of required perk trees or skills for each perk tree level.
 // reqIdentifier on a perk tree requires a minimum of level 1.
 // doubleEdged simply excludes a perk tree from auto RPG because it has apparent downsides.
-native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
-native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
+native int GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null, bool bDoubleEdged = false, char sGlobalDescription[256] = "");
+native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex, bool bIgnoreMutation = false);
 
 // Make identifier as descriptive as possible.
 // Use {PERCENT} to denote percentages in descriptions.
@@ -99,7 +99,7 @@ native int GunXP_RPGShop_IsPerkTreeUnlocked(int client, int perkIndex);
 // reqIdentifier on a perk tree requires a minimum of level 1.
 // doubleEdged simply excludes a skill from auto RPG because it has apparent downsides.
 native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
-native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex);
+native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex, bool bIgnoreMutation = false);
 
 
 // Returns true if player died, false if player didn't die or if you're causing an infinite loop by calling this in HookEvent("player_hurt")

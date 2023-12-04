@@ -180,6 +180,8 @@ enum struct enPerkTree
 	// A perk tree requires any level unlocked to count.
 	ArrayList reqIdentifiers;
 
+	char globalDescription[256];
+
 	// Used for sorting sheneneagans.
 	int perkIndex;
 }
@@ -876,6 +878,8 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	int skillIndex = GetNativeCell(2);
 
+	bool bIgnoreMutation = GetNativeCell(3);
+
 	if(!g_bLoadedFromDB[client])
 		return false;
 
@@ -891,7 +895,7 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 			return false;
 	}
 
-	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+	else if(!bIgnoreMutation && RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return false;
 
 	if(!IsFakeClient(client))
@@ -952,12 +956,19 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 
 	bool doubleEdged = GetNativeCell(7);
 
+	char globalDescription[256];
+	GetNativeString(8, globalDescription, sizeof(globalDescription));
+
+	ReplaceString(globalDescription, sizeof(globalDescription), "{PERCENT}", "%%");
+	ReplaceString(globalDescription, sizeof(globalDescription), "\n", "\n⬤ ");
+
 	perkTree.identifier = identifier;
 	perkTree.name = name;
 	perkTree.descriptions = descriptions.Clone();
 	perkTree.costs = costs.Clone();
 	perkTree.levelReqs = levelReqs.Clone();
 	perkTree.doubleEdged = doubleEdged;
+	perkTree.globalDescription = globalDescription;
 
 	for(int i=0;i < perkTree.levelReqs.Length;i++)
 	{
@@ -1024,6 +1035,8 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 
 	int perkIndex = GetNativeCell(2);
 
+	bool bIgnoreMutation = GetNativeCell(3);
+
 	if(!g_bLoadedFromDB[client])
 		return PERK_TREE_NOT_UNLOCKED;
 
@@ -1039,7 +1052,7 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 			return PERK_TREE_NOT_UNLOCKED;
 	}
 
-	else if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+	else if(!bIgnoreMutation && RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return PERK_TREE_NOT_UNLOCKED;
 
 	if(!IsFakeClient(client))
@@ -2211,12 +2224,16 @@ public void ShowPerkTreeInfo(int client, int item)
 	AddMenuItem(hMenu, sInfo, "Upgrade to MAX", client != target || g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1 || perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1) > GetClientLevel(target) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	AddMenuItem(hMenu, sInfo, "Refund 1 Level", client != target || g_iUnlockedPerkTrees[target][item] == PERK_TREE_NOT_UNLOCKED ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 
+	if(perkTree.globalDescription[0] != EOS)
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "\nDescription: %s", perkTree.globalDescription);
+	}
 	if(g_iUnlockedPerkTrees[target][item] >= perkTree.costs.Length - 1)
 	{
 		char sCurrentUpgrade[128];
 		perkTree.descriptions.GetString(g_iUnlockedPerkTrees[target][item], sCurrentUpgrade, sizeof(sCurrentUpgrade));
 		
-		FormatEx(TempFormat, sizeof(TempFormat), "%s (0 XP) - (Lv. MAX)\nCurrent Upgrade: %s", perkTree.name, sCurrentUpgrade);
+		Format(TempFormat, sizeof(TempFormat), "%s%s (0 XP) - (Lv. MAX)\nCurrent Upgrade: %s", TempFormat, perkTree.name, sCurrentUpgrade);
 		SetMenuTitle(hMenu, TempFormat);
 	}
 	else
@@ -2241,11 +2258,11 @@ public void ShowPerkTreeInfo(int client, int item)
 		{
 			perkTree.descriptions.GetString(0, sNextUpgrade, sizeof(sNextUpgrade));
 
-			FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade this Perk Tree's Level to become permanently stronger\nLevel: 0 | XP Currency: 0\nRequired Level: %i\n%s (%i XP) - (Lv. %i)\nCurrent Upgrade: %s\nNext Upgrade: %s", sNameTarget, perkTree.levelReqs.Get(0), perkTree.name, perkTree.costs.Get(0), 0, "Nothing", sNextUpgrade);
+			Format(TempFormat, sizeof(TempFormat), "%s can upgrade this Perk Tree's Level to become permanently stronger\nLevel: 0 | XP Currency: 0\nRequired Level: %i\n%s (%i XP) - (Lv. %i)%s\nCurrent Upgrade: %s\nNext Upgrade: %s", sNameTarget, perkTree.levelReqs.Get(0), perkTree.name, perkTree.costs.Get(0), 0, TempFormat, "Nothing", sNextUpgrade);
 		}
 		else
 		{
-			FormatEx(TempFormat, sizeof(TempFormat), "%s can upgrade this Perk Tree's Level to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (Lv. %i)\nCurrent Upgrade: %s\nNext Upgrade: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1), perkTree.name, cost, g_iUnlockedPerkTrees[target][item] + 1, sCurrentUpgrade, sNextUpgrade);
+			Format(TempFormat, sizeof(TempFormat), "%s can upgrade this Perk Tree's Level to become permanently stronger\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (Lv. %i)%s\nCurrent Upgrade: %s\nNext Upgrade: %s", sNameTarget, GetClientLevel(target), GetClientXPCurrency(target), perkTree.levelReqs.Get(g_iUnlockedPerkTrees[target][item] + 1), perkTree.name, cost, g_iUnlockedPerkTrees[target][item] + 1, TempFormat, sCurrentUpgrade, sNextUpgrade);
 		}
 		
 		SetMenuTitle(hMenu, TempFormat);

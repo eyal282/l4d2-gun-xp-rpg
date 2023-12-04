@@ -1895,7 +1895,7 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 	RPG_CalculateColorByAttributes(entity, attributeName);
 	
-	if(StrEqual(attributeName, "Invincible"))
+	if(StrEqual(attributeName, "Invincible"))	
 	{
 		RPG_Perks_ApplyEntityTimedAttribute(entity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
 		return;
@@ -1904,8 +1904,35 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	{
 		if(IsPlayer(entity))
 		{
-			//Precache
-			//int ice = CreateEntityByName("prop_dynamic");
+			/*
+			if(StrEqual(attributeName, "Frozen"))
+			{
+				char sIceModel[] = "models/props_placeable/entity_box.mdl";
+				PrecacheModel(sIceModel);
+
+				int ice = CreateEntityByName("prop_dynamic_override");
+
+				DispatchKeyValue(ice, "model", sIceModel);
+				DispatchKeyValue(ice, "rendercolor", "0 128 255");
+				DispatchKeyValue(ice, "modelscale", "10.0");
+
+				float vecScale[3];
+				vecScale[0] = 10.0;
+				vecScale[1] = 2.5;
+						
+				SetVariantVector3D(vecScale);
+				AcceptEntityInput(ice, "SetModelScale");
+
+				DispatchSpawn(ice);
+
+				SetEntityModel(ice, sIceModel);
+
+    			SetEntityRenderMode(ice, RENDER_TRANSALPHA);
+				SetEntityRenderColor(ice, 0, 128, 255, 200);
+
+				TeleportEntity(ice, fOrigin, NULL_VECTOR, NULL_VECTOR);
+			}
+			*/
 			L4D_StaggerPlayer(entity, entity, {0.0, 0.0, 0.0});
 
 			char TempFormat[128];

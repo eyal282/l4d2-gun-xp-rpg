@@ -64,8 +64,8 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
         return;
     }
 
-    int perkLevel1 = GunXP_RPGShop_IsPerkTreeUnlocked(victim, friendlyIndex);
-    int perkLevel2 = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, friendlyIndex);
+    int perkLevel1 = GunXP_RPGShop_IsPerkTreeUnlocked(victim, friendlyIndex, true);
+    int perkLevel2 = GunXP_RPGShop_IsPerkTreeUnlocked(attacker, friendlyIndex, true);
 
     int perkLevel = perkLevel1;
 
@@ -85,32 +85,32 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("-20%% friendly fire damage taken and received.\nDoesn't stack.");
+    descriptions.PushString("-20%% damage.");
     costs.Push(10);
     xpReqs.Push(0);
 
-    descriptions.PushString("-40%% friendly fire damage taken and received.\nDoesn't stack.");
+    descriptions.PushString("-40%% damage");
     costs.Push(20);
     xpReqs.Push(0);
 
-    descriptions.PushString("-60%% friendly fire damage taken and received.\nDoesn't stack.");
+    descriptions.PushString("-60%% damage");
     costs.Push(50);
     xpReqs.Push(0);
 
-    descriptions.PushString("-80%% friendly fire damage taken and received.\nDoesn't stack.");
+    descriptions.PushString("-80%% damage");
     costs.Push(100);
     xpReqs.Push(0);
 
-    descriptions.PushString("No friendly fire damage taken and received.");
+    descriptions.PushString("-100%% damage");
     costs.Push(500);
     xpReqs.Push(0);
 
     for(int i=0;i < 15;i++)
     {
-        descriptions.PushString("No friendly fire damage taken and received.\nThis Perk's Level reflects onto the bots.");
+        descriptions.PushString("-100%% damage");
         costs.Push(0);
         xpReqs.Push(10000 * RoundToFloor(Pow(2.0, float(i))));
     }
 
-    friendlyIndex = GunXP_RPGShop_RegisterPerkTree("Friendly Fire Decrease", "Friendly", descriptions, costs, xpReqs);
+    friendlyIndex = GunXP_RPGShop_RegisterPerkTree("Friendly Fire Decrease", "Friendly", descriptions, costs, xpReqs, _, _, "Reduces friendly fire damage taken and received (Doesn't stack, Ignores Mutation)\nReduces by the highest level among the shooter and victim");
 }
