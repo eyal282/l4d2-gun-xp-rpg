@@ -414,7 +414,7 @@ public void RegisterPerkTree()
         xpReqs.Push(g_iPetReqs[i]);
     }
 
-    petIndex = GunXP_RPGShop_RegisterPerkTree("Charger Pet", "Charger Pet", descriptions, costs, xpReqs, _, _, "Triple press SHIFT to teleport charger to you");
+    petIndex = GunXP_RPGShop_RegisterPerkTree("Charger Pet", "Charger Pet", descriptions, costs, xpReqs, _, _, "Spawns an immortal Charger Pet\nTriple press SHIFT to teleport charger pet to you");
 }
 
 

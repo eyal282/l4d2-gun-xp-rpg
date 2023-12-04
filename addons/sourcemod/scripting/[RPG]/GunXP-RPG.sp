@@ -1183,7 +1183,7 @@ public void OnLibraryAdded(const char[] name)
 {
 	if(StrEqual(name, "RPG_Perks"))
 	{
-		RPG_Perks_RegisterReplicateCvar("sv_multiplayer_sounds");
+		//RPG_Perks_RegisterReplicateCvar("sv_multiplayer_sounds");
 	}
 }
 public void OnPluginStart()

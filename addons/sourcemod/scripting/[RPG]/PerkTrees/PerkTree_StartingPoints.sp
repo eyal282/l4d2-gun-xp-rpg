@@ -66,45 +66,45 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    descriptions.PushString("+15%% starting points (relative to average price of items)");
+    descriptions.PushString("+15%% starting points");
     costs.Push(100);
     xpReqs.Push(1000);
 
-    descriptions.PushString("+30%% starting points (relative to average price of items)");
+    descriptions.PushString("+30%% starting points");
     costs.Push(200);
     xpReqs.Push(2500);
 
-    descriptions.PushString("+45%% starting points (relative to average price of items)");
+    descriptions.PushString("+45%% starting points");
     costs.Push(300);
     xpReqs.Push(5000);
 
-    descriptions.PushString("+60%% starting points (relative to average price of items)");
+    descriptions.PushString("+60%% starting points");
     costs.Push(400);
     xpReqs.Push(10000);
 
-    descriptions.PushString("+75%% starting points (relative to average price of items)");
+    descriptions.PushString("+75%% starting points");
     costs.Push(500);
     xpReqs.Push(25000);
 
-    descriptions.PushString("+90%% starting points (relative to average price of items)");
+    descriptions.PushString("+90%% starting points");
     costs.Push(600);
     xpReqs.Push(75000);
 
-    descriptions.PushString("+105%% starting points (relative to average price of items)");
+    descriptions.PushString("+105%% starting points");
     costs.Push(700);
     xpReqs.Push(150000);
 
-    descriptions.PushString("+120%% starting points (relative to average price of items)");
+    descriptions.PushString("+120%% starting points");
     costs.Push(800);
     xpReqs.Push(300000);
 
-    descriptions.PushString("+135%% starting points (relative to average price of items)");
+    descriptions.PushString("+135%% starting points");
     costs.Push(900);
     xpReqs.Push(500000);
 
-    descriptions.PushString("+150%% starting points (relative to average price of items)");
+    descriptions.PushString("+150%% starting points");
     costs.Push(1000);
     xpReqs.Push(1000000);
 
-    startingPointsIndex = GunXP_RPGShop_RegisterPerkTree("Starting Points", "Starting Points", descriptions, costs, xpReqs);
+    startingPointsIndex = GunXP_RPGShop_RegisterPerkTree("Starting Points", "Starting Points", descriptions, costs, xpReqs, _, _, "More starting points relative to average price of items");
 }

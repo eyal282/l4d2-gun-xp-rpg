@@ -1623,12 +1623,26 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	if(StrEqual(classname, "infected") || StrEqual(classname, "witch"))
 	{
-		SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
+		if(g_bLate)
+		{
+			Event_ZombieSpawnPost(entity);
+		}
+		else
+		{
+			SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
+		}
 		SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
 	}
 	if(StrEqual(classname, "func_elevator"))
 	{
-		SDKHook(entity, SDKHook_SpawnPost, Event_ElevatorSpawnPost);
+		if(g_bLate)
+		{
+			Event_ElevatorSpawnPost(entity);
+		}
+		else
+		{
+			SDKHook(entity, SDKHook_SpawnPost, Event_ElevatorSpawnPost);
+		}
 	}
 }
 
@@ -3424,6 +3438,9 @@ public Action Event_PlayerLedgeGrabPre(Event event, const char[] name, bool dont
 
 public void TriggerMultiple_StartTouch(const char[] output, int caller, int activator, float delay)
 {
+	if(!IsPlayer(activator))
+		return;
+
 	int touchCount, fakeCount, teamCount;
 
 	for(int i=1;i <= MaxClients;i++)
@@ -3484,6 +3501,9 @@ public void TriggerMultiple_StartTouch(const char[] output, int caller, int acti
 
 public void TriggerMultiple_EndTouch(const char[] output, int caller, int activator, float delay)
 {
+	if(!IsPlayer(activator))
+		return;
+
 	int touchCount, fakeCount, teamCount;
 
 	for(int i=1;i <= MaxClients;i++)
