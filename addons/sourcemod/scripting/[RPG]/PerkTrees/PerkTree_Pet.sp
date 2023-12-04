@@ -407,14 +407,14 @@ public void RegisterPerkTree()
     {
         char TempFormat[128];
 
-        FormatEx(TempFormat, sizeof(TempFormat), "Triple press SHIFT to spawn / teleport charger to you\nPet deals %.0f damage, %.0f{PERCENT} to Tank, %.0f sec to revive incap", g_fPetDamages[i], g_fDamagePercentTank, g_fPetReviveDurations[i]);
+        FormatEx(TempFormat, sizeof(TempFormat), "Pet deals %.0f damage, %.0f{PERCENT} to Tank, %.0f sec to revive incap", g_fPetDamages[i], g_fDamagePercentTank, g_fPetReviveDurations[i]);
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iPetCosts[i]);
         xpReqs.Push(g_iPetReqs[i]);
     }
 
-    petIndex = GunXP_RPGShop_RegisterPerkTree("Charger Pet", "Charger Pet", descriptions, costs, xpReqs);
+    petIndex = GunXP_RPGShop_RegisterPerkTree("Charger Pet", "Charger Pet", descriptions, costs, xpReqs, _, _, "Triple press SHIFT to teleport charger to you");
 }
 
 
