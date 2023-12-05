@@ -597,7 +597,7 @@ public void RegisterTank()
 	2500000, 180, 0.333333, 55000, 65000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	strongerPsychicPowersIndex = RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
-	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 10 seconds.", 0, 0);
+	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank shoots stored bullets using Aimbot Level 2 ( !br )\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 10 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Psychokinesis", "Closest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 15 seconds before release.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Nightmare", "All survivors hallucinate a nightmare.\nThey cannot see any player, and take 2x damage from all sources.\nLasts 10 seconds.\nThe Tank instantly kills a survivor under Nightmare, returning the rest to normal", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 10 seconds.", 0, 0);
@@ -611,7 +611,7 @@ public void RegisterTank()
 	1500000, 180, 0.2, 4000, 6000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	psychicPowersIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
-	RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 7 seconds.", 0, 0);
+	RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank shoots stored bullets using Aimbot Level 2 ( !br )\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 7 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Psychokinesis", "Closest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 12 seconds before release.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Nightmare", "2 Closest survivors hallucinate a nightmare.\nThey cannot see any player, and take 2x damage from all sources.\nLasts 20 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(tankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 7 seconds.", 0, 0);
@@ -624,7 +624,7 @@ public void RegisterTank()
 	500000, 180, 0.2, 500, 750, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
 
 	weakerPsychicPowersIndex = RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 25, 25);
-	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank releases stored bullets in all directions\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 4 seconds.", 0, 0);
+	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank shoots stored bullets using Aimbot Level 1 ( !br )\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 4 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Psychokinesis", "Closest Survivor to tank is lifted to the ceiling.\nThe survivor is then held with Telekinesis for 12 seconds before release.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Nightmare", "2 Closest survivors hallucinate a nightmare.\nThey cannot see any player, and take 2x damage from all sources.\nLasts 12 seconds.", 0, 0);
 	RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Damage Reflect", "Tank reflects 100{PERCENT} of unbuffed damage to it.\nLasts 4 seconds.", 0, 0);

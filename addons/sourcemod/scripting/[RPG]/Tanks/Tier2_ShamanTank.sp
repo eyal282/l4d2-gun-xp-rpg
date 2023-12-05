@@ -145,7 +145,7 @@ public void RegisterTank()
 	FormatEx(TempFormat, sizeof(TempFormat), "Biles all survivors in a %.0f unit radius", g_fVomitRadius);
 
 	vomitIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Vomit", TempFormat, 90, 100);
-	bulletReleaseIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "Tank must be under 90{PERCENT} HP to use this ability\nTank casts stored bullets like fireballs in all directions\nDeals 10 damage to survivors every half-second\nLasts 7 seconds.", 45, 45);
+	bulletReleaseIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "Tank must be under 90{PERCENT} HP to use this ability\nTank casts stored bullets like fireballs in all directions using Aimbot Level 1 ( !br )\nDeals 10 damage to survivors every half-second\nLasts 7 seconds.", 45, 45);
 	jockeyIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Summon Minion Jesters", "Spawns 2 Jockeys that pin closest 2 survivors\nThis always works no matter how far the survivors are.", 75, 90);
 
 	if(LibraryExists("GunXP-RPG"))

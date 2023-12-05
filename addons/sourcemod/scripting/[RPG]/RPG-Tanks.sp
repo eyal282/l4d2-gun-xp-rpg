@@ -46,6 +46,7 @@ ConVar g_hRPGDamageMultiplier;
 ConVar g_hPriorityImmunities;
 ConVar g_hPriorityTankSpawn;
 
+ConVar g_hXPRatioNotEnough;
 ConVar g_hEntriesUntiered;
 ConVar g_hEntriesTierOne;
 ConVar g_hEntriesTierTwo;
@@ -412,6 +413,7 @@ public void OnPluginStart()
 	g_hPriorityImmunities = UC_CreateConVar("rpg_tanks_priority_immunities", "2", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 to give a tank their immunity from fire or melee.\nWhen making a plugin, feel free to track this cvar's value for reference.");
 	g_hPriorityTankSpawn = UC_CreateConVar("rpg_tanks_priority_rpg_tank_spawn", "-5", "Do not mindlessly edit this cvar.\nThis cvar is the order of priority from -10 to 10 that when a tank spawns, check what tier to give it and give it max HP.");
 
+	g_hXPRatioNotEnough = UC_CreateConVar("rpg_tanks_xp_ratio_not_enough_damage", "0.05", "Ratio of XP to gain when a player doesn't do minimum damage.");
 	g_hEntriesUntiered = UC_CreateConVar("rpg_tanks_entries_untiered", "5", "Entries to spawn an untiered tank.");
 	g_hEntriesTierOne = UC_CreateConVar("rpg_tanks_entries_tier_one", "0", "Entries to spawn a tier one tank.");
 	g_hEntriesTierTwo = UC_CreateConVar("rpg_tanks_entries_tier_two", "0", "Entries to spawn a tier two tank.");
@@ -1884,6 +1886,11 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 
 	int XPReward = GetRandomInt(tank.XPRewardMin, tank.XPRewardMax);
 
+	int ReducedXPReward = RoundToFloor(float(XPReward) * g_hXPRatioNotEnough.FloatValue);
+
+	if(ReducedXPReward <= 0)
+		ReducedXPReward = -1;
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -1897,20 +1904,27 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 
 		if(LibraryExists("GunXP-RPG"))
 		{
-			PrintToChat(i, "You dealt\x03 %.1f%%\x01 of %N's max HP as damage", fDamageRatio * 100.0, victim);
+			UC_PrintToChat(i, "You dealt\x03 %.1f{PERCENT}\x01 of %N's max HP as damage", fDamageRatio * 100.0, victim);
 		}
 
 		if(LibraryExists("GunXP-RPG") && fDamageRatio < fMinDamageRatio)
 		{
-			PrintToChat(i, "This is not enough to gain XP rewards. (Min. %.0f%%)", fMinDamageRatio * 100.0);
+			if(ReducedXPReward == -1)
+				UC_PrintToChat(i, "This is not enough to gain XP rewards. (Min. %.0f{PERCENT})", fMinDamageRatio * 100.0);
 
+			else
+			{
+				UC_PrintToChat(i, "This is not enough to gain full XP rewards. (Min. %.0f{PERCENT})", fMinDamageRatio * 100.0);
+				UC_PrintToChat(i, "You got\x03 %i\x01 XP (Original XP Reward:\x04 %i\x01)", ReducedXPReward, XPReward);
+			}
+			
 			Call_StartForward(g_fwOnRPGTankKilled);
 			
 			Call_PushCell(victim);
 			
 			Call_PushCell(i);
-			
-			Call_PushCell(-1);
+
+			Call_PushCell(ReducedXPReward);
 
 			Call_Finish();
 
@@ -1920,7 +1934,7 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 
 		if(LibraryExists("GunXP-RPG"))
 		{
-			PrintToChat(i, "This is enough to get XP rewards. You got\x03 %i\x05 XP", XPReward);
+			UC_PrintToChat(i, "This is enough to get XP rewards. You got\x03 %i\x05 XP", XPReward);
 		}
 
 		Call_StartForward(g_fwOnRPGTankKilled);

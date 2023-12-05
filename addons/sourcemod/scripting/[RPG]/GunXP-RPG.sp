@@ -1212,6 +1212,7 @@ public void OnPluginStart()
 
 	RegAdminCmd("sm_mask", Command_Mask, ADMFLAG_GENERIC);
 
+	RegConsoleCmd("sm_br", Command_BulletRelease, "sm_br [#userid|name] - Checks aimbot level info");
 	RegConsoleCmd("sm_xp", Command_XP);
 	RegConsoleCmd("sm_guns", Command_Guns);
 	//RegConsoleCmd("sm_ul", Command_UnlockShop);
@@ -1313,6 +1314,13 @@ public void OnAllPluginsLoaded()
 		Call_StartForward(g_fwOnReloadRPGPlugins);
 
 		Call_Finish();
+	}
+
+	ConVar convar = FindConVar("l4d2_points_reset_mapchange");
+
+	if(convar != null)
+	{
+		convar.SetString("coop");
 	}
 }
 
@@ -2069,6 +2077,7 @@ stock void ShowCommandsMenu(int client, int item=0)
 	AddMenuItem(hMenu, "sm_tankhp", "!tankhp");
 	AddMenuItem(hMenu, "sm_tankinfo", "!tankinfo");
 	AddMenuItem(hMenu, "sm_buy", "!buy <alias> [#userid|name]");
+	AddMenuItem(hMenu, "sm_br", "!br [#userid|name]");
 
 	SetMenuExitBackButton(hMenu, true);
 
@@ -3236,6 +3245,102 @@ public Action Command_Mask(int client, int args)
 
 	return Plugin_Handled;
 }
+
+public Action Command_BulletRelease(int client, int args)
+{
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget), args);
+
+	Handle hMenu = CreateMenu(BulletRelease_MenuHandler);
+
+	AddMenuItem(hMenu, "", "Aimbot Level 1");
+	AddMenuItem(hMenu, "", "Aimbot Level 2");
+	AddMenuItem(hMenu, "", "Aimbot Level 3");
+
+	char TempFormat[256];
+	FormatEx(TempFormat, sizeof(TempFormat), "Choose an Aimbot Level for details");
+
+	if(target != client && IsPlayerAlive(client) && IsPlayerAlive(target))
+	{
+		Format(TempFormat, sizeof(TempFormat), "%s\nChoose a Level to calculate if it would hit if %s was a Tank.", TempFormat, sNameTarget);
+	}
+
+	SetMenuTitle(hMenu, TempFormat);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int BulletRelease_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if(action == MenuAction_Select)
+	{		
+		ShowAimbotLevelInfo(client, item);
+	}	
+
+	return 0;
+}	
+
+public void ShowAimbotLevelInfo(int client, int item)
+{
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget));
+
+	Handle hMenu = CreateMenu(AimbotLevelInfo_MenuHandler);
+
+	char TempFormat[512];
+
+	switch(item)
+	{
+		case 0: FormatEx(TempFormat, sizeof(TempFormat), "Aimbot Level 1\nCalculated by measuring if an obstacle is between the center of your and the Tank's feet.\nUsed by Shaman and Jr. Psychic Tanks\nIt is weak to both vertical and horizontal obstacles");
+		case 1: FormatEx(TempFormat, sizeof(TempFormat), "Aimbot Level 2\nCalculated by measuring if an obstacle is between the center of your and the Tank's feet, legs, stomache, chest and head\nUsed by Sniper Skill and by Psychic and Ulti. Psychic Tanks\nIt is weak to horizontal obstacles");
+		case 2: FormatEx(TempFormat, sizeof(TempFormat), "Aimbot Level 3 doesn't exist.\nIf it existed, it would be calculated by checking if it hits any point of your body.");
+	}
+
+	if(target != client && item != 2 && IsPlayerAlive(client) && IsPlayerAlive(target))
+	{
+		Format(TempFormat, sizeof(TempFormat), "%s\nIf %s was a Tank, it would%s be able to hit you with this Aimbot Level's Bullet Release", TempFormat, sNameTarget, GunXP_SetupAimbotStrike(target, client, view_as<AimbotLevels>(item)) ? "" : " NOT");
+	}
+
+	AddMenuItem(hMenu, "", "Back");
+
+	SetMenuTitle(hMenu, TempFormat);
+
+	SetMenuExitBackButton(hMenu, true);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return;
+}
+
+public int AimbotLevelInfo_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		Command_BulletRelease(client, -1);
+	}
+	else if(action == MenuAction_Select)
+	{		
+		Command_BulletRelease(client, -1);
+	}	
+
+	return 0;
+}	
+
+
 public Action Command_XP(int client, int args)
 {
 	CalculateStats(client);

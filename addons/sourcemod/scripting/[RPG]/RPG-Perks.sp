@@ -2101,6 +2101,8 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 		g_bNightmare[newClient] = true;
 		g_bNightmare[oldClient] = false;
 
+		SetEntPropEnt(oldClient, Prop_Data, "m_hCTRL", -1);
+
 		return;
 	}
 	if(!StrEqual(attributeName, "Stun"))
