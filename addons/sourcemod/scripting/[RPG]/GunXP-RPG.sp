@@ -623,6 +623,13 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 	if(priority != hcv_priorityGiveGuns.IntValue)
 		return;
 
+	ConVar convar = FindConVar("l4d2_points_reset_mapchange");
+
+	if(convar != null)
+	{
+		convar.SetString("coop");
+	}
+	
 	StripPlayerWeapons(client);
 
 	if(IsFakeClient(client))
