@@ -13,6 +13,7 @@
 #include <sdkhooks>
 #include <sdktools>
 #include <left4dhooks>
+#include <clientprefs>
 
 #define PLUGIN_VERSION "1.0"
 #pragma newdecls required
@@ -89,6 +90,8 @@ bool g_bRoundStarted = false;
 
 bool g_bMidInstantKill = false;
 bool g_bMidClearAttributes = false;
+
+Cookie g_hCookie_SoundMode;
 
 Handle g_hCheckAttributeExpire;
 
@@ -271,6 +274,7 @@ public void OnPluginEnd()
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+	CreateNative("RPG_Perks_GetSoundMode", Native_GetSoundMode);
 	CreateNative("RPG_Perks_InstantKill", Native_InstantKill);
 	CreateNative("RPG_Perks_TakeDamage", Native_TakeDamage);
 	CreateNative("RPG_Perks_UseAdrenaline", Native_UseAdrenaline);
@@ -295,6 +299,13 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	return APLRes_Success;
 }
 
+
+public any Native_GetSoundMode(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	return GetClientSoundMode(client);
+}
 public any Native_InstantKill(Handle caller, int numParams)
 {
 	if(g_bMidInstantKill)
@@ -1282,7 +1293,6 @@ public void CheckClientSpeedModifiers(int client)
 
 	if(!RPG_Perks_IsEntityTimedAttribute(client, "Invincible Music"))
 	{
-		RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 60.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 		EmitInvincibleSound(client);
 	}
 }
@@ -1541,6 +1551,10 @@ public void OnPluginStart()
 
 	g_hStartIncapWeapon = AutoExecConfig_CreateConVar("rpg_start_incap_weapon", "0", "0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum");
 
+	g_hCookie_SoundMode = RegClientCookie("RPG_Perks_SoundMode", "1 - Sound enabled. 0 - Sound disabled", CookieAccess_Public);
+
+	SetCookieMenuItem(RPG_Perks_CookieMenuHandler, 0, "RPG Perks");
+
 	AutoExecConfig_ExecuteFile();
 
 	AutoExecConfig_CleanFile();
@@ -1611,6 +1625,58 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 {
 	TriggerTimer(CreateTimer(0.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE));
 }
+
+public int RPG_Perks_CookieMenuHandler(int client, CookieMenuAction action, int info, char[] buffer, int maxlen)
+{
+	if (action != CookieMenuAction_SelectOption)
+		return 0;
+
+	ShowSoundMenu(client);
+
+	return 0;
+}
+
+public void ShowSoundMenu(int client)
+{
+	Handle hMenu = CreateMenu(Sound_MenuHandler);
+
+	if(GetClientSoundMode(client))
+	{
+		AddMenuItem(hMenu, "", "Sounds: ON");
+	}
+	else
+	{
+		AddMenuItem(hMenu, "", "Sounds: OFF");
+	}
+
+	SetMenuExitBackButton(hMenu, true);
+	SetMenuExitButton(hMenu, true);
+	DisplayMenu(hMenu, client, 30);
+}
+
+public int Sound_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if (action == MenuAction_DrawItem)
+	{
+		return ITEMDRAW_DEFAULT;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		ShowCookieMenu(client);
+	}
+	else if (action == MenuAction_Select)
+	{
+		if (item == 0)
+		{
+			SetClientSoundMode(client, !GetClientSoundMode(client));
+		}
+
+		ShowSoundMenu(client);
+	}
+
+	return 0;
+}
+
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
@@ -2214,10 +2280,15 @@ public void Invincible_RPG_Perks_OnTimedAttributeTransfered(int oldClient, int n
 
 stock void EmitInvincibleSound(int client)
 {
+	if(!RPG_Perks_GetSoundMode(client))
+		return;
+
 	for(int i=0;i < INVINCIBLE_SOUND_MULTIPLIER;i++)
 	{
 		EmitSoundToClient(client, INVINCIBLE_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 103);
 	}
+
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible Music", 60.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 stock void StopInvincibleSound(int client)
@@ -2421,7 +2492,10 @@ public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	RPG_Perks_ApplyEntityTimedAttribute(0, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
-	AcceptEntityInput(g_refNightmareFogControl, "Kill");
+	if(g_refNightmareFogControl != INVALID_ENT_REFERENCE)
+	{
+		AcceptEntityInput(g_refNightmareFogControl, "Kill");
+	}
 
 	g_refNightmareFogControl = INVALID_ENT_REFERENCE;
 
@@ -4802,4 +4876,29 @@ stock int GetPetCount()
 	}
 
 	return count;
+}
+
+stock int GetClientSoundMode(int client)
+{
+	char strSoundMode[50];
+	GetClientCookie(client, g_hCookie_SoundMode, strSoundMode, sizeof(strSoundMode));
+
+	if (strSoundMode[0] == EOS)
+	{
+		SetClientSoundMode(client, true);
+		return true;
+	}
+
+	return StringToInt(strSoundMode);
+}
+
+
+stock int SetClientSoundMode(int client, bool value)
+{
+	char strSoundMode[50];
+
+	IntToString(view_as<int>(value), strSoundMode, sizeof(strSoundMode));
+	SetClientCookie(client, g_hCookie_SoundMode, strSoundMode);
+
+	return value;
 }

@@ -629,7 +629,7 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 	{
 		convar.SetString("coop");
 	}
-	
+
 	StripPlayerWeapons(client);
 
 	if(IsFakeClient(client))
@@ -3542,6 +3542,9 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 
 stock void EmitLevelUpSound(int client)
 {
+	if(!RPG_Perks_GetSoundMode(client))
+		return;
+		
 	for(int i=0;i < LEVEL_UP_SOUND_MULTIPLIER;i++)
 	{
 		EmitSoundToClient(client, LEVEL_UP_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 110);

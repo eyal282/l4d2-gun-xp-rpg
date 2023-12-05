@@ -1217,6 +1217,9 @@ public void TryPlayImmunitySound(int attacker)
 
 	else if(RPG_Perks_IsEntityTimedAttribute(attacker, "Immunity Sound Cooldown"))
 		return;
+	
+	else if(!RPG_Perks_GetSoundMode(attacker))
+		return;
 
 	RPG_Perks_ApplyEntityTimedAttribute(attacker, "Immunity Sound Cooldown", 2.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 

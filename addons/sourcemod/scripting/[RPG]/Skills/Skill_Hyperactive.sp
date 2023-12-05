@@ -89,7 +89,6 @@ public Action Timer_MonitorHyperactive(Handle hTimer)
 
         if(!RPG_Perks_IsEntityTimedAttribute(i, "Hyperactive Music"))
         {
-            RPG_Perks_ApplyEntityTimedAttribute(i, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
             EmitHyperactiveSound(i);
         }
     }
@@ -140,7 +139,6 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
             return;
 
         EmitHyperactiveSound(attributeEntity);
-        RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
         return;
     }
@@ -155,7 +153,6 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
             return;
 
         EmitHyperactiveSound(client);
-        RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
     }
     else if(StrEqual(attributeName, "Hyperactive"))
     {
@@ -246,10 +243,15 @@ public void RegisterSkill()
 
 stock void EmitHyperactiveSound(int client)
 {
+    if(!RPG_Perks_GetSoundMode(client))
+		return;
+
     for(int i=0;i < HYPERACTIVE_SOUND_MULTIPLIER;i++)
     {
         EmitSoundToClient(client, HYPERACTIVE_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 100);
     }
+
+    RPG_Perks_ApplyEntityTimedAttribute(client, "Hyperactive Music", 30.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 stock void StopHyperactiveSound(int client)

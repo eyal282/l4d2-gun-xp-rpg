@@ -102,6 +102,8 @@ native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] nam
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex, bool bIgnoreMutation = false);
 
 
+native bool RPG_Perks_GetSoundMode(int client);
+
 // Returns true if player died, false if player didn't die or if you're causing an infinite loop by calling this in HookEvent("player_hurt")
 native bool RPG_Perks_InstantKill(int victim, int attacker, int inflictor, int damagetype);
 
@@ -221,6 +223,7 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("GunXP_RPGShop_IsPerkTreeUnlocked");
 	MarkNativeAsOptional("GunXP_RPGShop_RegisterSkill");
 	MarkNativeAsOptional("GunXP_RPGShop_IsSkillUnlocked");
+	MarkNativeAsOptional("RPG_Perks_GetSoundMode");
 	MarkNativeAsOptional("RPG_Perks_InstantKill");
 	MarkNativeAsOptional("RPG_Perks_TakeDamage");
 	MarkNativeAsOptional("RPG_Perks_UseAdrenaline");
