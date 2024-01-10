@@ -1231,6 +1231,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_perk", Command_PerkTrees, "sm_perk [#userid|name] - Checks your / another player's RPG Perk Trees");
 	RegConsoleCmd("sm_perks", Command_PerkTrees, "sm_perks [#userid|name] - Checks your / another player's RPG Perk Trees");
 
+	HookEvent("foot_locker_opened", Event_Disable, EventHookMode_Pre);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
 
@@ -2913,6 +2914,11 @@ public void GiveGuns(int client)
 	g_bTookWeapons[client] = true;
 }
 
+public Action Event_Disable(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	SetEventBroadcast(hEvent, true);
+	return Plugin_Handled;
+}
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	/*
@@ -3398,15 +3404,15 @@ public Action Command_XP(int client, int args)
 
 public void FetchStats(int client)
 {
-	// RequestFrame is used on this function occasionally.
-	if(!IsClientAuthorized(client))
-		return;
-
-	else if(!IsClientInGame(client))
+	if(!IsClientInGame(client))
 	{
 		RequestFrame(FetchStats, client);
 		return;
 	}
+
+	// RequestFrame is used on this function occasionally.
+	if(!IsClientAuthorized(client))
+		return;
 
 	g_iXP[client] = 0;
 	g_iLevel[client] = 0;

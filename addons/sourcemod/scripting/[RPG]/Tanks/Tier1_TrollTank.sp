@@ -56,6 +56,7 @@ public void OnPluginStart()
 public void OnMapStart()
 {
 	TriggerTimer(CreateTimer(1.0, Timer_TrollTank, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+	CreateTimer(5.0, Timer_RegisterTrollTank, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
 
 public Action L4D_OnCThrowActivate(int ability)
@@ -69,6 +70,14 @@ public Action L4D_OnCThrowActivate(int ability)
 		return Plugin_Continue;
 
 	return Plugin_Handled;
+}
+
+
+public Action Timer_RegisterTrollTank(Handle hTimer)
+{
+	RegisterTank();
+
+	return Plugin_Continue;
 }
 
 public Action Timer_TrollTank(Handle hTimer)
@@ -204,7 +213,14 @@ public void RegisterTank()
 	if(!LibraryExists("RPG_Tanks"))
 		return;
 
-	tankIndex = RPG_Tanks_RegisterTank(1, 3, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes almost no damage.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+	int averageLevel = GetAverageRPGLevel();
+
+	int entries = 3;
+
+	if(averageLevel <= 18)
+		entries = 2000000000;
+
+	tankIndex = RPG_Tanks_RegisterTank(1, entries, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes almost no damage.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Mental Pain", "Tank deals no direct damage");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Close and Personal", "Tank attacks at high speed.\nTank cannot throw rocks.");
@@ -402,4 +418,27 @@ stock int FindRandomSurvivorNearby(int client, float fMaxDistance, int exception
 	}
 
 	return winner;
+}
+
+stock int GetAverageRPGLevel()
+{
+	int averageLevel = 0;
+	int count = 0;
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		count++;
+
+		averageLevel += GunXP_RPG_GetClientRealLevel(i);
+	}
+
+	return RoundToCeil((float(averageLevel) / float(count))) - 1;
 }

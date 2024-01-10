@@ -1149,6 +1149,18 @@ public void OnMapStart()
 	LogToFile("eyal_crash_detector.txt", mapname);
 }
 
+
+public void OnMapEnd()
+{
+	int fog = EntRefToEntIndex(g_refNightmareFogControl);
+
+	if(fog != INVALID_ENT_REFERENCE)
+	{
+		AcceptEntityInput(fog, "Kill");
+		g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+	}
+}
+
 public Action Timer_CheckSpeedModifiers(Handle hTimer)
 {
 	g_iHurtCount = 0;
