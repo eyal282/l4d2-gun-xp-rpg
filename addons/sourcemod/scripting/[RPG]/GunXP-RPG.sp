@@ -701,7 +701,7 @@ public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, cons
 	{
 		if(StrEqual(sInfo, "give pistol") || StrEqual(sInfo, "give pistol_magnum"))
 		{
-			PSAPI_SetErrorByPriority(50, "\x04[Gun-XP]\x03 Error:\x01 Pistols cannot be bought when incapacitated");
+			PSAPI_SetErrorByPriority(50, "Error:\x01 Pistols cannot be bought when incapacitated");
 			return Plugin_Stop;
 		}
 	}
@@ -719,7 +719,7 @@ public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, cons
 		{
 			if(i <= GetClientLevel(target))
 			{
-				PSAPI_SetErrorByPriority(50, "\x04[Gun-XP]\x03 Gun is already unlocked, equipped for free instead.");
+				PSAPI_SetErrorByPriority(50, "Gun is already unlocked, equipped for free instead.");
 
 				char sClassname[64];
 				FormatEx(sClassname, sizeof(sClassname), "weapon_%s", sClass);	
