@@ -594,7 +594,7 @@ public void CastDamageReflect(int client)
 public void RegisterTank()
 {
 	strongerTankIndex = RPG_Tanks_RegisterTank(3, 3, "Ulti. Psychic", "The ultimate Psychic Tank. The strongest the survivors will ever witness\nCasts a random psychic ability every 20 seconds.",
-	2500000, 180, 0.333333, 55000, 65000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+	"Mechanically different than the previous Psychic Tanks. Read !tankinfo for full details", 2500000, 180, 0.333333, 55000, 65000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	strongerPsychicPowersIndex = RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank shoots stored bullets using Aimbot Level 2 ( !br )\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 10 seconds.", 0, 0);
@@ -607,7 +607,7 @@ public void RegisterTank()
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Adaptability", "When the tank is under 30{PERCENT} HP, it will only cast Bullet Release");
 	RPG_Tanks_RegisterPassiveAbility(strongerTankIndex, "Psychic Rock", "The Tank's rock instantly kills a survivor it hits.");
 
-	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Psychic", "A powerful Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 20 seconds.",
+	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Psychic", "A powerful Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 20 seconds.", "Uses a Psychic Power every 20 sec. Hearing Sniper shots means hide at all cost.",
 	1500000, 180, 0.2, 4000, 6000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	psychicPowersIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
@@ -620,7 +620,7 @@ public void RegisterTank()
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Depression", "Tank telepathically tells you when his next ability activates\nA symbol '‼' appears when Adaptability ability is live");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Adaptability", "When the tank is under 30{PERCENT} HP, it will only cast Bullet Release");
 
-	weakerTankIndex = RPG_Tanks_RegisterTank(1, 5, "Jr. Psychic", "A weak Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 25 seconds.",
+	weakerTankIndex = RPG_Tanks_RegisterTank(1, 5, "Jr. Psychic", "A weak Psychic Tank that uses Psychic attacks at his enemies\nCasts a random psychic ability every 25 seconds.", "Uses a Psychic Power every 25 sec. Hearing Sniper shots means hide at all cost.",
 	500000, 180, 0.2, 500, 750, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
 
 	weakerPsychicPowersIndex = RPG_Tanks_RegisterActiveAbility(weakerTankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 25, 25);

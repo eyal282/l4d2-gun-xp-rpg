@@ -220,7 +220,7 @@ public void RegisterTank()
 	if(averageLevel <= 18)
 		entries = 2000000000;
 
-	tankIndex = RPG_Tanks_RegisterTank(1, entries, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes almost no damage.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+	tankIndex = RPG_Tanks_RegisterTank(1, entries, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes no damage besides Fire.", "Very Annoying. Only Fire Damage works. Explodes on Death killing all survivors nearby.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Mental Pain", "Tank deals no direct damage");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Close and Personal", "Tank attacks at high speed.\nTank cannot throw rocks.");

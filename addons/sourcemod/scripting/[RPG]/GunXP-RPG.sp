@@ -200,8 +200,9 @@ int g_iCommonKills[MAXPLAYERS+1];
 int g_iCommonHeadshots[MAXPLAYERS+1];
 
 //GlobalForward g_fwOnUnlockShopBuy;
-GlobalForward g_fwOnTryReloadRPGPlugins;
 GlobalForward g_fwOnReloadRPGPlugins;
+GlobalForward g_fwOnPlayerLoaded;
+GlobalForward g_fwOnTryReloadRPGPlugins;
 GlobalForward g_fwOnResetRPG;
 GlobalForward g_fwOnSkillBuy;
 GlobalForward g_fwOnPerkTreeBuy;
@@ -1196,8 +1197,9 @@ public void OnLibraryAdded(const char[] name)
 public void OnPluginStart()
 {
 	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
-	g_fwOnTryReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnTryReloadRPGPlugins", ET_Event, Param_String);
 	g_fwOnReloadRPGPlugins = CreateGlobalForward("GunXP_OnReloadRPGPlugins", ET_Ignore);
+	g_fwOnPlayerLoaded = CreateGlobalForward("GunXP_OnPlayerLoaded", ET_Ignore, Param_Cell);
+	g_fwOnTryReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnTryReloadRPGPlugins", ET_Event, Param_String);
 	g_fwOnResetRPG = CreateGlobalForward("GunXP_RPGShop_OnResetRPG", ET_Ignore, Param_Cell);
 	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
@@ -4003,6 +4005,13 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 
 			RecalculateBotMaxHP();
 		}
+
+		Call_StartForward(g_fwOnPlayerLoaded);
+
+		Call_PushCell(client);
+
+		Call_Finish();
+	
 		return;
 	}
 
@@ -4060,6 +4069,13 @@ public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultS
 
 		RecalculateBotMaxHP();
 	}
+
+
+	Call_StartForward(g_fwOnPlayerLoaded);
+
+	Call_PushCell(client);
+
+	Call_Finish();
 }
 
 public void SQLTrans_SetFailState(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)

@@ -76,6 +76,7 @@ enum struct enTank
 	// Tank's name without "Tank"
 	char name[32];
 	char description[512];
+	char chatDescription[512];
 
 	int maxHP;
 	int speed;
@@ -177,17 +178,21 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	char description[512];
 	GetNativeString(4, description, sizeof(description));
 
+	char chatDescription[512];
+	GetNativeString(5, chatDescription, sizeof(chatDescription));
+
 	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
+	ReplaceString(chatDescription, sizeof(chatDescription), "{PERCENT}", "%%");
 
-	int maxHP = GetNativeCell(5);
+	int maxHP = GetNativeCell(6);
 
-	int speed = GetNativeCell(6);
-	float damageMultiplier = GetNativeCell(7);
+	int speed = GetNativeCell(7);
+	float damageMultiplier = GetNativeCell(8);
 
-	int XPRewardMin = GetNativeCell(8);
-	int XPRewardMax = GetNativeCell(9);
+	int XPRewardMin = GetNativeCell(9);
+	int XPRewardMax = GetNativeCell(10);
 
-	int damageImmunities = GetNativeCell(10);
+	int damageImmunities = GetNativeCell(11);
 
 	int foundIndex = TankNameToTankIndex(name);
 
@@ -956,7 +961,8 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 	SetClientName(client, sName);
 
 
-	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 has spawned.", winnerTank.tier, winnerTank.name);
+	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 has spawned:", winnerTank.tier, winnerTank.name);
+	PrintToChatAll(winnerTank.chatDescription);
 
 	for(int i=1;i <= MaxClients;i++)
 	{

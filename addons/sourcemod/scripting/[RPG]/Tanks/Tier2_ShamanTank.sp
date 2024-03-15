@@ -132,7 +132,7 @@ public Action SDKEvent_NeverTransmit(int victim, int viewer)
 }
 public void RegisterTank()
 {
-	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Shaman", "A wizard Tank that uses magical abilities to kill survivors.", 2000000, 180, 0.3, 1500, 2500, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
+	tankIndex = RPG_Tanks_RegisterTank(2, 3, "Shaman", "A wizard Tank that uses magical abilities to kill survivors.", "Weak tank that uses magic abilities like Inferno and Bullet Release like Fire Balls", 2000000, 180, 0.3, 1500, 2500, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE);
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Physique", "Tank deals less damage when punching\nTank cannot throw rocks.\nTank attacks slower");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Confusion and Horror", "No matter the source, Survivors gain NIGHTMARE for 30 seconds when Biled.");

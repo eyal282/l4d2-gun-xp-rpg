@@ -165,7 +165,7 @@ native int RPG_Perks_GetClientTempHealth(int client);
 native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
 
 // For damageImmunities, see DAMAGE_IMMUNITY_*
-native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities);
+native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], char chatDescription[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities);
 
 
 // If cooldown is 0, ability will be described "Check passive abilities for details"
