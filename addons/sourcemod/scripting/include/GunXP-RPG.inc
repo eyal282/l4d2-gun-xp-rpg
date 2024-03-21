@@ -75,8 +75,12 @@ char ColorEquivalents[][] =
 	"\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x10", "\x0C", "\x0E"
 };
 
+native void GunXP_RPG_EmitQuestCompletedSound(int client);
+
+native bool GunXP_RPG_IsClientLoaded(int client);
 
 native void GunXP_RPG_AddClientXP(int client, int amount, bool bPremiumMultiplier=true);
+native void GunXP_RPG_AddClientXPTransaction(int client, int amount, bool bPremiumMultiplier=true, Transaction transaction);
 
 // Finds amount of XP needed for a level.
 native int GunXP_RPG_GetXPForLevel(int level);
@@ -256,9 +260,16 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 }
 #endif
 
+forward void RPG_DailyQuests_OnGetMaxDailyQuests(int client, int &maxQuests);
+
+// Fires for regular jumps too.
+forward void GunXP_Skills_OnMultiJump(int client, bool bMultiJump);
+
 // RPG_Tanks_GetClientTank(victim) will work properly in this forward. After this forward is called it will return TANK_TIER_UNKNOWN.
 // XPReward is set to -1 if not enough damage is dealt.
 forward void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward);
+
+forward void RPG_Tanks_OnUntieredTankKilled(int victim, int attacker);
 
 // abilityIndex is the index registered with RPG_Tanks_RegisterActiveAbility
 // Note: Verify the tank is the same index as yours, because two activated abilities by different tanks can have the same index.
@@ -269,6 +280,7 @@ forward Action GunXP_RPGShop_OnTryReloadRPGPlugins(char sError[256]);
 
 // At this point, every perk tree and skill were removed.
 forward void GunXP_OnReloadRPGPlugins();
+forward void GunXP_OnPlayerLoaded(int client);
 forward void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLevel, bool bAutoRPG);
 forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG);
 

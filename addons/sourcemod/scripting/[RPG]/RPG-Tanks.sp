@@ -96,6 +96,7 @@ enum struct enTank
 ArrayList g_aTanks;
 
 GlobalForward g_fwOnRPGTankKilled;
+GlobalForward g_fwOnUntieredTankKilled;
 GlobalForward g_fwOnRPGTankCastActiveAbility;
 
 int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
@@ -398,6 +399,7 @@ public void OnPluginStart()
 		g_aTanks = CreateArray(sizeof(enTank));
 
 	g_fwOnRPGTankKilled = CreateGlobalForward("RPG_Tanks_OnRPGTankKilled", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnUntieredTankKilled = CreateGlobalForward("RPG_Tanks_OnUntieredTankKilled", ET_Ignore, Param_Cell, Param_Cell);
 	g_fwOnRPGTankCastActiveAbility = CreateGlobalForward("RPG_Tanks_OnRPGTankCastActiveAbility", ET_Ignore, Param_Cell, Param_Cell);
 
 	#if defined _autoexecconfig_included
@@ -1841,7 +1843,28 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 	else if(g_iCurrentTank[victim] < 0)
 	{
 		g_iCurrentTank[victim] = TANK_TIER_UNKNOWN;
+
+		if(RPG_Perks_GetClientHealth(victim) < 10000)
+		{
+			for(int i=1;i <= MaxClients;i++)
+			{
+				if(!IsClientInGame(i))
+					continue;
+
+				else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+					continue;
+
+				Call_StartForward(g_fwOnUntieredTankKilled);
+				
+				Call_PushCell(victim);
+				
+				Call_PushCell(i);
+
+				Call_Finish();
+			}
+		}
 		return Plugin_Continue;
+
 	}
 
 	if(RPG_Perks_GetClientHealth(victim) >= 10000)

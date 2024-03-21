@@ -12,12 +12,14 @@
 
 public Plugin myinfo =
 {
-    name        = "Sniper Skill --> Gun XP - RPG",
+    name        = "Multi Jump Skill --> Gun XP - RPG",
     author      = "Eyal282",
-    description = "Skill that gives you near perfect aim while standing and incapped.",
+    description = "Skill that allows jumping mid-air.",
     version     = PLUGIN_VERSION,
     url         = ""
 };
+
+GlobalForward g_fwOnRPGJump;
 
 int g_iLastButtons[MAXPLAYERS+1], g_iLastFlags[MAXPLAYERS+1], g_iJumps[MAXPLAYERS+1];
 
@@ -43,6 +45,10 @@ public void OnConfigsExecuted()
 
 public void OnPluginStart()
 {
+    g_fwOnRPGJump = CreateGlobalForward("GunXP_Skills_OnMultiJump", ET_Ignore, Param_Cell, Param_CellByRef);
+
+    HookEvent("player_jump", Event_PlayerJump, EventHookMode_Post);
+
     RegisterSkill();
 }
 
@@ -79,6 +85,19 @@ public void RPG_Perks_OnGetReplicateCvarValue(int priority, int client, const ch
         return;
 
     sValue = "999999999";
+}
+public Action Event_PlayerJump(Handle event, const char[] name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(GetEventInt(event, "userid"));
+
+    Call_StartForward(g_fwOnRPGJump);
+
+    Call_PushCell(client);
+    Call_PushCell(false);
+
+    Call_Finish();
+
+    return Plugin_Continue;
 }
 
 public void RegisterSkill()
@@ -185,6 +204,13 @@ void DoubleJump(int client)
         }
 
         TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, fVel);
+
+        Call_StartForward(g_fwOnRPGJump);
+
+        Call_PushCell(client);
+        Call_PushCell(true);
+
+        Call_Finish();
     }
 }
 

@@ -18,6 +18,11 @@
 
 #define SOUND_CHANNEL SNDCHAN_STATIC
 
+#define QUEST_COMPLETED_SOUND "music/safe/themonsterswithout.wav"
+
+// How much times to play the sound?
+#define QUEST_COMPLETED_SOUND_MULTIPLIER 3
+
 #define LEVEL_UP_SOUND "music/safe/themonsterswithout_l4d1.wav"
 
 // How much times to play the sound?
@@ -746,11 +751,15 @@ public Action PointSystemAPI_OnTryBuyProduct(int buyer, const char[] sInfo, cons
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+	CreateNative("GunXP_RPG_EmitQuestCompletedSound", Native_EmitQuestCompletedSound);
+
+	CreateNative("GunXP_RPG_IsClientLoaded", Native_IsClientLoaded);
 	CreateNative("GunXP_RPG_GetXPForLevel", Native_GetXPForLevel);
 	CreateNative("GunXP_RPG_GetClientLevel", Native_GetClientLevel);
 	CreateNative("GunXP_RPG_GetClientRealLevel", Native_GetClientRealLevel);
 
 	CreateNative("GunXP_RPG_AddClientXP", Native_AddClientXP);
+	CreateNative("GunXP_RPG_AddClientXPTransaction", Native_AddClientXPTransaction);
 
 	CreateNative("GunXP_RPGShop_RegisterSkill", Native_RegisterSkill);
 	CreateNative("GunXP_RPGShop_IsSkillUnlocked", Native_IsSkillUnlocked);
@@ -771,6 +780,21 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 
 // GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, ArrayList reqIdentifiers = null)
 
+public int Native_EmitQuestCompletedSound(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	EmitQuestCompletedSound(client);
+
+	return 0;
+}
+
+public int Native_IsClientLoaded(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	return g_bLoadedFromDB[client];
+}
 public int Native_GetXPForLevel(Handle caller, int numParams)
 {
 	int level = GetNativeCell(1);
@@ -806,6 +830,20 @@ public int Native_AddClientXP(Handle caller, int numParams)
 	bool bPremiumMultiplier = GetNativeCell(3);
 
 	AddClientXP(client, amount, bPremiumMultiplier);
+
+	return 0;
+}
+
+public int Native_AddClientXPTransaction(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+	int amount = GetNativeCell(2);
+
+	bool bPremiumMultiplier = GetNativeCell(3);
+
+	Transaction transaction = GetNativeCell(4);
+
+	AddClientXP(client, amount, bPremiumMultiplier, transaction);
 
 	return 0;
 }
@@ -1426,6 +1464,7 @@ public void OnMapStart()
 	g_bMapStarted = true;
 
 	PrecacheSound(LEVEL_UP_SOUND);
+	PrecacheSound(QUEST_COMPLETED_SOUND);
 
 	CreateTimer(1.0, Timer_HudMessageXP, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
@@ -3465,7 +3504,7 @@ stock void CalculateStats(int client)
 	}
 }
 
-stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
+stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true, Transaction transaction = null)
 {	
 	float PremiumMultiplier = GetConVarFloat(hcv_xpVIPMultiplier);
 	
@@ -3540,9 +3579,17 @@ stock void AddClientXP(int client, int amount, bool bPremiumMultiplier = true)
 	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
 
 	char sQuery[256];
-	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XP = XP + %i, XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", amount, amount, AuthId);
 
-	g_dbGunXP.Query(SQLCB_Error, sQuery);	
+	if(transaction == null)
+	{
+		g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XP = XP + %i, XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", amount, amount, AuthId);
+		g_dbGunXP.Query(SQLCB_Error, sQuery);	
+	}
+	else
+	{
+		g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XP = XP + %i, XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", amount, amount, AuthId);
+		SQL_AddQuery(transaction, sQuery);
+	}
 
 	CalculateStats(client);
 }
@@ -3561,6 +3608,21 @@ stock void EmitLevelUpSound(int client)
 	AddNormalSoundHook(SoundHook_NeverOnLevelUp);
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Ignore All Sounds", 9.5, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
+
+stock void EmitQuestCompletedSound(int client)
+{
+	if(!RPG_Perks_GetSoundMode(client))
+		return;
+		
+	for(int i=0;i < QUEST_COMPLETED_SOUND_MULTIPLIER;i++)
+	{
+		EmitSoundToClient(client, QUEST_COMPLETED_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 110);
+	}
+
+	AddNormalSoundHook(SoundHook_NeverOnLevelUp);
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Ignore All Sounds", 9.5, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+}
+
 
 stock int GetClientXP(int client)
 {	
