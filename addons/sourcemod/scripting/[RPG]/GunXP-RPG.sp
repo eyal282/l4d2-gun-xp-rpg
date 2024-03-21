@@ -1951,6 +1951,7 @@ public Action Command_RPG(int client, int args)
 	AddMenuItem(hMenu, "", "Skills");
 
 	AddMenuItem(hMenu, "", "Commands");
+	AddMenuItem(hMenu, "", "Quests");
 
 	char sXP[16], sXPCurrency[16];
 
@@ -2050,6 +2051,11 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 				// -1 instead of 0 is important for calculating a target.
 				Command_Commands(client, -1);
 			}
+
+			case 5:
+			{
+				FakeClientCommand(client, "sm_q");
+			}
 		}
 	}	
 
@@ -2127,6 +2133,7 @@ stock void ShowCommandsMenu(int client, int item=0)
 	AddMenuItem(hMenu, "sm_tankinfo", "!tankinfo");
 	AddMenuItem(hMenu, "sm_buy", "!buy <alias> [#userid|name]");
 	AddMenuItem(hMenu, "sm_br", "!br [#userid|name]");
+	AddMenuItem(hMenu, "sm_q", "!q OR !quest");
 
 	SetMenuExitBackButton(hMenu, true);
 

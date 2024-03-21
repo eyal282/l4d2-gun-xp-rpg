@@ -270,6 +270,8 @@ public Action Command_Missions(int client, int args)
 
 	SetMenuTitle(hMenu, "Complete daily quests for XP reward. This is unaffected by difficulty\nQuests marked as \"Team\" can be helped by your team.\nQuests reset in %s", TempFormat);
 
+	SetMenuExitBackButton(hMenu, true);
+
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
 	return Plugin_Handled;
@@ -282,8 +284,13 @@ public int Missions_MenuHandler(Handle hMenu, MenuAction action, int client, int
 		CloseHandle(hMenu);
 		hMenu = INVALID_HANDLE;
 	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		FakeClientCommand(client, "sm_rpg");
+	}
 	else if(action == MenuAction_Select)
 	{		
+		FakeClientCommand(client, "sm_rpg");
 		return 0;
 	}	
 
