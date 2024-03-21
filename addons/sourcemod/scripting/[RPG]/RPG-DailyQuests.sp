@@ -621,6 +621,8 @@ public void SQLTrans_LoadPlayerMissions(Database db, int userId, int numQueries,
 	
 	DBResultSet selection = results[3];
 
+	ClearClientMissions(client);
+
 	while(SQL_FetchRow(selection))
 	{
 		enClientQuest clientQuest;
@@ -753,6 +755,23 @@ stock bool GetQuestData(int client, int index, enQuest quest, enClientQuest clie
 stock int GetGoalByRNG(int minObjective, int maxObjective, float fRNG)
 {
 	return RoundFloat(float(maxObjective - minObjective) * fRNG + float(minObjective));
+}
+
+stock void ClearClientMissions(int client)
+{
+	int userid = GetClientUserId(client);
+
+	for(int i=0;i < g_aClientQuests.Length;i++)
+	{
+		enClientQuest clientQuest;
+		g_aClientQuests.GetArray(i, clientQuest);
+
+		if(clientQuest.userid == userid)
+		{
+			g_aClientQuests.Erase(i);
+			i--;
+		}
+	}
 }
 
 methodmap EHANDLE {
