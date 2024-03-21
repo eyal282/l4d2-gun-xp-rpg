@@ -4,6 +4,10 @@
 #include <smlib>
 #include <GunXP-RPG>
 
+#undef REQUIRE_PLUGIN
+#include <actions>
+#define REQUIRE_PLUGIN
+
 #define PLUGIN_VERSION "1.0"
 
 #pragma newdecls required
@@ -89,6 +93,8 @@ public void OnPluginStart()
 public void OnMapStart()
 {
 	CheckResetQuestsTimer();
+	
+	CreateTimer(1.0, Timer_CheckWitchChase, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 }
 
 public void OnClientPostAdminCheck(int client)
@@ -101,7 +107,26 @@ public void OnClientPostAdminCheck(int client)
 
 void CheckResetQuestsTimer()
 {
-	CreateTimer(86405.0 - (float(GetTime() % 86400)), Timer_ResetQuests, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(86405.0 - (float(GetTime() % 86400)), Timer_ResetQuests, _, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_CheckWitchChase(Handle hTimer)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_NotInfected)
+			continue;
+
+		else if(!HasWitchAttacker(i))
+			continue;
+
+		AddClientQuestProgress(i, "Survive Witch (sec)");
+	}
+
+	return Plugin_Continue;
 }
 
 public Action Timer_ResetQuests(Handle hTimer)
@@ -185,6 +210,7 @@ public void GunXP_Skills_OnMultiJump(int client, bool bMultiJump)
 {
 	AddClientQuestProgress(client, "Jump");
 }
+
 public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 {
 	for(int i=1;i <= MaxClients;i++)
@@ -322,10 +348,11 @@ public void CreateQuests()
 	quest.sName = "Revive Teammates (Team)";
 	quest.minPrize = 1000;
 	quest.maxPrize = 1900;
-	quest.minObjective = 75;
-	quest.maxObjective = 150;
+	quest.minObjective = 40;
+	quest.maxObjective = 70;
 	quest.minLevel = 0;
 	quest.prizeType = PRIZE_XP;
+	g_aQuests.PushArray(quest);
 
 	quest.sAlias = "Survive Tank Abilities";
 	quest.sName = "Survive Tank Abilities";
@@ -335,15 +362,17 @@ public void CreateQuests()
 	quest.maxObjective = 400;
 	quest.minLevel = 35;
 	quest.prizeType = PRIZE_XP;
+	g_aQuests.PushArray(quest);
 
 	quest.sAlias = "Beat Maps";
 	quest.sName = "Beat Maps";
-	quest.minPrize = 1200;
-	quest.maxPrize = 2100;
+	quest.minPrize = 1500;
+	quest.maxPrize = 2800;
 	quest.minObjective = 10;
 	quest.maxObjective = 20;
 	quest.minLevel = 0;
 	quest.prizeType = PRIZE_XP;
+	g_aQuests.PushArray(quest);
 
 	quest.sAlias = "Jump";
 	quest.sName = "Jump";
@@ -353,9 +382,32 @@ public void CreateQuests()
 	quest.maxObjective = 600;
 	quest.minLevel = 0;
 	quest.prizeType = PRIZE_XP;
+	g_aQuests.PushArray(quest);
 
+
+	SetupActionsBasedQuests();
+}
+#if defined _actions_included
+void SetupActionsBasedQuests()
+{
+	enQuest quest;
+
+	quest.sAlias = "Survive Witch (sec)";
+	quest.sName = "Survive Witch (sec)";
+	quest.minPrize = 2000;
+	quest.maxPrize = 3300;
+	quest.minObjective = 60;
+	quest.maxObjective = 120;
+	quest.minLevel = 0;
+	quest.prizeType = PRIZE_XP;
 	g_aQuests.PushArray(quest);
 }
+#else
+void SetupActionsBasedQuests()
+{
+	return;
+}
+#endif
 
 public void ConnectDatabase()
 {
@@ -513,8 +565,15 @@ void LoadClientMissions(int client)
 
 	for(int i=0;i < maxQuests;i++)
 	{
+		if(aQuests.Length == 0)
+			break;
+
 		enQuest quest;
-		aQuests.GetArray(GetRandomInt(0, aQuests.Length-1), quest);
+		int RNG = GetRandomInt(0, aQuests.Length-1)
+
+
+		aQuests.GetArray(RNG, quest);
+		aQuests.Erase(RNG);
 
 		Format(sValues, sizeof(sValues), "%s('%s', '%s', 1, %i, %.8f, %.8f, 0), ", sValues, AuthId, quest.sAlias, GetTime(), GetRandomFloat(0.0, 1.0), GetRandomFloat(0.0, 1.0));
 	}
@@ -688,3 +747,52 @@ stock int GetGoalByRNG(int minObjective, int maxObjective, float fRNG)
 {
 	return RoundFloat(float(maxObjective - minObjective) * fRNG + float(minObjective));
 }
+
+methodmap EHANDLE {
+	public int Get() {
+	#if SOURCEMOD_V_MAJOR >= 1 && SOURCEMOD_V_MINOR >= 12 && SOURCEMOD_V_REV >= 6964
+		return LoadEntityFromHandleAddress(view_as<Address>(this));
+	#else
+		static int s_iRandomOffsetToAnEHandle = -1;
+		if (s_iRandomOffsetToAnEHandle == -1)
+			s_iRandomOffsetToAnEHandle = FindSendPropInfo("CWorld", "m_hOwnerEntity");
+		
+		int temp = GetEntData(0, s_iRandomOffsetToAnEHandle, 4);
+		SetEntData(0, s_iRandomOffsetToAnEHandle, this, 4);
+		int result = GetEntDataEnt2(0, s_iRandomOffsetToAnEHandle);
+		SetEntData(0, s_iRandomOffsetToAnEHandle, temp, 4);
+		
+		return result;
+	#endif
+	}
+}
+
+#if defined _actions_included
+bool HasWitchAttacker(int client)
+{
+
+	int witch = -1;
+
+	while( (witch = FindEntityByClassname(witch, "witch")) != INVALID_ENT_REFERENCE )
+	{
+		if( IsValidEdict(witch) )
+		{
+			BehaviorAction action = ActionsManager.GetAction(witch, "WitchAttack");
+
+			if( action != INVALID_ACTION )
+			{
+				EHANDLE ehndl = action.Get(52);
+
+				if( ehndl.Get() == client ) return true;
+			}
+		}
+	}
+
+	return false;
+}
+#else
+bool HasWitchAttacker(int client)
+{
+	return client ? false : false
+}
+#endif

@@ -45,7 +45,7 @@ public void OnConfigsExecuted()
 
 public void OnPluginStart()
 {
-    g_fwOnRPGJump = CreateGlobalForward("GunXP_Skills_OnMultiJump", ET_Ignore, Param_Cell, Param_CellByRef);
+    g_fwOnRPGJump = CreateGlobalForward("GunXP_Skills_OnMultiJump", ET_Ignore, Param_Cell, Param_Cell);
 
     HookEvent("player_jump", Event_PlayerJump, EventHookMode_Post);
 
@@ -153,6 +153,9 @@ void DoubleJump(int client)
     else if(IsClientAffectedByFling(client))
         return;
 
+    else if(RPG_Perks_IsEntityTimedAttribute(client, "Next Multi Jump"))
+        return;
+
     else if(GunXP_RPG_GetClientLevel(client) >= 50)
     {
         iMaxJumps = 2;
@@ -211,6 +214,8 @@ void DoubleJump(int client)
         Call_PushCell(true);
 
         Call_Finish();
+
+        RPG_Perks_ApplyEntityTimedAttribute(client, "Next Multi Jump", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
     }
 }
 
