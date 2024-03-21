@@ -401,8 +401,8 @@ void SetupActionsBasedQuests()
 
 	quest.sAlias = "Survive Witch (sec)";
 	quest.sName = "Survive Witch (sec)";
-	quest.minPrize = 2000;
-	quest.maxPrize = 3300;
+	quest.minPrize = 4000;
+	quest.maxPrize = 5300;
 	quest.minObjective = 60;
 	quest.maxObjective = 120;
 	quest.minLevel = 0;
