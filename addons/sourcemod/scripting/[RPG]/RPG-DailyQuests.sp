@@ -313,8 +313,8 @@ public void CreateQuests()
 
 	quest.sAlias = "Kill Tanks";
 	quest.sName = "Kill Tanks (Team)";
-	quest.minPrize = 2000;
-	quest.maxPrize = 4000;
+	quest.minPrize = 4000;
+	quest.maxPrize = 8000;
 	quest.minObjective = 10;
 	quest.maxObjective = 50;
 	quest.minLevel = 0;
@@ -323,8 +323,8 @@ public void CreateQuests()
 
 	quest.sAlias = "Kill Tiered Tanks";
 	quest.sName = "Kill Tiered Tanks (Team)";
-	quest.minPrize = 4000;
-	quest.maxPrize = 8000;
+	quest.minPrize = 8000;
+	quest.maxPrize = 12000;
 	quest.minObjective = 5;
 	quest.maxObjective = 25;
 	quest.minLevel = 25;
@@ -333,8 +333,8 @@ public void CreateQuests()
 
 	quest.sAlias = "Kill SI";
 	quest.sName = "Kill Special Infected";
-	quest.minPrize = 1200;
-	quest.maxPrize = 2400;
+	quest.minPrize = 3600;
+	quest.maxPrize = 6400;
 	quest.minObjective = 50;
 	quest.maxObjective = 100;
 	quest.minLevel = 0;
@@ -343,8 +343,8 @@ public void CreateQuests()
 
 	quest.sAlias = "Kill CI";
 	quest.sName = "Kill Common Infected (Team)";
-	quest.minPrize = 800;
-	quest.maxPrize = 1600;
+	quest.minPrize = 2000;
+	quest.maxPrize = 3700;
 	quest.minObjective = 1500;
 	quest.maxObjective = 3000;
 	quest.minLevel = 0;
@@ -353,8 +353,8 @@ public void CreateQuests()
 
 	quest.sAlias = "Revive Teammates";
 	quest.sName = "Revive Teammates (Team)";
-	quest.minPrize = 1000;
-	quest.maxPrize = 1900;
+	quest.minPrize = 2100;
+	quest.maxPrize = 3800;
 	quest.minObjective = 40;
 	quest.maxObjective = 70;
 	quest.minLevel = 0;
@@ -363,18 +363,18 @@ public void CreateQuests()
 
 	quest.sAlias = "Survive Tank Abilities";
 	quest.sName = "Survive Tank Abilities";
-	quest.minPrize = 2500;
-	quest.maxPrize = 5000;
-	quest.minObjective = 200;
-	quest.maxObjective = 400;
+	quest.minPrize = 5000;
+	quest.maxPrize = 7500;
+	quest.minObjective = 75;
+	quest.maxObjective = 125;
 	quest.minLevel = 35;
 	quest.prizeType = PRIZE_XP;
 	g_aQuests.PushArray(quest);
 
 	quest.sAlias = "Beat Maps";
 	quest.sName = "Beat Maps";
-	quest.minPrize = 1500;
-	quest.maxPrize = 2800;
+	quest.minPrize = 3000;
+	quest.maxPrize = 5700;
 	quest.minObjective = 10;
 	quest.maxObjective = 20;
 	quest.minLevel = 0;
