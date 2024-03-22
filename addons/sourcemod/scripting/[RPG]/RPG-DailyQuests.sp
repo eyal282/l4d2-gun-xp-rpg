@@ -266,7 +266,7 @@ public Action Command_Missions(int client, int args)
 		AddMenuItem(hMenu, "", TempFormat);
 	}
 
-	FormatTime(TempFormat, sizeof(TempFormat), "%T", RoundToFloor(86400.0 - (float(GetTime() % 86400))));
+	FormatTimeHMS(TempFormat, sizeof(TempFormat), RoundToFloor(86400.0 - (float(GetTime() % 86400))));
 
 	SetMenuTitle(hMenu, "Complete daily quests for XP reward. This is unaffected by difficulty\nQuests marked as \"Team\" can be helped by your team.\nQuests reset in %s", TempFormat);
 
@@ -822,3 +822,17 @@ bool HasWitchAttacker(int client)
 	return client ? false : false
 }
 #endif
+
+stock void FormatTimeHMS(char[] Time, int length, int timestamp, bool LimitTo24H = false)
+{
+	if(LimitTo24H)
+		timestamp %= 86400;
+	
+	int HH, MM, SS;
+	
+	HH = timestamp / 3600
+	MM = timestamp % 3600 / 60
+	SS = timestamp % 3600 % 60 
+	
+	Format(Time, length, "%02d:%02d:%02d", HH, MM, SS);
+}
