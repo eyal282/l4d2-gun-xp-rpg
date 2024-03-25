@@ -154,10 +154,27 @@ public void CastEatSurvivor(int client)
 
     if(survivor1 == -1)
     {
-       // L4D_ForcePanicEvent();
+
+        float fDuration = 10.0;
+
+        for(int i=1;i <= MaxClients;i++)
+        {
+            if(!IsClientInGame(i))
+                continue;
+
+            else if(!IsPlayerAlive(i))
+                continue;
+
+            else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+                continue;
+
+            RPG_Perks_ApplyEntityTimedAttribute(i, "Nightmare", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+        }
 
         UC_PrintToChatAll("The Tank couldn't find a survivor to eat.");
-        UC_PrintToChatAll("Its belly growled, causing a Horde!");
+        UC_PrintToChatAll("The Tank triggered a NIGHTMARE for %.0f seconds.", fDuration);
+
+
         return;
     }
 
@@ -247,7 +264,11 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
         int tank = GetClientOfUserId(userid);
 
+
         RPG_Perks_InstantKill(entity, tank, tank, DMG_ACID);
+
+        if(IsPlayerAlive(entity))
+            ForcePlayerSuicide(entity);
 
         return;
     }
@@ -294,8 +315,6 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
     }
     if(!StrEqual(attributeName, "Eaten Alive"))
         return;
-
-    PrintToChatEyal("Debug: %i", entity);
 
     int tank = g_iEatAttacker[entity];
     // Takeover...
@@ -442,7 +461,7 @@ public void RegisterTank()
     tankIndex = RPG_Tanks_RegisterTank(2, 5, "Glutton", "A tank that learned the size difference between survivors and Tanks.", "Eats survivors, shove the tank to release them (Right Click)",
     3000000, 180, 0.2, 2500, 4000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
-    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank's belly growls, which sends a Horde.", 40, 60);
+    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for 40 seconds.\nThe Tank's name shows percent of HP the closest eaten survivor to death is.", 40, 60);
 
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.");
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Spot", "Shoving the tank has a 4{PERCENT} chance to force\nthe Tank to vomit the survivor, biling all survivors in punching range.");
