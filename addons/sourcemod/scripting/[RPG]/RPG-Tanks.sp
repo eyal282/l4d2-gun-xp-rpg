@@ -501,7 +501,7 @@ public void Event_TrueEnterEndCheckpoint(int zoneEntity, int toucher)
 	if(!IsPlayer(toucher))
 		return;
 
-	else if(L4D_GetClientTeam(toucher) != L4DTeam_Survivor && RPG_Perks_GetZombieType(toucher) != ZombieType_Tank)
+	else if(L4D_GetClientTeam(toucher) != L4DTeam_Survivor)
 		return;
 
 	for(int i=1;i <= MaxClients;i++)

@@ -245,6 +245,7 @@ public void RPG_Tanks_OnUntieredTankKilled(int victim, int attacker)
 public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 {
 	AddClientQuestProgress(attacker, "Kill Tiered Tanks");
+	AddClientQuestProgress(attacker, "Kill Tanks");
 }
 public Action Command_Missions(int client, int args)
 {
@@ -325,7 +326,7 @@ public void CreateQuests()
 	quest.sName = "Kill Tiered Tanks (Team)";
 	quest.minPrize = 8000;
 	quest.maxPrize = 12000;
-	quest.minObjective = 5;
+	quest.minObjective = 12;
 	quest.maxObjective = 25;
 	quest.minLevel = 25;
 	quest.prizeType = PRIZE_XP;
