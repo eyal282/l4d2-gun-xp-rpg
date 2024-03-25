@@ -112,6 +112,24 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 }
 public void GunXP_OnReloadRPGPlugins()
 {
+    for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Tanks_GetClientTank(i) != tankIndex)
+			continue;
+
+		UC_PrintToChatRoot("Didn't reload Tier2_GluttonTank.smx because a Glutton Tank is alive.");
+		return;
+	}
+    
     GunXP_ReloadPlugin();
 }
 
@@ -132,20 +150,32 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 }
 public void CastEatSurvivor(int client)
 {
-    int survivor = FindRandomSurvivorWithoutIncap(client, 256.0);
+    int survivor1 = FindRandomSurvivorWithoutIncap(client, 256.0);
 
-    if(survivor == -1)
+    if(survivor1 == -1)
     {
-        L4D_ForcePanicEvent();
+       // L4D_ForcePanicEvent();
 
         UC_PrintToChatAll("The Tank couldn't find a survivor to eat.");
         UC_PrintToChatAll("Its belly growled, causing a Horde!");
         return;
     }
 
-    PlacePlayerINSIDETankBelly(survivor, client);
+    PlacePlayerINSIDETankBelly(survivor1, client);
 
-    PrintToChatAll("%N was Eaten by the Tank! Shove the Tank to release him!", survivor);
+    int survivor2 = FindRandomSurvivorWithoutIncap(client, 256.0);
+
+    if(survivor2 == -1)
+    {
+        PrintToChatAll("%N was Eaten by the Tank! Shove the Tank to release him!", survivor1);
+
+        return;
+    }
+
+    PlacePlayerINSIDETankBelly(survivor2, client);
+
+    PrintToChatAll("%N & %N were Eaten by the Tank!", survivor1, survivor2);
+    PrintToChatAll("Shove the Tank to release them!");
 }
 
 public void L4D2_OnEntityShoved_Post(int client, int entity, int weapon, const float vecDir[3], bool bIsHighPounce)
@@ -161,8 +191,6 @@ public void L4D2_OnEntityShoved_Post(int client, int entity, int weapon, const f
 
     else if(CountEatenSurvivors(entity) == 0)
         return;
-
-    PrintToChatEyal("Tank was shoved");
 
     g_bReleaseRandom[entity] = true;
 
@@ -267,9 +295,9 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
     if(!StrEqual(attributeName, "Eaten Alive"))
         return;
 
-    int tank = g_iEatAttacker[entity];
+    PrintToChatEyal("Debug: %i", entity);
 
-    PrintToChatAll("%N - %i - %i", entity, tank, g_bEaten[entity][tank]);
+    int tank = g_iEatAttacker[entity];
     // Takeover...
     if(tank <= 0 || !g_bEaten[entity][tank])
         return;
@@ -355,7 +383,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
         GetEntPropVector(tank, Prop_Data, "m_vecAbsOrigin", g_fLastOrigin[tank]);
     }
     
-    g_iOldHealth[entity] -= RoundToCeil(float(g_iOldMaxHealth[entity]) * 0.001);
+    g_iOldHealth[entity] -= RoundToCeil(float(g_iOldMaxHealth[entity]) * 0.01);
 
 
     if(g_iOldHealth[entity] <= 0)
@@ -411,10 +439,10 @@ stock int FindRandomSurvivorWithoutIncap(int client, float fMaxDistance)
 
 public void RegisterTank()
 {
-    tankIndex = RPG_Tanks_RegisterTank(2, 5, "Glutton", "A tank that learned the size difference between survivors and Tanks.", "Eats survivors, shove the tank to release them",
+    tankIndex = RPG_Tanks_RegisterTank(2, 5, "Glutton", "A tank that learned the size difference between survivors and Tanks.", "Eats survivors, shove the tank to release them (Right Click)",
     3000000, 180, 0.2, 2500, 4000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
-    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", "Eats the closest standing survivor in 256 units distance\nIf no survivor is found, the Tank's belly growls, which sends a Horde.", 30, 40);
+    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank's belly growls, which sends a Horde.", 40, 60);
 
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.");
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Spot", "Shoving the tank has a 4{PERCENT} chance to force\nthe Tank to vomit the survivor, biling all survivors in punching range.");

@@ -158,7 +158,9 @@ public Action Event_AwardEarned(Handle hEvent, const char[] Name, bool dontBroad
 
 	int award = GetEventInt(hEvent, "award");
 
-	if(award != 8)
+	PrintToChatIfEyal(client, "Award: %i", award);
+
+	if(award != 8 && award != 7)
 		return Plugin_Continue;
 
 	if(L4D_IsMissionFinalMap() && GetConVarBool(FindConVar("rpg_tanks_instant_finale")))
