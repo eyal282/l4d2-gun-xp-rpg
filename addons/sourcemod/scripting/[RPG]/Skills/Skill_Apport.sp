@@ -422,7 +422,7 @@ public void RegisterSkill()
 {
 	UC_SilentCvar("sm_vote_delay", "0");
 
-	apportIndex = GunXP_RPGShop_RegisterSkill("Vote on Tank", "Apport", "When a Tank spawns, 12.5{PERCENT} chance to vote to replace it with another Tank of the same tier (Stacks)\nIf the combined survivor XP is >3,500,000 you also vote what tier to spawn.",
+	apportIndex = GunXP_RPGShop_RegisterSkill("Vote on Tank", "Apport", "When a Tank spawns, 12.5{PERCENT} chance to vote to replace it with another Tank of the same tier (Stacks)\nIf the combined survivor XP is >5,000,000 you also vote what tier to spawn.",
 		40000, GunXP_RPG_GetXPForLevel(40));
 }
 
