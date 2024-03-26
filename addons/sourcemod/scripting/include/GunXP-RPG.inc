@@ -394,7 +394,7 @@ forward void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpaw
 // If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
 // If you're altering on a positive priority, the closer it is to 10 it will run LAST.
 // I can't think of a reason to use a priority closer to -10.
-forward void RPG_Perks_OnZombiePlayerSpawned(int priority, int client);
+forward void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport);
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"

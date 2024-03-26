@@ -137,8 +137,11 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int client)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
 {
+    if(priority != 0)
+        return;
+
     GetClientName(client, g_sLastTankName[client], sizeof(g_sLastTankName[]));
 
     RPG_Perks_ApplyEntityTimedAttribute(client, "Calc Most Processed Survivor", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);

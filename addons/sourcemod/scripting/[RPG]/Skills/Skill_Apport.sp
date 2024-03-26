@@ -54,9 +54,15 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int client)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
 {
-	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+    if(priority != 0)
+        return;
+
+    else if(bApport)
+        return;
+
+	else if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
 		return;
 
 	else if(RPG_Tanks_GetClientTankTier(client) == TANK_TIER_UNKNOWN || RPG_Tanks_GetClientTankTier(client) == TANK_TIER_UNTIERED)
@@ -230,7 +236,7 @@ void CheckVoteTierResult()
 
 	if(IsVoteInProgress())
 		CancelVote();
-		
+
 	StartVoteTank(client, winnerTier);
 }
 

@@ -197,8 +197,11 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int client)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
 {
+    if(priority != 0)
+        return;
+        
     int owner = GetEntPropEnt(client, Prop_Send, "m_hOwnerEntity");
 
     if(!IsPlayer(owner))

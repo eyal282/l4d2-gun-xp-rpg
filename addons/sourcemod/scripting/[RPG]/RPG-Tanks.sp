@@ -95,6 +95,7 @@ enum struct enTank
 
 ArrayList g_aTanks;
 
+GlobalForward g_fwOnRPGZombiePlayerSpawned;
 GlobalForward g_fwOnRPGTankKilled;
 GlobalForward g_fwOnUntieredTankKilled;
 GlobalForward g_fwOnRPGTankCastActiveAbility;
@@ -320,7 +321,7 @@ public any Native_SetClientTank(Handle caller, int numParams)
 
 	if(index == TANK_TIER_UNTIERED)
 		return true;
-		
+
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[client], tank);
 
@@ -369,6 +370,18 @@ public any Native_SetClientTank(Handle caller, int numParams)
 		FormatEx(TempFormat, sizeof(TempFormat), "Cast Active Ability #%i", i);
 
 		RPG_Perks_ApplyEntityTimedAttribute(client, TempFormat, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	}
+
+	
+	for(int prio=-10;prio <= 10;prio++)
+	{
+		Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
+
+		Call_PushCell(prio);
+		Call_PushCell(client);
+		Call_PushCell(false);
+
+		Call_Finish();
 	}
 
 	return true;
@@ -485,6 +498,7 @@ public void OnPluginStart()
 	if(g_aTanks == null)
 		g_aTanks = CreateArray(sizeof(enTank));
 
+	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell, Param_Cell);
 	g_fwOnRPGTankKilled = CreateGlobalForward("RPG_Tanks_OnRPGTankKilled", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnUntieredTankKilled = CreateGlobalForward("RPG_Tanks_OnUntieredTankKilled", ET_Ignore, Param_Cell, Param_Cell);
 	g_fwOnRPGTankCastActiveAbility = CreateGlobalForward("RPG_Tanks_OnRPGTankCastActiveAbility", ET_Ignore, Param_Cell, Param_Cell);

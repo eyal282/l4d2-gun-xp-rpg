@@ -1505,7 +1505,7 @@ public void OnPluginStart()
 	g_fwOnGetRPGZombieMaxHP = CreateGlobalForward("RPG_Perks_OnGetZombieMaxHP", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 
 	g_fwOnRPGPlayerSpawned = CreateGlobalForward("RPG_Perks_OnPlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
-	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell);
+	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 
 	g_fwOnGetRPGAdrenalineDuration = CreateGlobalForward("RPG_Perks_OnGetAdrenalineDuration", ET_Ignore, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGMedsHealPercent = CreateGlobalForward("RPG_Perks_OnGetMedsHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
@@ -2833,11 +2833,16 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 			SetEntityHealth(client, maxHP);
 		}
 
-		Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
+		for(int prio=-10;prio <= 10;prio++)
+		{
+			Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
 
-		Call_PushCell(client);
+			Call_PushCell(prio);
+			Call_PushCell(client);
+			Call_PushCell(false);
 
-		Call_Finish();
+			Call_Finish();
+		}
 
 		return;
 	}
