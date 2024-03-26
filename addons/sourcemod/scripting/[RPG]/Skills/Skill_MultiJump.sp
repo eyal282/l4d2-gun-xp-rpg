@@ -103,7 +103,7 @@ public Action Event_PlayerJump(Handle event, const char[] name, bool dontBroadca
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "You gain these abilities based on your level:\n⬤ 30: Double Jump\n⬤ 40: Max Air Accelerate ( Steer mid-air, surfing is easier )\n⬤ 50: Triple Jump\n⬤ 60: Multi Jumps negate fall velocity");
+    FormatEx(sDescription, sizeof(sDescription), "You gain these abilities based on your level:\n⬤ 30: Double Jump\n⬤ 40: Max Air Accelerate ( Steer mid-air, surfing is easier )\n⬤ 50: Triple Jump\n⬤ 60: Multi Jumps negate fall velocity\n⬤ 75: Multi Jump works even if it shouldn't...");
 
     jumpIndex = GunXP_RPGShop_RegisterSkill("Multi Jump", "Multi Jump", sDescription,
     25000, GunXP_RPG_GetXPForLevel(30));
@@ -120,12 +120,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 
     int iCurFlags   = GetEntityFlags(client), iCurButtons = buttons;
 
-    if (g_iLastFlags[client] & FL_ONGROUND) {
-        if (!(iCurFlags & FL_ONGROUND) && !(g_iLastButtons[client] & IN_JUMP) && iCurButtons & IN_JUMP) {
-            g_iJumps[client]++;
-        }
-    }
-    else if (iCurFlags & FL_ONGROUND)
+    if (iCurFlags & FL_ONGROUND)
     {
         g_iJumps[client] = 0;
     }
@@ -147,23 +142,24 @@ void DoubleJump(int client)
     if(!GunXP_RPGShop_IsSkillUnlocked(client, jumpIndex))
         return;
 
-    else if(L4D_IsPlayerStaggering(client))
-        return;
+    if(GunXP_RPG_GetClientLevel(client) < 75)
+    {
+        if(L4D_IsPlayerStaggering(client))
+            return;
 
-    else if(IsClientAffectedByFling(client))
-        return;
+        else if(IsClientAffectedByFling(client))
+            return;
+    }
 
     else if(RPG_Perks_IsEntityTimedAttribute(client, "Next Multi Jump"))
         return;
 
-    else if(GunXP_RPG_GetClientLevel(client) >= 50)
+    if(GunXP_RPG_GetClientLevel(client) >= 50)
     {
         iMaxJumps = 2;
     }
 
     if (0 <= g_iJumps[client] && g_iJumps[client] < iMaxJumps) {
-        g_iJumps[client]++;
-
         float fVel[3];
 
         GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVel);
@@ -178,6 +174,17 @@ void DoubleJump(int client)
         // Client is already ascending, OR client is under a death fall.
         if(fVel[2] > g_fJumpBoost || fVel[2] < (-1.0 * fJumpBoostResist))
             return;
+
+        g_iJumps[client]++;
+
+        Call_StartForward(g_fwOnRPGJump);
+
+        Call_PushCell(client);
+        Call_PushCell(true);
+
+        Call_Finish();
+
+        RPG_Perks_ApplyEntityTimedAttribute(client, "Next Multi Jump", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
         if(fVel[2] >= 0.0)
         {
@@ -207,15 +214,6 @@ void DoubleJump(int client)
         }
 
         TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, fVel);
-
-        Call_StartForward(g_fwOnRPGJump);
-
-        Call_PushCell(client);
-        Call_PushCell(true);
-
-        Call_Finish();
-
-        RPG_Perks_ApplyEntityTimedAttribute(client, "Next Multi Jump", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
     }
 }
 

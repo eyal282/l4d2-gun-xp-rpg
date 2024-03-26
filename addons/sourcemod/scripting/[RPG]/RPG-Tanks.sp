@@ -318,6 +318,9 @@ public any Native_SetClientTank(Handle caller, int numParams)
 
 	g_iCurrentTank[client] = index;
 
+	if(index == TANK_TIER_UNTIERED)
+		return true;
+		
 	enTank tank;
 	g_aTanks.GetArray(g_iCurrentTank[client], tank);
 

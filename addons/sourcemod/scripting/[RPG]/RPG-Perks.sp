@@ -3714,6 +3714,7 @@ public void FuncElevator_ReachFloor(const char[] output, int caller, int activat
 
 		if(pet != -1)
 		{
+			g_fLastStunOrigin[pet] = fOrigin;
 			TeleportEntity(pet, fOrigin, NULL_VECTOR, NULL_VECTOR);
 		}
 
@@ -3721,9 +3722,11 @@ public void FuncElevator_ReachFloor(const char[] output, int caller, int activat
 
 		if(pet != 0)
 		{
+			g_fLastStunOrigin[pet] = fOrigin;
 			TeleportEntity(pet, fOrigin, NULL_VECTOR, NULL_VECTOR);
 		}
 
+		g_fLastStunOrigin[i] = fOrigin;
 		TeleportEntity(i, fOrigin, NULL_VECTOR, NULL_VECTOR);
 	}
 }

@@ -11,6 +11,7 @@
 #define PLUGIN_VERSION "1.0"
 
 Menu g_hVoteTankMenu;
+Menu g_hVoteTierMenu;
 
 int g_iLastTier;
 int g_iLastTank;
@@ -62,6 +63,7 @@ public void RPG_Perks_OnZombiePlayerSpawned(int client)
 		return;
 
 	float fChance = 0.0;
+	int totalXP = 0;
 	
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -75,6 +77,7 @@ public void RPG_Perks_OnZombiePlayerSpawned(int client)
 			continue;
 
 		fChance += 0.125;
+		totalXP += GunXP_RPG_GetXPForLevel(GunXP_RPG_GetClientRealLevel(i));
 	}
 
 	float fGamble = GetRandomFloat(0.0, 1.0);
@@ -83,12 +86,19 @@ public void RPG_Perks_OnZombiePlayerSpawned(int client)
 	if(fGamble >= fChance)
 		return;
 
-	StartVoteTank(client);
+
+	if(totalXP >= 3500000)
+		StartVoteTier(client);
+	
+	else
+		StartVoteTank(client);
 }
 
 
-void StartVoteTank(int client)
+void StartVoteTier(int client)
 {
+	UC_SilentCvar("sm_vote_delay", "0");
+
 	if (!IsNewVoteAllowed())
 		return;	
 
@@ -97,7 +107,146 @@ void StartVoteTank(int client)
 		g_iVotedItem[i] = -1;
 	}
 
-	g_iLastTier = RPG_Tanks_GetClientTankTier(client);
+	g_iLastTank = GetClientUserId(client);
+
+	g_fVoteStartTime = GetGameTime();
+
+	BuildUpVoteTierMenu();
+
+	VoteMenuToAll(g_hVoteTierMenu, 15);
+
+	CreateTimer(1.0, Timer_DrawVoteTierMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+}
+
+public Action Timer_DrawVoteTierMenu(Handle hTimer)
+{
+	if (RoundToFloor((g_fVoteStartTime + 15) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+
+	else if(GetClientOfUserId(g_iLastTank) == 0)
+		return Plugin_Stop;
+
+	BuildUpVoteTierMenu();
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+
+		else if (!IsVoteInProgress() || !IsClientInVotePool(i))
+			continue;
+
+		RedrawClientVoteMenu(i);
+	}
+
+	return Plugin_Continue;
+}
+
+void BuildUpVoteTierMenu()
+{
+	if (g_hVoteTierMenu == null)
+		g_hVoteTierMenu = CreateMenu(VoteTier_VoteHandler);
+
+	SetMenuTitle(g_hVoteTierMenu, "Choose a Tier to Spawn: [%i]", RoundFloat((g_fVoteStartTime + 15) - GetGameTime()));
+
+	RemoveAllMenuItems(g_hVoteTierMenu);
+
+	int VoteList[128];
+
+	VoteList = CalculateVotes();
+	
+	for(int tier=1;tier <= 3;tier++)
+	{
+		char sInfo[11], TempFormat[128];
+		IntToString(tier, sInfo, sizeof(sInfo));
+
+		FormatEx(TempFormat, sizeof(TempFormat), "Tier %i [%i]", tier, VoteList[tier]);
+		AddMenuItem(g_hVoteTierMenu, sInfo, TempFormat);
+	}
+
+	SetMenuPagination(g_hVoteTierMenu, MENU_NO_PAGINATION);
+}
+
+public int VoteTier_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
+{
+	if (action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		g_hVoteTierMenu = null;
+	}
+	else if (action == MenuAction_VoteCancel)
+	{
+		if (param1 == VoteCancel_NoVotes)
+		{
+			g_hVoteTierMenu = null;
+			return 0;
+		}
+	}
+	else if (action == MenuAction_VoteEnd)
+	{
+		g_hVoteTierMenu = null;
+		CheckVoteTierResult();
+	}
+	else if (action == MenuAction_Select)
+	{
+		char sInfo[11];
+		GetMenuItem(hMenu, param2, sInfo, sizeof(sInfo));
+		g_iVotedItem[param1] = StringToInt(sInfo);
+	}
+
+	return 0;
+}
+
+void CheckVoteTierResult()
+{
+	int client = GetClientOfUserId(g_iLastTank);
+
+	if(client == 0)
+		return;
+
+	int VoteList[128];
+
+	VoteList = CalculateVotes();
+
+	int winnerTier = TANK_TIER_UNTIERED;
+	
+	for(int tier=1;tier <= 3;tier++)
+	{
+		if(winnerTier == TANK_TIER_UNTIERED)
+			winnerTier = tier;
+
+		else if (VoteList[tier] > 0 && (VoteList[tier] > VoteList[winnerTier] || (VoteList[tier] == VoteList[winnerTier] && GetRandomInt(0, 1) == 1)))
+			winnerTier = tier;
+	}
+
+	g_hVoteTierMenu = null;
+
+	// 0 Votes.
+	if (winnerTier == TANK_TIER_UNTIERED)
+		return;
+
+	StartVoteTank(client, winnerTier);
+}
+
+
+void StartVoteTank(int client, int tier = TANK_TIER_UNKNOWN)
+{
+	UC_SilentCvar("sm_vote_delay", "0");
+
+	if (!IsNewVoteAllowed())
+		return;	
+
+	for(int i=0;i < sizeof(g_iVotedItem);i++)
+	{
+		g_iVotedItem[i] = -1;
+	}
+
+	if(tier == TANK_TIER_UNKNOWN)
+		g_iLastTier = RPG_Tanks_GetClientTankTier(client);
+
+	else
+		g_iLastTier = tier;
+
 	g_iLastTank = GetClientUserId(client);
 
 	g_fVoteStartTime = GetGameTime();
@@ -111,7 +260,10 @@ void StartVoteTank(int client)
 
 public Action Timer_DrawVoteTankMenu(Handle hTimer)
 {
-	if (g_hVoteTankMenu == null)
+	if (RoundToFloor((g_fVoteStartTime + 15) - GetGameTime()) <= 0)
+		return Plugin_Stop;
+
+	else if(GetClientOfUserId(g_iLastTank) == 0)
 		return Plugin_Stop;
 
 	BuildUpVoteTankMenu();
@@ -132,7 +284,7 @@ public Action Timer_DrawVoteTankMenu(Handle hTimer)
 
 void BuildUpVoteTankMenu()
 {
-	if (g_hVoteTankMenu == INVALID_HANDLE)
+	if (g_hVoteTankMenu == null)
 		g_hVoteTankMenu = CreateMenu(VoteTank_VoteHandler);
 
 	SetMenuTitle(g_hVoteTankMenu, "Choose a Tier %i to Spawn: [%i]", g_iLastTier, RoundFloat((g_fVoteStartTime + 15) - GetGameTime()));
@@ -160,7 +312,8 @@ void BuildUpVoteTankMenu()
 		index++;
 	}
 
-	SetMenuPagination(g_hVoteTankMenu, MENU_NO_PAGINATION);
+	if(index <= 9)
+		SetMenuPagination(g_hVoteTankMenu, MENU_NO_PAGINATION);
 }
 
 public int VoteTank_VoteHandler(Handle hMenu, MenuAction action, int param1, int param2)
@@ -198,7 +351,7 @@ void CheckVoteTankResult()
 	int client = GetClientOfUserId(g_iLastTank);
 
 	if(client == 0)
-		return;
+		return;	
 
 	int VoteList[128];
 
@@ -232,7 +385,18 @@ void CheckVoteTankResult()
 	else if(RPG_Tanks_GetClientTank(client) == winnerTank)
 		return;
 
-	RPG_Tanks_SetClientTank(client, winnerTank);
+	if(g_iLastTier >= 2)
+	{
+		RPG_Tanks_SetClientTank(client, TANK_TIER_UNTIERED);
+
+		UC_SilentCvar("z_difficulty", "Impossible");
+
+		RPG_Tanks_SetClientTank(client, winnerTank);
+	}
+	else
+	{
+		RPG_Tanks_SetClientTank(client, winnerTank);
+	}
 
 }
 
@@ -256,7 +420,9 @@ stock int[] CalculateVotes()
 
 public void RegisterSkill()
 {
-    apportIndex = GunXP_RPGShop_RegisterSkill("Vote on Tank", "Apport", "When a Tank spawns, 12.5% chance to vote to replace it with another Tank of the same tier (Stacks)",
+	UC_SilentCvar("sm_vote_delay", "0");
+
+	apportIndex = GunXP_RPGShop_RegisterSkill("Vote on Tank", "Apport", "When a Tank spawns, 12.5{PERCENT} chance to vote to replace it with another Tank of the same tier (Stacks)\nIf the combined survivor XP is >3,500,000 you also vote what tier to spawn.",
 		40000, GunXP_RPG_GetXPForLevel(40));
 }
 

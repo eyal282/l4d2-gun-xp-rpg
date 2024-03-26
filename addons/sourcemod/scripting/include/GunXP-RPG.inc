@@ -514,6 +514,39 @@ stock ZombieType RPG_Perks_GetZombieType(int entity, bool bAllowDead = false)
 	}
 }
 
+stock bool UC_SilentCvar(const char[] cvarName, const char[] value, int iValue = -2147451520, ConVar hndl = null)
+{
+	if(hndl == null)
+		hndl = FindConVar(cvarName);
+
+	if(hndl == null)
+		return false;
+
+	int flags = hndl.Flags;
+
+	hndl.Flags = (flags & ~FCVAR_NOTIFY);
+
+	char prevValue[512];
+	hndl.GetString(prevValue, sizeof(prevValue));
+
+	if(iValue == -2147451520)
+	{
+		if(!StrEqual(value, prevValue))
+			hndl.SetString(value, true);
+	}
+	else
+	{
+		char iValueStr[11];
+		IntToString(iValue, iValueStr, sizeof(iValueStr));
+
+		if(!StrEqual(iValueStr, prevValue))
+			hndl.SetInt(iValue, true);
+	}
+
+	hndl.Flags = flags;
+
+	return true;
+}
 enum AimbotLevels
 {
 	AimbotLevel_One,
