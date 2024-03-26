@@ -57,6 +57,7 @@
 
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Addict.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_AngerIgnition.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Apport.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Athlete.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_AutoDefib.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_BeastTamer.smx"
