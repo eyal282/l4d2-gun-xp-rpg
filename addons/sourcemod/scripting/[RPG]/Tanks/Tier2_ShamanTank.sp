@@ -161,7 +161,7 @@ public void RegisterTank()
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Physique", "Tank deals less damage when punching\nTank cannot throw rocks.\nTank attacks slower");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Confusion and Horror", "No matter the source, Survivors gain NIGHTMARE for 30 seconds when Biled.");
 
-	regenIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Regeneration", "Tank heals 75k HP, split across all living Tanks", 60, 60);
+	regenIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Regeneration", "Tank heals 125k HP, unless another Tank is spawned", 60, 60);
 
 	infernoIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Inferno", "Spawns an Inferno on the Tank's location", 20, 30);
 
@@ -403,8 +403,7 @@ public void CastMutation(int client)
 
 public void CastRegen(int client)
 {
-	int amount = 75000;
-	int count;
+	int tankCount = 0;
 
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -414,27 +413,13 @@ public void CastRegen(int client)
 		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
 			continue;
 
-		else if(!IsPlayerAlive(i))
-			continue;
-
-		count++;
+		tankCount++;
 	}
 
-	amount /= count;
+	if(tankCount >= 2)
+		return;
 
-	for(int i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
-
-		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-			continue;
-
-		else if(!IsPlayerAlive(i))
-			continue;
-
-		GunXP_RegenerateTankHealth(i, amount);
-	}
+	GunXP_RegenerateTankHealth(client, 125000);
 }
 
 

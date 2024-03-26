@@ -115,13 +115,16 @@ void StartVoteTier(int client)
 
 	VoteMenuToAll(g_hVoteTierMenu, 15);
 
-	CreateTimer(1.0, Timer_DrawVoteTierMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+	CreateTimer(1.03, Timer_DrawVoteTierMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public Action Timer_DrawVoteTierMenu(Handle hTimer)
 {
 	if (RoundToFloor((g_fVoteStartTime + 15) - GetGameTime()) <= 0)
+	{
+		CheckVoteTierResult();
 		return Plugin_Stop;
+	}
 
 	else if(GetClientOfUserId(g_iLastTank) == 0)
 		return Plugin_Stop;
@@ -184,8 +187,8 @@ public int VoteTier_VoteHandler(Handle hMenu, MenuAction action, int param1, int
 	}
 	else if (action == MenuAction_VoteEnd)
 	{
+		g_fVoteStartTime = 0.0;
 		g_hVoteTierMenu = null;
-		CheckVoteTierResult();
 	}
 	else if (action == MenuAction_Select)
 	{
@@ -225,6 +228,9 @@ void CheckVoteTierResult()
 	if (winnerTier == TANK_TIER_UNTIERED)
 		return;
 
+	if(IsVoteInProgress())
+		CancelVote();
+		
 	StartVoteTank(client, winnerTier);
 }
 
@@ -255,13 +261,16 @@ void StartVoteTank(int client, int tier = TANK_TIER_UNKNOWN)
 
 	VoteMenuToAll(g_hVoteTankMenu, 15);
 
-	CreateTimer(1.0, Timer_DrawVoteTankMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
+	CreateTimer(1.03, Timer_DrawVoteTankMenu, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public Action Timer_DrawVoteTankMenu(Handle hTimer)
 {
 	if (RoundToFloor((g_fVoteStartTime + 15) - GetGameTime()) <= 0)
+	{
+		CheckVoteTankResult();
 		return Plugin_Stop;
+	}
 
 	else if(GetClientOfUserId(g_iLastTank) == 0)
 		return Plugin_Stop;
@@ -333,8 +342,8 @@ public int VoteTank_VoteHandler(Handle hMenu, MenuAction action, int param1, int
 	}
 	else if (action == MenuAction_VoteEnd)
 	{
+		g_fVoteStartTime = 0.0;
 		g_hVoteTankMenu = null;
-		CheckVoteTankResult();
 	}
 	else if (action == MenuAction_Select)
 	{
@@ -382,7 +391,11 @@ void CheckVoteTankResult()
 	if (winnerTank == TANK_TIER_UNTIERED)
 		return;
 
-	else if(RPG_Tanks_GetClientTank(client) == winnerTank)
+	RPG_Tanks_LoopTankArray(winnerTank, tier, name);
+
+	UC_PrintToChatAll("The apported Tank will be \x04Tier %i\x03 %s Tank! ", tier, name);
+
+	if(RPG_Tanks_GetClientTank(client) == winnerTank)
 		return;
 
 	if(g_iLastTier >= 2)

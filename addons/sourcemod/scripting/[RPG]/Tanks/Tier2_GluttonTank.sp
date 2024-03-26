@@ -467,7 +467,7 @@ public void RegisterTank()
     FormatEx(sDesc, sizeof(sDesc), "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for %.0f seconds.", g_fNightmareDuration);
     eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", sDesc, 40, 60);
 
-    RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.");
+    RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.\nTank heals 400k HP when a survivor is PROCESSED.");
 
     char TempFormat[512];
     FormatEx(TempFormat, sizeof(TempFormat), "Shoving the tank has a %i{PERCENT} chance to force\nthe Tank to vomit the survivor, biling all survivors in punching range.", g_iReleaseChance);
@@ -562,6 +562,8 @@ stock void ProcessClientInsideTank(int client)
     FormatEx(TempFormat, sizeof(TempFormat), "Glutton Instant Kill #%i", GetClientUserId(tank));
 
     RPG_Perks_ApplyEntityTimedAttribute(client, TempFormat, 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+
+    GunXP_RegenerateTankHealth(tank, 400000);
 }
 
 stock bool IsPlayerBoomerBiled(int iClient)
