@@ -119,7 +119,9 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Tanks_RegisterActiveAbility", Native_RegisterActiveAbility);
 	CreateNative("RPG_Tanks_RegisterPassiveAbility", Native_RegisterPassiveAbility);
 	CreateNative("RPG_Tanks_GetClientTank", Native_GetClientTank);
+	CreateNative("RPG_Tanks_SetClientTank", Native_SetClientTank);
 	CreateNative("RPG_Tanks_GetClientTankTier", Native_GetClientTankTier);
+	CreateNative("RPG_Tanks_LoopTankArray", Native_LoopTankArray);
 	CreateNative("RPG_Tanks_GetDamagePercent", Native_GetDamagePercent);
 	CreateNative("RPG_Tanks_SetDamagePercent", Native_SetDamagePercent);
 	CreateNative("RPG_Tanks_IsTankInPlay", Native_IsTankInPlay);
@@ -201,6 +203,7 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	tank.entries = entries;
 	tank.name = name;
 	tank.description = description;
+	tank.chatDescription = chatDescription;
 	tank.maxHP = maxHP;
 	tank.speed = speed;
 	tank.damageMultiplier = damageMultiplier;
@@ -304,6 +307,70 @@ public any Native_GetClientTank(Handle caller, int numParams)
 	return g_iCurrentTank[client];
 }
 
+public any Native_SetClientTank(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	int index = GetNativeCell(2);
+
+	if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+		return false;
+
+	g_iCurrentTank[client] = index;
+
+	enTank tank;
+	g_aTanks.GetArray(g_iCurrentTank[client], tank);
+
+	RPG_Perks_SetClientMaxHealth(client, tank.maxHP);
+	RPG_Perks_SetClientHealth(client, tank.maxHP);
+
+	char sName[64];
+	FormatEx(sName, sizeof(sName), "%s Tank", tank.name);
+
+	SetClientName(client, sName);
+
+	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 was apported:", tank.tier, tank.name);
+	PrintToChatAll(tank.chatDescription);
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		g_iDamageTaken[client][i] = 0;
+
+		if(tank.tier == 1)
+			ClientCommand(i, "play ui/survival_medal.wav");
+
+		else if(tank.tier == 2)
+			ClientCommand(i, "play ui/critical_event_1.wav");
+
+		else if(tank.tier == 3)
+			ClientCommand(i, "play @#music/terror/clingingtohell4.wav");
+	}
+
+	int size = tank.aActiveAbilities.Length;
+
+	for(int i=0;i < size;i++)
+	{
+		enActiveAbility activeAbility;
+		tank.aActiveAbilities.GetArray(i, activeAbility);
+
+		if(activeAbility.minCooldown == 0 && activeAbility.maxCooldown == 0)
+			continue;
+
+		char TempFormat[64];
+		FormatEx(TempFormat, sizeof(TempFormat), "Cast Active Ability #%i", i);
+
+		RPG_Perks_ApplyEntityTimedAttribute(client, TempFormat, GetRandomFloat(float(activeAbility.minCooldown), float(activeAbility.maxCooldown)), COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	}
+
+	return true;
+}
+
 public any Native_GetClientTankTier(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -318,6 +385,23 @@ public any Native_GetClientTankTier(Handle caller, int numParams)
 	g_aTanks.GetArray(g_iCurrentTank[client], tank);
 
 	return tank.tier;
+}
+
+
+public any Native_LoopTankArray(Handle caller, int numParams)
+{
+	int index = GetNativeCell(1);
+
+	if(index >= g_aTanks.Length)
+		return false;
+
+	enTank tank;
+	g_aTanks.GetArray(index, tank);
+
+	SetNativeCellRef(2, tank.tier);
+	SetNativeString(3, tank.name, 32);
+
+	return true;
 }
 
 public any Native_GetDamagePercent(Handle caller, int numParams)
@@ -835,7 +919,7 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
 		tankCount++;
 	}
 
-	if(tankCount >= 2 && L4D_IsCoopMode())
+	if(tankCount >= 2 && L4D_IsCoopMode() && g_iOverrideNextTier == TANK_TIER_UNKNOWN)
 	{
 		if(IsFakeClient(client))
 		{

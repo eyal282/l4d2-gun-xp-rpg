@@ -4,6 +4,7 @@
 #include <sdktools>
 #include <sourcemod>
 #include <left4dhooks>
+#include <ps_api>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -21,7 +22,7 @@ public Plugin myinfo =
 
 int tankIndex;
 
-int infernoIndex, vomitIndex, jockeyIndex, mutationIndex, regenIndex, bulletReleaseIndex;
+int infernoIndex, vomitIndex, jockeyIndex, mutationIndex, regenIndex, bulletReleaseIndex, bossIndex;
 
 float g_fVomitRadius = 256.0;
 
@@ -119,6 +120,26 @@ public void OnShamanTankTimer(int client)
 		SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", 2000000000.0);
 		SetEntPropFloat(weapon, Prop_Data, "m_flNextSecondaryAttack", 2000000000.0);
 	}
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Tanks_GetClientTank(i) == tankIndex)
+			continue;
+
+		if(RPG_Perks_GetClientHealth(i) * 2 > RPG_Perks_GetClientMaxHealth(i))
+		{
+			RPG_Perks_SetClientHealth(i, RPG_Perks_GetClientMaxHealth(i) / 2);
+		}
+	}
 }
 
 public void GunXP_OnReloadRPGPlugins()
@@ -147,6 +168,7 @@ public void RegisterTank()
 	vomitIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Vomit", TempFormat, 90, 100);
 	bulletReleaseIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Bullet Release", "Tank must be under 90{PERCENT} HP to use this ability\nTank casts stored bullets like fireballs in all directions using Aimbot Level 1 ( !br )\nDeals 10 damage to survivors every half-second\nLasts 7 seconds.", 45, 45);
 	jockeyIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Summon Minion Jesters", "Spawns 2 Jockeys that pin closest 2 survivors\nThis always works no matter how far the survivors are.", 75, 90);
+	bossIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Summon Minion Boss", "If this is the only tank, spawns a Tier 1 Tank and halves its HP", 120, 180);
 
 	if(LibraryExists("GunXP-RPG"))
 	{
@@ -194,6 +216,9 @@ public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
 
 	if(abilityIndex == jockeyIndex)
 		CastJockey(client);
+
+	else if(abilityIndex == bossIndex)
+		CastBoss(client);
 
 	else if(abilityIndex == vomitIndex)
 		CastVomit(client);
@@ -248,6 +273,39 @@ public void CastJockey(int client)
 
 	WritePackCell(DP2, GetClientUserId(survivor2));
 	WritePackCell(DP2, GetClientUserId(jockey));
+}
+
+public void CastBoss(int client)
+{
+	int tankCount = 0;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		tankCount++;
+	}
+
+	if(tankCount >= 2)
+		return;
+
+	UC_PrintToChatAll("Shaman Tank brought a FRIEND!!!");
+
+	RPG_Tanks_SetOverrideTier(1);
+
+	int target = GetAnyClient();
+
+	float fOrigin[3];
+
+	// Accepts invalid client
+	if(!L4D_GetRandomPZSpawnPosition(target, view_as<int>(L4D2ZombieClass_Tank), 10, fOrigin))
+		return;
+
+	L4D2_SpawnTank(fOrigin, view_as<float>({0.0, 0.0, 0.0}));
 }
 
 public Action Timer_ForceJockey(Handle hTimer, DataPack DP)
@@ -475,4 +533,14 @@ void PrecacheParticle(const char[] sEffectName)
 		AddToStringTable(table, sEffectName);
 		LockStringTables(save);
 	}
+}
+
+int GetAnyClient()
+{
+	for( int i = 1; i <= MaxClients; i++ )
+	{
+		if( IsClientInGame(i) && L4D_GetClientTeam(i) == L4DTeam_Survivor && IsPlayerAlive(i) )
+			return i;
+	}
+	return 0;
 }

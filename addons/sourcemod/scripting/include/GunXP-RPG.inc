@@ -155,6 +155,8 @@ native void RPG_Perks_SetClientHealth(int client, int amount);
 // Gets a client's health getting if they have over 65535 HP. Feel free to check for non-tanks.
 native int RPG_Perks_GetClientHealth(int client);
 
+native int RPG_Perks_SetClientMaxHealth(int client, int amount);
+
 // Gets a client's max health getting if they have over 65535 HP. Feel free to check for non-tanks.
 // Important note: Because RPG-Perks resets incapped players to 100 HP, use this to get original max HP.
 native int RPG_Perks_GetClientMaxHealth(int client);
@@ -165,11 +167,16 @@ native int RPG_Perks_SetClientTempHealth(int client, int hp);
 // Please only pass survivors to this function.
 native int RPG_Perks_GetClientTempHealth(int client);
 
+// Sets next tier of tank that spawns. Lets 2 tanks live at once
+native void RPG_Tanks_SetOverrideTier(int tier);
+
 // For immunityType, see DAMAGE_IMMUNITY_*
 native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
 
 // For damageImmunities, see DAMAGE_IMMUNITY_*
 native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], char chatDescription[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities);
+
+native bool RPG_Tanks_LoopTankArray(int index, int &tier, char name[32]);
 
 
 // If cooldown is 0, ability will be described "Check passive abilities for details"
@@ -181,6 +188,8 @@ native int RPG_Tanks_RegisterPassiveAbility(int tank, char name[32], char descri
 // Use RPG_Perks_GetZombieType(client) to compare with ZombieType_Tank to ensure its a tank before using this.
 // Returns tank index, TANK_TIER_UNTIERED for untiered and TANK_TIER_UNKNOWN on priority -10 of GetZombieMaxHP.
 native int RPG_Tanks_GetClientTank(int client);
+
+native void RPG_Tanks_SetClientTank(int client, int index);
 
 // Returns tier of a client, or TANK_TIER_UNTIERED if not a Tank or not tiered.
 native int RPG_Tanks_GetClientTankTier(int client);
@@ -242,6 +251,7 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("RPG_Perks_RecalculateMaxHP");
 	MarkNativeAsOptional("RPG_Perks_SetClientHealth");
 	MarkNativeAsOptional("RPG_Perks_GetClientHealth");
+	MarkNativeAsOptional("RPG_Perks_SetClientMaxHealth");
 	MarkNativeAsOptional("RPG_Perks_GetClientMaxHealth");
 	MarkNativeAsOptional("RPG_Perks_SetClientTempHealth");
 	MarkNativeAsOptional("RPG_Perks_GetClientTempHealth");
@@ -250,6 +260,7 @@ public void __pl_gun_xp_rpg_SetNTVOptional()
 	MarkNativeAsOptional("RPG_Tanks_RegisterActiveAbility");
 	MarkNativeAsOptional("RPG_Tanks_RegisterPassiveAbility");
 	MarkNativeAsOptional("RPG_Tanks_GetClientTank");
+	MarkNativeAsOptional("RPG_Tanks_SetClientTank");
 	MarkNativeAsOptional("RPG_Tanks_GetClientTankTier");
 	MarkNativeAsOptional("RPG_Tanks_GetDamagePercent");
 	MarkNativeAsOptional("RPG_Tanks_SetDamagePercent");

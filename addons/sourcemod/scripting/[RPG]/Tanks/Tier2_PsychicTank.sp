@@ -594,7 +594,7 @@ public void CastDamageReflect(int client)
 public void RegisterTank()
 {
 	strongerTankIndex = RPG_Tanks_RegisterTank(3, 3, "Ulti. Psychic", "The ultimate Psychic Tank. The strongest the survivors will ever witness\nCasts a random psychic ability every 20 seconds.",
-	"Mechanically different than the previous Psychic Tanks. Read !tankinfo for full details", 2500000, 180, 0.333333, 55000, 65000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+	"Mechanically different than the previous Psychic Tanks. Read !tankinfo for full details", 4000000, 180, 0.333333, 55000, 65000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
 	strongerPsychicPowersIndex = RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Psychic Powers", "On cast, the tank casts a random Psychic Ability.", 20, 20);
 	RPG_Tanks_RegisterActiveAbility(strongerTankIndex, "Bullet Release", "If tank is over 90{PERCENT} HP, this ability won't be castable\nTank shoots stored bullets using Aimbot Level 2 ( !br )\nDeals damage to survivors every half-second\nDamage is percent based, and scales as the Tank loses HP.\nLasts 10 seconds.", 0, 0);

@@ -282,6 +282,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Perks_RecalculateMaxHP", Native_RecalculateMaxHP);
 	CreateNative("RPG_Perks_SetClientHealth", Native_SetClientHealth);
 	CreateNative("RPG_Perks_GetClientHealth", Native_GetClientHealth);
+	CreateNative("RPG_Perks_SetClientMaxHealth", Native_SetClientMaxHealth);
 	CreateNative("RPG_Perks_GetClientMaxHealth", Native_GetClientMaxHealth);
 	CreateNative("RPG_Perks_SetClientTempHealth", Native_SetClientTempHealth);
 	CreateNative("RPG_Perks_GetClientTempHealth", Native_GetClientTempHealth);
@@ -593,6 +594,26 @@ public int Native_GetClientHealth(Handle caller, int numParams)
 	}
 
 	return g_iHealth[client];
+}
+
+public int Native_SetClientMaxHealth(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	int maxHP = GetNativeCell(2);
+
+	g_iMaxHealth[client] = maxHP;
+
+	if(maxHP > 65535)
+	{
+		SetEntityMaxHealth(client, 65535);
+	}
+	else
+	{
+		SetEntityMaxHealth(client, maxHP);
+	}
+
+	return 0;
 }
 
 public int Native_GetClientMaxHealth(Handle caller, int numParams)

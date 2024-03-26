@@ -37,6 +37,10 @@ char g_sLastTankName[MAXPLAYERS+1][64];
 
 float g_fVomitRadius = 128.0;
 
+int g_iReleaseChance = 10;
+
+float g_fNightmareDuration = 20.0;
+
 public void OnLibraryAdded(const char[] name)
 {
     if (StrEqual(name, "RPG_Tanks"))
@@ -154,9 +158,6 @@ public void CastEatSurvivor(int client)
 
     if(survivor1 == -1)
     {
-
-        float fDuration = 10.0;
-
         for(int i=1;i <= MaxClients;i++)
         {
             if(!IsClientInGame(i))
@@ -168,11 +169,11 @@ public void CastEatSurvivor(int client)
             else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
                 continue;
 
-            RPG_Perks_ApplyEntityTimedAttribute(i, "Nightmare", fDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
+            RPG_Perks_ApplyEntityTimedAttribute(i, "Nightmare", g_fNightmareDuration, COLLISION_ADD, ATTRIBUTE_NEGATIVE);
         }
 
         UC_PrintToChatAll("The Tank couldn't find a survivor to eat.");
-        UC_PrintToChatAll("The Tank triggered a NIGHTMARE for %.0f seconds.", fDuration);
+        UC_PrintToChatAll("The Tank triggered a NIGHTMARE for %.0f seconds.", g_fNightmareDuration);
 
 
         return;
@@ -203,7 +204,7 @@ public void L4D2_OnEntityShoved_Post(int client, int entity, int weapon, const f
     else if(RPG_Tanks_GetClientTank(entity) != tankIndex)
         return;
 
-    else if(GetRandomInt(1, 100) > 4)
+    else if(GetRandomInt(1, 100) > g_iReleaseChance)
         return;
 
     else if(CountEatenSurvivors(entity) == 0)
@@ -263,7 +264,8 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
         int userid = StringToInt(sUserId);
 
         int tank = GetClientOfUserId(userid);
-
+        
+        TeleportEntity(entity, view_as<float>({ 32000, 32000, 32000 }), NULL_VECTOR, NULL_VECTOR);
 
         RPG_Perks_InstantKill(entity, tank, tank, DMG_ACID);
 
@@ -458,13 +460,19 @@ stock int FindRandomSurvivorWithoutIncap(int client, float fMaxDistance)
 
 public void RegisterTank()
 {
-    tankIndex = RPG_Tanks_RegisterTank(2, 5, "Glutton", "A tank that learned the size difference between survivors and Tanks.", "Eats survivors, shove the tank to release them (Right Click)",
+    tankIndex = RPG_Tanks_RegisterTank(2, 2, "Glutton", "A tank that learned the size difference between survivors and Tanks.\nThe Tank's name shows percent of HP the closest eaten survivor to death is.", "Eats survivors, shove the tank to release them (Right Click)",
     3000000, 180, 0.2, 2500, 4000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
-    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for 40 seconds.\nThe Tank's name shows percent of HP the closest eaten survivor to death is.", 40, 60);
+    char sDesc[256];
+    FormatEx(sDesc, sizeof(sDesc), "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for %.0f seconds.", g_fNightmareDuration);
+    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", sDesc, 40, 60);
 
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.");
-    RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Spot", "Shoving the tank has a 4{PERCENT} chance to force\nthe Tank to vomit the survivor, biling all survivors in punching range.");
+
+    char TempFormat[512];
+    FormatEx(TempFormat, sizeof(TempFormat), "Shoving the tank has a %i{PERCENT} chance to force\nthe Tank to vomit the survivor, biling all survivors in punching range.", g_iReleaseChance);
+    RPG_Tanks_RegisterPassiveAbility(tankIndex, "Weak Spot", TempFormat);
+
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Sticky Bile", "No matter the source, Survivors gain STUN for 10 seconds when Biled.");
 }
 

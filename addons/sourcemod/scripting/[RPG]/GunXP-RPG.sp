@@ -926,7 +926,7 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	bool bIgnoreMutation = GetNativeCell(3);
 
-	if(!g_bLoadedFromDB[client])
+	if(!g_bLoadedFromDB[client] && !IsFakeClient(client))
 		return false;
 
 	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
@@ -963,7 +963,7 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 			count++;
 
-			if(g_bUnlockedSkills[client][skillIndex])
+			if(g_bUnlockedSkills[i][skillIndex])
 			{
 				unlockedCount++;
 			}
@@ -1623,7 +1623,7 @@ public Action Timer_HudMessageXP(Handle hTimer)
 			else if(L4D2_GetPlayerZombieClass(i) != L4D2ZombieClass_Tank)
 				continue;
 
-			if(bestTank == 0 || RPG_Perks_GetClientHealth(i) > RPG_Perks_GetClientHealth(bestTank))
+			if(bestTank == 0 || RPG_Perks_GetClientHealth(i) < RPG_Perks_GetClientHealth(bestTank))
 				bestTank = i;
 		}
 	}
