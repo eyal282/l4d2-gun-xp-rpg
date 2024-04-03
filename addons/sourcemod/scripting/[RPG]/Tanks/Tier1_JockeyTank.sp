@@ -108,7 +108,7 @@ public void GunXP_OnReloadRPGPlugins()
 
 public void RegisterTank()
 {
-	tankIndex = RPG_Tanks_RegisterTank(1, 3, "Jockey", "A tank that likes Jockeys\nAll Special Infected spawned will be Jockeys instead\nThis tank shoots jockeys from his arms, and you will be pinned if it hits you.", "All SI become Jockey. Getting hit pins you. Melee does 2x damage.", 200000, 180, 1.0, 300, 500,  DAMAGE_IMMUNITY_BURN);
+	tankIndex = RPG_Tanks_RegisterTank(1, 3, "Jockey", "A tank that likes Jockeys\nAll Special Infected spawned will be Jockeys instead\nThis tank shoots jockeys from his arms, and you will be pinned if it hits you.", "All SI become Jockey. Getting hit pins you. Melee does 2x damage.", 200000, 180, 1.0, 150, 200,  DAMAGE_IMMUNITY_BURN);
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Fragile Body", "Tank takes 2x damage from melee");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "My Little Friends", "Every Special Infected that spawns is a Jockey.");

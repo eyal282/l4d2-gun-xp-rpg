@@ -11,7 +11,7 @@
 
 public Plugin myinfo =
 {
-    name        = "Marksman Perk Tree --> Gun XP RPG",
+    name        = "Pet Perk Tree --> Gun XP RPG",
     author      = "Eyal282",
     description = "Perk tree to LET'S FUCKING GOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO.",
     version     = PLUGIN_VERSION,

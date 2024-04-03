@@ -14,8 +14,8 @@
 
 public Plugin myinfo = 
 {
-	name = "RolePlay - Missions.",
-	author = "Author was lost, heavy edit by Eyal282",
+	name = "RPG Daily Quests",
+	author = "Eyal282",
 	description = "Missions that expire by time.",
 	version = PLUGIN_VERSION,
 	url = "N/A"
