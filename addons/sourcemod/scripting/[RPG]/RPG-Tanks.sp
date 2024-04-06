@@ -1940,7 +1940,46 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 	else if(RPG_Perks_GetZombieType(victim) != ZombieType_Tank)
 		return Plugin_Continue;
 
-	else if(g_iCurrentTank[victim] < 0)
+	int tankCount = 0;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(IsFakeClient(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(L4D_IsPlayerIncapacitated(i))
+			continue;
+
+		tankCount++;
+	}
+
+	if(tankCount <= 0)
+	{
+		int door = L4D_GetCheckpointLast();
+
+		if(door != -1)
+		{
+			AcceptEntityInput(door, "InputUnlock");
+			SetEntProp(door, Prop_Data, "m_bLocked", 0);
+			ChangeEdictState(door, 0);
+
+			if(g_iSpawnflags[door] != -1)
+			{
+				SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
+			}
+		}
+	}
+	
+	if(g_iCurrentTank[victim] < 0)
 	{
 		g_iCurrentTank[victim] = TANK_TIER_UNKNOWN;
 
@@ -2082,45 +2121,6 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 	}
 
 	g_iCurrentTank[victim] = TANK_TIER_UNKNOWN;
-
-	int tankCount = 0;
-
-	for(int i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
-
-		else if(IsFakeClient(i))
-			continue;
-
-		else if(!IsPlayerAlive(i))
-			continue;
-
-		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-			continue;
-
-		else if(L4D_IsPlayerIncapacitated(i))
-			continue;
-
-		tankCount++;
-	}
-
-	if(tankCount <= 0)
-	{
-		int door = L4D_GetCheckpointLast();
-
-		if(door != -1)
-		{
-			AcceptEntityInput(door, "InputUnlock");
-			SetEntProp(door, Prop_Data, "m_bLocked", 0);
-			ChangeEdictState(door, 0);
-
-			if(g_iSpawnflags[door] != -1)
-			{
-				SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
-			}
-		}
-	}
 
 	g_iKillCombo++;
 	
