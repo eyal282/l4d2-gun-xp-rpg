@@ -250,14 +250,14 @@ public void RegisterPerkTree2()
 
         sClassname[0] = CharToUpper(sClassname[0]);
         
-        FormatEx(TempFormat, sizeof(TempFormat), "Nade Collector grenade becomes %s instead of random\nUpgrade / Refund this Perk Tree to change that grenade", sClassname);
+        FormatEx(TempFormat, sizeof(TempFormat), "Nade Collector grenade becomes %s instead of random", sClassname);
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iSelectorCosts[i]);
         xpReqs.Push(g_iSelectorReqs[i]);
     }
 
-    nadeSelectorIndex = GunXP_RPGShop_RegisterPerkTree("Nade Selector every X Kills", "Nade Selector", descriptions, costs, xpReqs, null, true);
+    nadeSelectorIndex = GunXP_RPGShop_RegisterPerkTree("Nade Selector every X Kills", "Nade Selector", descriptions, costs, xpReqs, null, true, "Upgrade / Refund this Perk Tree to change grenade of Nade Collector");
 }
 
 public void GunXP_RPGShop_OnResetRPG(int client)

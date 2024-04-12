@@ -143,6 +143,9 @@ public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bAppo
         return;
 
     GetClientName(client, g_sLastTankName[client], sizeof(g_sLastTankName[]));
+
+    //if(!RPG_Perks_IsEntityTimedAttribute(client, "Calc Most Processed Survivor"))
+      //  RPG_Perks_ApplyEntityTimedAttribute(client, "Calc Most Processed Survivor", 0.2, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
@@ -319,7 +322,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
         if(!StrEqual(sName, sNameToSet))
             SetClientName(entity, sNameToSet);
 
-        RPG_Perks_ApplyEntityTimedAttribute(entity, "Calc Most Processed Survivor", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+        RPG_Perks_ApplyEntityTimedAttribute(entity, "Calc Most Processed Survivor", 0.2, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
         return;
     }
@@ -526,7 +529,6 @@ stock void PlacePlayerINSIDETankBelly(int victim, int attacker, int replacer = 0
     g_iEatAttacker[victim] = attacker;
 
     RPG_Perks_ApplyEntityTimedAttribute(victim, "Eaten Alive", 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE, TRANSFER_NORMAL);
-    RPG_Perks_ApplyEntityTimedAttribute(attacker, "Calc Most Processed Survivor", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 stock void PlacePlayerOUTSIDETankBelly(int victim, int attacker, bool bDontTeleport = false)
