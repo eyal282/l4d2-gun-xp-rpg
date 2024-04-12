@@ -56,7 +56,7 @@ public Plugin myinfo =
 	version = "1.0"
 }
 
-GlobalForward g_fwOnDoesHaveBileGoggles;+
+GlobalForward g_fwOnDoesHaveBileGoggles;
 
 public void OnPluginStart()
 {
@@ -75,6 +75,14 @@ public void GunXP_OnReloadRPGPlugins()
 
 }
 
+public void OnClientDisconnect(int client)
+{
+	if(g_hVomitTimer[client] != INVALID_HANDLE)
+	{
+		CloseHandle(g_hVomitTimer[client]);
+		g_hVomitTimer[client] = INVALID_HANDLE;
+	}
+}
 public Action Event_RoundStartOrEnd(Handle hEvent, const char[] sEventName, bool bDontBroadcast)
 {
 	for(int i=0;i < sizeof(g_bTookGogglesOff);i++)

@@ -37,7 +37,7 @@ char g_sLastTankName[MAXPLAYERS+1][64];
 
 float g_fVomitRadius = 128.0;
 
-int g_iReleaseChance = 10;
+int g_iReleaseChance = 8;
 
 float g_fNightmareDuration = 20.0;
 
@@ -143,8 +143,6 @@ public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bAppo
         return;
 
     GetClientName(client, g_sLastTankName[client], sizeof(g_sLastTankName[]));
-
-    RPG_Perks_ApplyEntityTimedAttribute(client, "Calc Most Processed Survivor", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
@@ -304,19 +302,26 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
             }
         }
 
+        char sNameToSet[64];
+
         if(count == 0)
         {
-            SetClientName(entity, g_sLastTankName[entity]);
+            sNameToSet = g_sLastTankName[entity];
         }
         else
         {
-            char sName[64];
-            FormatEx(sName, sizeof(sName), "(%.0f%%) %s", float(g_iOldHealth[mostProcessed]) / float(g_iOldMaxHealth[mostProcessed]) * 100.0, g_sLastTankName[entity]);
-
-            SetClientName(entity, sName);
+            FormatEx(sNameToSet, sizeof(sNameToSet), "(%.0f%%) %s", float(g_iOldHealth[mostProcessed]) / float(g_iOldMaxHealth[mostProcessed]) * 100.0, g_sLastTankName[entity]);
         }
 
+        char sName[64];
+        GetClientName(entity, sName, sizeof(sName));
+
+        if(!StrEqual(sName, sNameToSet))
+            SetClientName(entity, sNameToSet);
+
         RPG_Perks_ApplyEntityTimedAttribute(entity, "Calc Most Processed Survivor", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+
+        return;
     }
     if(!StrEqual(attributeName, "Eaten Alive"))
         return;
@@ -464,11 +469,16 @@ stock int FindRandomSurvivorWithoutIncap(int client, float fMaxDistance)
 public void RegisterTank()
 {
     tankIndex = RPG_Tanks_RegisterTank(2, 2, "Glutton", "A tank that learned the size difference between survivors and Tanks.\nThe Tank's name shows percent of HP the closest eaten survivor to death is.", "Eats survivors, shove the tank to release them (Right Click)",
-    3000000, 180, 0.2, 2500, 4000, DAMAGE_IMMUNITY_BURN|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+    6000000, 180, 0.2, 13000, 17000, DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+
+    int minmax[2];
+    
+    minmax[0] = 40;
+    minmax[1] = 60;
 
     char sDesc[256];
     FormatEx(sDesc, sizeof(sDesc), "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for %.0f seconds.", g_fNightmareDuration);
-    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", sDesc, 40, 60);
+    eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", sDesc, minmax[0], minmax[1]);
 
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.\nTank heals 400k HP when a survivor is PROCESSED.");
 
@@ -516,6 +526,7 @@ stock void PlacePlayerINSIDETankBelly(int victim, int attacker, int replacer = 0
     g_iEatAttacker[victim] = attacker;
 
     RPG_Perks_ApplyEntityTimedAttribute(victim, "Eaten Alive", 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE, TRANSFER_NORMAL);
+    RPG_Perks_ApplyEntityTimedAttribute(attacker, "Calc Most Processed Survivor", 0.1, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 stock void PlacePlayerOUTSIDETankBelly(int victim, int attacker, bool bDontTeleport = false)

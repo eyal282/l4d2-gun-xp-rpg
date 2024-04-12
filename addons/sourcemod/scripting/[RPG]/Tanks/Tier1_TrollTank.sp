@@ -222,6 +222,7 @@ public void RegisterTank()
 
 	tankIndex = RPG_Tanks_RegisterTank(1, entries, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes no damage besides Fire.", "Very Annoying. Only Fire Damage works. Explodes on Death killing all survivors nearby.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Stun Stack", "Due to a bug (=Feature), if any tank punches...\n... a stunned player multiple times, the fly away effect stacks...\n... Causing the player to fly far away when stun ends.");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Mental Pain", "Tank deals no direct damage");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Close and Personal", "Tank attacks at high speed.\nTank cannot throw rocks.");
 

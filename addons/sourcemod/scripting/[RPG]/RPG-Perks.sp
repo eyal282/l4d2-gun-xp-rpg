@@ -1,3 +1,5 @@
+// Note to self: Applying timed attribute with RPG_Perks_OnZombiePlayerSpawned caused insane and hard to find lag spikes.
+
 /* List of things this plugins changes in how L4D2 works:
 
 1. Getting up from ledge hang inflicts damage to you 
@@ -1415,6 +1417,66 @@ public Action Command_NightmareTest(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_SizeTest(int client, int args)
+{
+	StringMap smCount = new StringMap();
+
+	for(int i=0;i < g_aTimedAttributes.Length;i++)
+	{
+		enTimedAttribute attribute;
+		g_aTimedAttributes.GetArray(i, attribute);
+
+		int count;
+		smCount.GetValue(attribute.attributeName, count);
+
+		smCount.SetValue(attribute.attributeName, count + 1);
+	}
+
+	StringMapSnapshot smCountSnap = smCount.Snapshot();
+
+	int winnerIndex = 0;
+
+	// Skip first index.
+	for(int i=1;i < smCountSnap.Length;i++)
+	{
+		char key[64], winnerKey[64];
+		smCountSnap.GetKey(i, key, sizeof(key));
+		smCountSnap.GetKey(winnerIndex, winnerKey, sizeof(winnerKey));
+
+		int count, winnerCount;
+		smCount.GetValue(key, count);
+		smCount.GetValue(winnerKey, winnerCount);
+
+		if(winnerCount < count)
+			winnerIndex = i;
+
+
+	}
+
+	char winnerKey[64];
+	smCountSnap.GetKey(winnerIndex, winnerKey, sizeof(winnerKey));
+
+	delete smCount;
+	delete smCountSnap;
+	PrintToChat(client, "Size: %i | Most common attribute: %s", g_aTimedAttributes.Length, winnerKey);
+
+	char Arg[64];
+	GetCmdArgString(Arg, sizeof(Arg));
+
+	if(Arg[0] != EOS)
+	{
+		int target = FindTarget(client, Arg, false, false);
+
+		if(target != -1)
+		{
+			PrintToChat(client, "Cleared for %N", target);
+			RPG_ClearTimedAttributes(target);
+		}
+	}
+
+	return Plugin_Handled;
+}
+
 public void OnPluginStart()
 {
 	if(g_bLate)
@@ -1434,6 +1496,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_nightmaretest", Command_NightmareTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_sizetest", Command_SizeTest, ADMFLAG_ROOT);
 
 	if(g_aTimedAttributes == null)
 		g_aTimedAttributes = CreateArray(sizeof(enTimedAttribute));

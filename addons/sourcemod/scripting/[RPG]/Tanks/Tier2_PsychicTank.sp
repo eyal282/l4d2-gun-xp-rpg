@@ -240,10 +240,15 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 		float fMinRatio;
 		GetMinRatioForBulletRelease(entity, fMinRatio);
 		
-		char sName[64];
-		FormatEx(sName, sizeof(sName), "(%i%s) %s", RoundToFloor(fDelay), float(RPG_Perks_GetClientHealth(entity)) / float(RPG_Perks_GetClientMaxHealth(entity)) <= fMinRatio ? "‼" : "", g_sLastTankName[entity]);
+		char sNameToSet[64];
+		FormatEx(sNameToSet, sizeof(sNameToSet), "(%i%s) %s", RoundToFloor(fDelay), float(RPG_Perks_GetClientHealth(entity)) / float(RPG_Perks_GetClientMaxHealth(entity)) <= fMinRatio ? "‼" : "", g_sLastTankName[entity]);
 
-		SetClientName(entity, sName);
+		char sName[64];
+		GetClientName(entity, sName, sizeof(sName));
+
+		if(!StrEqual(sName, sNameToSet))
+			SetClientName(entity, sNameToSet);
+
 		return;
 	}
 	if(strncmp(attributeName, "Psychokinesis Height Check", 26, false) == 0)
@@ -302,8 +307,8 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 
 public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
 {
-    if(priority != 0)
-        return;
+	if(priority != 0)
+		return;
 
 	GetClientName(client, g_sLastTankName[client], sizeof(g_sLastTankName[]));
 }
@@ -464,15 +469,15 @@ public Action RocketLiftoff(Handle hTimer, int UserId)
 stock void TeleportToCeiling(int client)
 {
 	float vecMin[3], vecMax[3], vecOrigin[3], vecFakeOrigin[3];
-    
+	
 	GetClientMins(client, vecMin);
 	GetClientMaxs(client, vecMax);
-    
+	
 	GetClientAbsOrigin(client, vecOrigin);
 	vecFakeOrigin = vecOrigin;
 	
 	vecFakeOrigin[2] = 999999.0;
-    
+	
 	TR_TraceHullFilter(vecOrigin, vecFakeOrigin, vecMin, vecMax, MASK_PLAYERSOLID, TraceRayDontHitPlayers);
 	
 	TR_GetEndPosition(vecOrigin);
@@ -482,7 +487,7 @@ stock void TeleportToCeiling(int client)
 
 public bool TraceRayDontHitPlayers(int entityhit, int mask) 
 {
-    return (entityhit>MaxClients || entityhit == 0);
+	return (entityhit>MaxClients || entityhit == 0);
 }
 
 
