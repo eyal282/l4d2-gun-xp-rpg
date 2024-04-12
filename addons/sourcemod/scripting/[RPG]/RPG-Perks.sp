@@ -1090,11 +1090,19 @@ public int Native_RegisterReplicateCvar(Handle caller, int numParams)
 
 	return 0;
 }
+
+enum struct enCall
+{
+	char attributeName[64];
+	int entity;
+}
 public Action Timer_CheckAttributeExpire(Handle hTimer)
 {
 	g_hCheckAttributeExpire = INVALID_HANDLE;
 
 	float shortestToExpire = 999999999.0;
+
+	ArrayList aCalls = new ArrayList(sizeof(enCall));
 
 	// Can't declare size because the size changes over time.
 	for(int i=0;i < g_aTimedAttributes.Length;i++)
@@ -1114,12 +1122,12 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 			g_aTimedAttributes.Erase(i);
 			i--;
 
-			Call_StartForward(g_fwOnTimedAttributeExpired);
+			// If we apply or remove a previous attribute when an attribute expires, everything will break
+			enCall call;
+			call.entity = attribute.entity;
+			call.attributeName = attribute.attributeName;
 
-			Call_PushCell(attribute.entity);
-			Call_PushString(attribute.attributeName);
-
-			Call_Finish();
+			aCalls.PushArray(call);
 
 			continue;
 		}
@@ -1131,6 +1139,22 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 			}
 		}
 	}
+
+
+	for(int i=0;i < aCalls.Length;i++)
+	{
+		enCall call;
+		aCalls.GetArray(i, call);
+
+		Call_StartForward(g_fwOnTimedAttributeExpired);
+
+		Call_PushCell(call.entity);
+		Call_PushString(call.attributeName);
+
+		Call_Finish();
+	}
+
+	delete aCalls;
 
 	if(shortestToExpire < 99999999.0)
 	{
