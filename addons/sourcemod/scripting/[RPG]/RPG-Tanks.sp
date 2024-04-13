@@ -1602,7 +1602,7 @@ public Action ShowTargetTankInfo(int client, int tankIndex)
 		FormatEx(immunityFormat, sizeof(immunityFormat), "Bullets");
 	}
 
-	FormatEx(TempFormat, sizeof(TempFormat), "%s Tank | Choose an Ability for info\nMax HP : %i | Entries : %i\nAverage XP : %i | Immune to : %s\n%s", tank.name, tank.maxHP, tank.entries, (tank.XPRewardMin + tank.XPRewardMax) / 2, immunityFormat, tank.description);
+	FormatEx(TempFormat, sizeof(TempFormat), "%s Tank | Choose an Ability for info\nWhen you select an ability has a radius, a ring will encase you if no tank is alive\nMax HP : %i | Entries : %i\nAverage XP : %i | Immune to : %s\n%s", tank.name, tank.maxHP, tank.entries, (tank.XPRewardMin + tank.XPRewardMax) / 2, immunityFormat, tank.description);
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);
@@ -1706,6 +1706,101 @@ public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
 
 	SetMenuExitBackButton(hMenu, true);
 
+	bool bTanks = false;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+			continue;
+
+		else if(float(RPG_Perks_GetClientHealth(i)) / float(RPG_Perks_GetClientMaxHealth(i)) >= 0.99)
+			continue;
+
+		bTanks = true;
+	}
+
+	if(!bTanks)
+	{
+		int spriteRing = PrecacheModel("materials/sprites/laserbeam.vmt");
+		int haloIndex = PrecacheModel("sprites/glow01.spr");
+
+		int pos = -1;
+		while((pos = StrContains(description[pos+1], " unit", false)) != -1)
+		{
+			int start = pos;
+			char TempStr[12];
+			int size = 0;
+
+			while(start > 0 && (IsCharNumeric(description[start-1]) || description[start-1] == ',')) {
+				TempStr[size++] = description[start-1];
+				start--;
+			}
+
+			ReplaceString(TempStr, sizeof(TempStr), ",", "");
+
+			int strLen = strlen(TempStr);
+
+			char TempStrReverse[12];
+
+			for(int i = strLen - 1, num = 0;i >= 0;i--,num++)
+			{
+  				TempStrReverse[num] = TempStr[i];
+			}
+
+			int distance = StringToInt(TempStrReverse);
+
+			float fOrigin[3];
+			GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+			fOrigin[2] += 16.0;
+
+			int RGBA[4] = {255, 255, 255, 255};
+			
+			for(int i=0;i < 3;i++)
+			{
+				RGBA[i] = GetRandomInt(32, 255);
+			}
+
+			// Multiple distance by 2 because you need circumference, not radius.
+			// In simpler terms, the size of the ring goes both forward and backwards, not just forward.
+			TE_SetupBeamRingPoint(fOrigin, 
+    			float(distance) * 2.0,
+				(float(distance) * 2.0) + 1.0,
+    			spriteRing,
+				haloIndex,
+    			0, // Starting frame
+    			0, // Frame rate 
+    			5.0, // Life 
+    			5.0, // Width
+    			1.0, // Spread
+    			RGBA, // RGBA Color
+				0, // Speed
+				0 // Flags
+				); 
+
+  			TE_SendToClient(client);
+
+			TE_SetupBeamRingPoint(fOrigin, 
+    			1.0,
+				8.0,
+    			spriteRing,
+				haloIndex,
+-    			0, // Starting frame
+    			0, // Frame rate 
+    			3.0, // Life 
+    			8.0, // Width
+    			1.0, // Spread
+    			RGBA, // RGBA Color
+				0, // Speed
+				0 // Flags
+				); 
+
+  			TE_SendToClient(client);
+		}
+	}
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
 	return Plugin_Handled;
