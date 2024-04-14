@@ -1445,7 +1445,32 @@ public Action Command_TankInfo(int client, int args)
 		}
 	}
 
-	FormatEx(TempFormat, sizeof(TempFormat), "Choose a Tier to learn about its Tanks\nEntries are a Jackpot based system to determine a winner\nEntries for Untiered Tank : %i", g_hEntriesUntiered.IntValue);
+	char sDifficultyMultiplier[128];
+	char sDifficulty[64];
+
+	ConVar cvar = FindConVar("gun_xp_difficulty_multiplier");
+	ConVar difficultyCvar = FindConVar("z_difficulty");
+
+	difficultyCvar.GetString(sDifficulty, sizeof(sDifficulty));
+
+	if(StrEqual(sDifficulty, "easy", false))
+		sDifficulty = "Easy";
+
+	else if(StrEqual(sDifficulty, "normal", false))
+		sDifficulty = "Normal";
+
+	else if(StrEqual(sDifficulty, "hard", false))
+		sDifficulty = "Advanced";
+
+	else if(StrEqual(sDifficulty, "impossible", false))
+		sDifficulty = "Expert";
+
+	if(cvar != null)
+	{
+		FormatEx(sDifficultyMultiplier, sizeof(sDifficultyMultiplier), "\nXP Multiplier for %s Difficulty : x%.1f", sDifficulty, cvar.FloatValue);
+	}
+
+	FormatEx(TempFormat, sizeof(TempFormat), "Choose a Tier to learn about its Tanks\nEntries are a Jackpot based system to determine a winner\nEntries for Untiered Tank : %i%s", g_hEntriesUntiered.IntValue, sDifficultyMultiplier);
 	SetMenuTitle(hMenu, TempFormat);
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
