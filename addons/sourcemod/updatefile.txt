@@ -82,6 +82,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Saboteur.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Sniper.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_StickyBile.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Superman.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_UltimateSamurai.smx"
 
 	"Plugin"	"Path_SM/plugins/[RPG]/Tanks/Tier1_JockeyTank.smx"
