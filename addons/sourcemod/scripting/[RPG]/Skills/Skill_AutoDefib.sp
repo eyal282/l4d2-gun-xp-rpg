@@ -244,8 +244,6 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	if(!StrEqual(attributeName, "Auto Defib"))
 		return;
 
-
-
 	// Not possible to transfer to common or witch...
 	g_iDeathDefib[newClient] = g_iDeathDefib[oldClient];
 	g_fDeathOrigin[newClient] = g_fDeathOrigin[oldClient];

@@ -152,7 +152,7 @@ public Action Timer_SpamOff(Handle Timer, int client)
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Triple press FLASHLIGHT to become frozen and invincible for 12 sec\nUse this skill again to unfreeze & lose invincibility\n(Once per Round)");
+    FormatEx(sDescription, sizeof(sDescription), "Once per Round: Triple press FLASHLIGHT to become frozen and invincible for 12 sec\nUse this skill again to unfreeze & lose invincibility");
 
     skillIndex = GunXP_RPGShop_RegisterSkill("Cryo Protection", "Cryo Protection", sDescription,
     1500000, 0);

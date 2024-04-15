@@ -1441,6 +1441,14 @@ public Action Command_NightmareTest(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_SupermanTest(int client, int args)
+{
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Superman", 10.0, COLLISION_SET, ATTRIBUTE_POSITIVE);
+	RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", 10.0, COLLISION_SET, ATTRIBUTE_POSITIVE);
+
+	return Plugin_Handled;
+}
+
 public Action Command_SizeTest(int client, int args)
 {
 	StringMap smCount = new StringMap();
@@ -1520,6 +1528,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_nightmaretest", Command_NightmareTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_supermantest", Command_SupermanTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_sizetest", Command_SizeTest, ADMFLAG_ROOT);
 
 	if(g_aTimedAttributes == null)
@@ -1895,7 +1904,8 @@ public void Event_ZombieSpawnPost(int entity)
 	SetEntProp(entity, Prop_Data, "m_iHealth", maxHP);
 
 	SDKHook(entity, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(entity, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
+	SDKHook(entity, SDKHook_OnTakeDamage, Event_TakeDamage);
+	SDKHook(entity, SDKHook_OnTakeDamageAlive, Event_TakeDamageAlive);
 	SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
 }
 
@@ -2084,6 +2094,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	else if(!RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
 		return;
 
+	PrintToChatIfEyal(victim, "Ey");
 	bImmune = true;
 
 }
@@ -3826,7 +3837,8 @@ public void FuncElevator_ReachFloor(const char[] output, int caller, int activat
 public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_TraceAttack, Event_TraceAttack);
-	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamage);
+	SDKHook(client, SDKHook_OnTakeDamage, Event_TakeDamage);
+	SDKHook(client, SDKHook_OnTakeDamageAlive, Event_TakeDamageAlive);
 	SDKHook(client, SDKHook_SetTransmit, SDKEvent_SetTransmit);
 	SDKHook(client, SDKHook_PostThinkPost, SDKEvent_Think);
 	AnimHookEnable(client, INVALID_FUNCTION, OnTankStartSwingPost);
@@ -3944,8 +3956,29 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 	return Plugin_Continue;
 }
 
-// I suspect fall damage is fully ignored in these functions.
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
+{
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+		return Plugin_Continue;
+
+	else if(damage == 0.0)
+		return Plugin_Continue;
+
+	else if(SurvivorVictimNextBotAttacker(victim, attacker))
+		return Plugin_Continue;
+
+	else if(!(damagetype & DMG_BURN || damagetype & DMG_FALL || damagetype & DMG_DROWNRECOVER || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker)))
+		return Plugin_Continue;
+
+	float fFinalDamage = damage;
+
+	Action rtn = RPG_OnTraceAttack(victim, attacker, inflictor, fFinalDamage, damagetype, 0, 0);
+
+	damage = fFinalDamage;
+
+	return rtn;
+}
+public Action Event_TakeDamageAlive(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {		
 	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
 		return Plugin_Continue;
@@ -3953,9 +3986,11 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 	else if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(!SurvivorVictimNextBotAttacker(victim, attacker) && !(damagetype & DMG_BURN) && !(damagetype & DMG_FALL) && !(damagetype & DMG_DROWNRECOVER) && !IsDamageToSelf(victim, attacker) && !IsPinDamage(victim, attacker))
+	else if(!SurvivorVictimNextBotAttacker(victim, attacker))
 		return Plugin_Continue;
 
+	else if(damagetype & DMG_BURN || damagetype & DMG_FALL || damagetype & DMG_DROWNRECOVER || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
+		return Plugin_Continue;
 
 	float fFinalDamage = damage;
 
@@ -3976,7 +4011,10 @@ public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float
 	else if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(SurvivorVictimNextBotAttacker(victim, attacker) || damagetype & DMG_BURN || damagetype & DMG_FALL || damagetype & DMG_DROWNRECOVER || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
+	else if(SurvivorVictimNextBotAttacker(victim, attacker))
+		return Plugin_Continue;
+
+	else if(damagetype & DMG_BURN || damagetype & DMG_FALL || damagetype & DMG_DROWNRECOVER || IsDamageToSelf(victim, attacker) || IsPinDamage(victim, attacker))
 		return Plugin_Continue;
 
 	float fFinalDamage = damage;
