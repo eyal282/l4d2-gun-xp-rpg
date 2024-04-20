@@ -77,6 +77,7 @@ public void OnPluginStart()
 {
     RegisterTank();
 
+    HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Post);
     HookEvent("player_now_it", Event_Boom, EventHookMode_Post);
     HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
     HookEvent("player_bot_replace", Event_BotReplacesAPlayer, EventHookMode_Post);
@@ -84,17 +85,17 @@ public void OnPluginStart()
 
 public Action Event_Boom(Handle hEvent, const char[] sEventName, bool bDontBroadcast)
 {
-	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	
-	if(victim == 0)
-		return Plugin_Continue;
+    int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+    
+    if(victim == 0)
+        return Plugin_Continue;
 
-	else if(!RPG_Tanks_IsTankInPlay(tankIndex))
-		return Plugin_Continue;
+    else if(!RPG_Tanks_IsTankInPlay(tankIndex))
+        return Plugin_Continue;
 
-	RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", 10.0, COLLISION_SET_IF_LOWER, ATTRIBUTE_NEGATIVE);
+    RPG_Perks_ApplyEntityTimedAttribute(victim, "Stun", 10.0, COLLISION_SET_IF_LOWER, ATTRIBUTE_NEGATIVE);
 
-	return Plugin_Continue;
+    return Plugin_Continue;
 }
 
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
@@ -105,6 +106,45 @@ public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 }
 
 
+
+public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+    int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+    if(victim == 0)
+        return Plugin_Continue;
+
+    int attacker = GetClientOfUserId(GetEventInt(hEvent, "attacker"));
+    
+    if(attacker == 0)
+        return Plugin_Continue;
+
+    // Also checks if dead.
+    else if(RPG_Perks_GetZombieType(victim) != ZombieType_NotInfected)
+        return Plugin_Continue;
+
+    else if(RPG_Perks_GetZombieType(attacker) != ZombieType_Tank)
+        return Plugin_Continue;
+
+    else if(RPG_Tanks_GetClientTank(attacker) != tankIndex)
+        return Plugin_Continue;
+
+    char sWeaponName[32];
+    GetEventString(hEvent, "weapon", sWeaponName, sizeof(sWeaponName));
+
+    if(StrEqual(sWeaponName, "tank_rock"))
+    {
+        // If you don't check if InstantKill succeeded you're getting infinite looped and plugin crash...
+        if(!RPG_Perks_InstantKill(victim, attacker, attacker, DMG_CRIT))
+            return Plugin_Continue;
+
+        ClientCommand(victim, "player/neck_snap_01.wav");
+
+        UC_PrintToChatAll("%N was instantly killed by the Tank's Rock", victim);
+    }
+
+    return Plugin_Continue;
+}
 public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool dontBroadcast)
 {
     int oldPlayer = GetClientOfUserId(GetEventInt(event, "player"));
@@ -117,22 +157,22 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 public void GunXP_OnReloadRPGPlugins()
 {
     for(int i=1;i <= MaxClients;i++)
-	{
-		if(!IsClientInGame(i))
-			continue;
+    {
+        if(!IsClientInGame(i))
+            continue;
 
-		else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
-			continue;
+        else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+            continue;
 
-		else if(!IsPlayerAlive(i))
-			continue;
+        else if(!IsPlayerAlive(i))
+            continue;
 
-		else if(RPG_Tanks_GetClientTank(i) != tankIndex)
-			continue;
+        else if(RPG_Tanks_GetClientTank(i) != tankIndex)
+            continue;
 
-		UC_PrintToChatRoot("Didn't reload Tier2_GluttonTank.smx because a Glutton Tank is alive.");
-		return;
-	}
+        UC_PrintToChatRoot("Didn't reload Tier2_GluttonTank.smx because a Glutton Tank is alive.");
+        return;
+    }
     
     GunXP_ReloadPlugin();
 }
@@ -479,8 +519,8 @@ stock int FindRandomSurvivorWithoutIncap(int client, float fMaxDistance)
 
 public void RegisterTank()
 {
-    tankIndex = RPG_Tanks_RegisterTank(2, 2, "Glutton", "A tank that learned the size difference between survivors and Tanks.\nThe Tank's name shows percent of HP the closest eaten survivor to death is.", "Eats survivors, shove the tank to release them (Right Click)",
-    6000000, 180, 0.2, 13000, 17000, DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+    tankIndex = RPG_Tanks_RegisterTank(3, 2, "Glutton", "A tank that learned the size difference between survivors and Tanks.\nThe Tank's name shows percent of HP the closest eaten survivor to death is.", "Eats survivors, shove the tank to release them (Right Click)",
+    6000000, 180, 0.2, 23000, 27000, DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
     int minmax[2];
     
@@ -491,7 +531,7 @@ public void RegisterTank()
     FormatEx(sDesc, sizeof(sDesc), "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for %.0f seconds.", g_fNightmareDuration);
     eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", sDesc, minmax[0], minmax[1]);
 
-    RPG_Tanks_RegisterPassiveAbility(tankIndex, "Big Tank", "Tank cannot throw rocks.");
+    RPG_Tanks_RegisterPassiveAbility(tankIndex, "Giant Rock", "The Tank's rock instantly kills a survivor it hits.");
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.\nTank heals 400k HP when a survivor is PROCESSED.");
 
     char TempFormat[512];

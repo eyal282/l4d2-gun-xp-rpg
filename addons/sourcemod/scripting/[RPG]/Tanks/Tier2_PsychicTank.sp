@@ -140,7 +140,7 @@ public Action Event_PlayerHurt(Handle hEvent, char[] Name, bool dontBroadcast)
 
 		ClientCommand(victim, "player/neck_snap_01.wav");
 
-		PrintToChatAll("%N was instantly killed by the Tank's Rock", victim);
+		UC_PrintToChatAll("%N was instantly killed by the Tank's Rock", victim);
 	}
 	else if(StrEqual(sWeaponName, "tank_claw") && RPG_Perks_IsEntityTimedAttribute(victim, "Nightmare"))
 	{
