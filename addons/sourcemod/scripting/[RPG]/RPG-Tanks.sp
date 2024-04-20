@@ -41,6 +41,7 @@ ConVar g_hCarAlarmTankChance;
 ConVar g_hInstantFinale;
 ConVar g_hComboNeeded;
 ConVar g_hMinigunDamageMultiplier;
+ConVar g_hShotgunDamageMultiplier;
 ConVar g_hRPGDamageMultiplier;
 
 ConVar g_hPriorityImmunities;
@@ -514,6 +515,7 @@ public void OnPluginStart()
 	g_hInstantFinale = UC_CreateConVar("rpg_tanks_instant_finale", "1", "Finale is instant? WARNING! This can cheese the tanks due to low common infected");
 	g_hComboNeeded = UC_CreateConVar("rpg_tanks_finale_combo_needed", "3", "Amount of Tank kills needed to trigger a powerful tank event");
 
+	g_hShotgunDamageMultiplier = UC_CreateConVar("rpg_tanks_shotgun_damage_multiplier", "1.2", "Shotgun damage multiplier");
 	g_hMinigunDamageMultiplier = UC_CreateConVar("rpg_tanks_minigun_damage_multiplier", "0.1", "Minigun damage multiplier");
 	g_hRPGDamageMultiplier = UC_CreateConVar("rpg_tanks_rpg_damage_multiplier", "0.05", "RPG damage multiplier");
 
@@ -1308,10 +1310,19 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	{
 		damage = damage * g_hMinigunDamageMultiplier.FloatValue;
 	}
-
 	if(L4D2_GetWeaponId(inflictor) == L4D2WeaponId_GrenadeLauncher || StrEqual(sClassname, "grenade_launcher_projectile"))
 	{
 		damage = damage * g_hRPGDamageMultiplier.FloatValue;
+	}
+	else if(inflictor == attacker)
+	{
+		int activeWeapon = L4D_GetPlayerCurrentWeapon(attacker);
+		GetEdictClassname(activeWeapon, sClassname, sizeof(sClassname));
+
+		if(StrEqual(sClassname, "weapon_shotgun_chrome") || StrEqual(sClassname, "weapon_shotgun_spas") || StrEqual(sClassname, "weapon_pumpshotgun") || StrEqual(sClassname, "weapon_autoshotgun"))
+		{
+			damage = damage * g_hShotgunDamageMultiplier.FloatValue;
+		}
 	}
 }
 
@@ -2067,9 +2078,6 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 		if(!IsClientInGame(i))
 			continue;
 
-		else if(IsFakeClient(i))
-			continue;
-
 		else if(!IsPlayerAlive(i))
 			continue;
 
@@ -2261,9 +2269,6 @@ public Action Event_TankKilled(Handle hEvent, char[] Name, bool dontBroadcast)
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
-			continue;
-
-		else if(IsFakeClient(i))
 			continue;
 
 		else if(!IsPlayerAlive(i))

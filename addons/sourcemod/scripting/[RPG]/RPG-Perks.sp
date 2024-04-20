@@ -1,5 +1,3 @@
-// Note to self: Applying timed attribute with RPG_Perks_OnZombiePlayerSpawned caused insane and hard to find lag spikes.
-
 /* List of things this plugins changes in how L4D2 works:
 
 1. Getting up from ledge hang inflicts damage to you 
@@ -91,6 +89,7 @@ bool g_bTeleported[MAXPLAYERS+1];
 bool g_bRoundStarted = false;
 
 bool g_bMidInstantKill = false;
+bool g_bMidSEMIClearAttributes = false;
 bool g_bMidClearAttributes = false;
 
 Cookie g_hCookie_SoundMode;
@@ -738,6 +737,46 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 
 	int transferRules = GetNativeCell(6);
 
+	DataPack DP = CreateDataPack();
+
+	WritePackCell(DP, entity);
+	WritePackString(DP, attributeName);
+	WritePackFloat(DP, duration);
+	WritePackCell(DP, collision);
+	WritePackCell(DP, attributeType);
+	WritePackCell(DP, transferRules);
+
+	if(g_bMidSEMIClearAttributes)
+	{
+		RequestFrame(Frame_ApplyEntityTimedAttribute, DP);
+
+		return true;
+	}
+
+	return ApplyEntityTimedAttribute(entity, attributeName, duration, collision, attributeType, transferRules);
+}
+
+public void Frame_ApplyEntityTimedAttribute(DataPack DP)
+{
+	ResetPack(DP);
+
+	int entity = ReadPackCell(DP);
+
+	char attributeName[64];
+	ReadPackString(DP, attributeName, sizeof(attributeName));
+
+	float duration = ReadPackFloat(DP);
+	int collision = ReadPackCell(DP);
+	int attributeType = ReadPackCell(DP);
+	int transferRules = ReadPackCell(DP);
+
+	delete DP;
+
+	ApplyEntityTimedAttribute(entity, attributeName, duration, collision, attributeType, transferRules);
+}
+
+public bool ApplyEntityTimedAttribute(int entity, char attributeName[64], float duration, int collision, int attributeType, int transferRules)
+{
 	int size = g_aTimedAttributes.Length;
 
 	for(int i=0;i < size;i++)
@@ -834,7 +873,6 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 	
 	return true;
 }
-
 public int Native_GetClientLimitedAbility(Handle caller, int numParams)
 {
 	if(g_aLimitedAbilities == null)
@@ -1141,6 +1179,8 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 	}
 
 
+	g_bMidSEMIClearAttributes = true;
+
 	for(int i=0;i < aCalls.Length;i++)
 	{
 		enCall call;
@@ -1153,6 +1193,8 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 
 		Call_Finish();
 	}
+
+	g_bMidSEMIClearAttributes = false;
 
 	delete aCalls;
 
@@ -2094,7 +2136,6 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	else if(!RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
 		return;
 
-	PrintToChatIfEyal(victim, "Ey");
 	bImmune = true;
 
 }
@@ -4986,6 +5027,8 @@ stock void RPG_ClearTimedAttributes(int entity = 0)
 {
 	g_bMidClearAttributes = true;
 
+	ArrayList aCalls = new ArrayList(sizeof(enCall));
+
 	// Can't declare size because the size changes over time.
 	for(int i=0;i < g_aTimedAttributes.Length;i++)
 	{
@@ -5003,14 +5046,30 @@ stock void RPG_ClearTimedAttributes(int entity = 0)
 			else if(!IsValidEdict(entity))
 				continue;
 
-			Call_StartForward(g_fwOnTimedAttributeExpired);
 
-			Call_PushCell(attribute.entity);
-			Call_PushString(attribute.attributeName);
+			// If we apply or remove a previous attribute when an attribute expires, everything will break
+			enCall call;
+			call.entity = attribute.entity;
+			call.attributeName = attribute.attributeName;
 
-			Call_Finish();
+			aCalls.PushArray(call);
 		}
 	}
+
+	for(int i=0;i < aCalls.Length;i++)
+	{
+		enCall call;
+		aCalls.GetArray(i, call);
+
+		Call_StartForward(g_fwOnTimedAttributeExpired);
+
+		Call_PushCell(call.entity);
+		Call_PushString(call.attributeName);
+
+		Call_Finish();
+	}
+
+	delete aCalls;
 
 	g_bMidClearAttributes = false;
 }

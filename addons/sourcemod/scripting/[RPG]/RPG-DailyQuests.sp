@@ -376,8 +376,8 @@ public void CreateQuests()
 	quest.sName = "Beat Maps";
 	quest.minPrize = 3000;
 	quest.maxPrize = 5700;
-	quest.minObjective = 10;
-	quest.maxObjective = 20;
+	quest.minObjective = 2;
+	quest.maxObjective = 6;
 	quest.minLevel = 0;
 	quest.prizeType = PRIZE_XP;
 	g_aQuests.PushArray(quest);

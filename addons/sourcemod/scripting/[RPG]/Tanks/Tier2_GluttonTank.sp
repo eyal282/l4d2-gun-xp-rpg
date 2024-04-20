@@ -144,8 +144,8 @@ public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bAppo
 
     GetClientName(client, g_sLastTankName[client], sizeof(g_sLastTankName[]));
 
-    //if(!RPG_Perks_IsEntityTimedAttribute(client, "Calc Most Processed Survivor"))
-      //  RPG_Perks_ApplyEntityTimedAttribute(client, "Calc Most Processed Survivor", 0.2, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+    if(!RPG_Perks_IsEntityTimedAttribute(client, "Calc Most Processed Survivor"))
+        RPG_Perks_ApplyEntityTimedAttribute(client, "Calc Most Processed Survivor", 0.2, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 }
 
 public void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex)
@@ -285,6 +285,14 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
         else if(RPG_Tanks_GetClientTank(entity) != tankIndex)
             return;
+
+        int weapon = L4D_GetPlayerCurrentWeapon(entity);
+
+        if(weapon != -1)
+        {
+            SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", 2000000000.0);
+            SetEntPropFloat(weapon, Prop_Data, "m_flNextSecondaryAttack", 2000000000.0);
+        }
 
         int count = 0;
         int mostProcessed = 0;
@@ -483,6 +491,7 @@ public void RegisterTank()
     FormatEx(sDesc, sizeof(sDesc), "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for %.0f seconds.", g_fNightmareDuration);
     eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", sDesc, minmax[0], minmax[1]);
 
+    RPG_Tanks_RegisterPassiveAbility(tankIndex, "Big Tank", "Tank cannot throw rocks.");
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Process Survivor", "Survivors being eaten take 1{PERCENT} damage each second, and become PROCESSED when incapped.\nTank heals 400k HP when a survivor is PROCESSED.");
 
     char TempFormat[512];
