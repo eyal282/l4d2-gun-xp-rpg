@@ -4699,11 +4699,11 @@ stock void StringToKMB(int number, char[] buffer, int length)
 	switch(RoundToFloor(Logarithm(float(number))))
 	{
 		case 3, 4, 5:
-			FormatEx(buffer, length, "%i.%iK", RoundToFloor(float(number) / 1000.0), TrueFloatFraction(float(number) / 1000.0));
+			FormatEx(buffer, length, "%i.%s%iK", RoundToFloor(float(number) / 1000.0), TrueFloatFraction(float(number) / 1000.0) <= 99 ? "0" : "", TrueFloatFraction(float(number) / 1000.0));
 		case 6, 7, 8:
-			FormatEx(buffer, length, "%i.%iM", RoundToFloor(float(number) / 1000000.0), TrueFloatFraction(float(number) / 1000000.0));
+			FormatEx(buffer, length, "%i.%s%iM", RoundToFloor(float(number) / 1000000.0), TrueFloatFraction(float(number) / 1000000.0) <= 99 ? "0" : "", TrueFloatFraction(float(number) / 1000000.0));
 		case 9, 10, 11:
-			FormatEx(buffer, length, "%i.%ifB", RoundToFloor(float(number) / 1000000000.0), TrueFloatFraction(float(number) / 1000000000.0));
+			FormatEx(buffer, length, "%i.%s%ifB", RoundToFloor(float(number) / 1000000000.0), TrueFloatFraction(float(number) / 1000000000.0) <= 99 ? "0" : "", TrueFloatFraction(float(number) / 1000000000.0));
 	}
 
 
