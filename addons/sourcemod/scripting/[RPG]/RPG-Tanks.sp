@@ -363,7 +363,7 @@ public any Native_SetClientTank(Handle caller, int numParams)
 
 		Call_PushCell(prio);
 		Call_PushCell(client);
-		Call_PushCell(false);
+		Call_PushCell(true);
 
 		Call_Finish();
 	}

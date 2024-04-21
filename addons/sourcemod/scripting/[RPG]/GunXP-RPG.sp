@@ -4703,10 +4703,8 @@ stock void StringToKMB(int number, char[] buffer, int length)
 		case 6, 7, 8:
 			FormatEx(buffer, length, "%i.%s%iM", RoundToFloor(float(number) / 1000000.0), TrueFloatFraction(float(number) / 1000000.0) <= 99 ? "0" : "", TrueFloatFraction(float(number) / 1000000.0));
 		case 9, 10, 11:
-			FormatEx(buffer, length, "%i.%s%ifB", RoundToFloor(float(number) / 1000000000.0), TrueFloatFraction(float(number) / 1000000000.0) <= 99 ? "0" : "", TrueFloatFraction(float(number) / 1000000000.0));
+			FormatEx(buffer, length, "%i.%s%iB", RoundToFloor(float(number) / 1000000000.0), TrueFloatFraction(float(number) / 1000000000.0) <= 99 ? "0" : "", TrueFloatFraction(float(number) / 1000000000.0));
 	}
-
-
 
 	int lastChar = buffer[strlen(buffer)-1];
 
@@ -4727,6 +4725,11 @@ stock void StringToKMB(int number, char[] buffer, int length)
 		buffer[len - 1] = EOS;
 		Format(buffer, length, "%s%c", buffer, lastChar);
 	}
+
+
+	ReplaceStringEx(buffer, length, ".K", "K");
+	ReplaceStringEx(buffer, length, ".M", "M");
+	ReplaceStringEx(buffer, length, ".B", "B");
 }
 
 stock int TrueFloatFraction(float value, int precision = 3)
