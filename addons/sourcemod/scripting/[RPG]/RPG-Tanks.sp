@@ -2259,11 +2259,6 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 
 public Action Event_TankKilled(Handle hEvent, char[] Name, bool dontBroadcast)
 {
-	int victim = GetClientOfUserId(GetEventInt(hEvent, "userid"));
-	
-	if(victim == 0)
-		return Plugin_Continue;
-
 	int tankCount = 0;
 
 	for(int i=1;i <= MaxClients;i++)

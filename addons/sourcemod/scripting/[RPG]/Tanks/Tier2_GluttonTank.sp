@@ -504,6 +504,9 @@ stock int FindRandomSurvivorWithoutIncap(int client, float fMaxDistance)
         else if(L4D_IsPlayerIncapacitated(i))
             continue;
 
+        else if(RPG_Perks_IsEntityTimedAttribute(i, "Frozen") || RPG_Perks_IsEntityTimedAttribute(i, "Stun"))
+            continue;
+
         float fSurvivorOrigin[3];
         GetClientAbsOrigin(i, fSurvivorOrigin);
 
@@ -528,7 +531,7 @@ public void RegisterTank()
     minmax[1] = 60;
 
     char sDesc[256];
-    FormatEx(sDesc, sizeof(sDesc), "Eats the closest 2 standing survivors in 256 units distance\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for %.0f seconds.", g_fNightmareDuration);
+    FormatEx(sDesc, sizeof(sDesc), "Eats the closest 2 standing survivors in 256 units distance\nCannot eat Frozen or Stunned survivors\nIf no survivor is found, the Tank applies NIGHTMARE on all survivors for %.0f seconds.", g_fNightmareDuration);
     eatSurvivorIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Eat Survivor", sDesc, minmax[0], minmax[1]);
 
     RPG_Tanks_RegisterPassiveAbility(tankIndex, "Giant Rock", "The Tank's rock instantly kills a survivor it hits.");

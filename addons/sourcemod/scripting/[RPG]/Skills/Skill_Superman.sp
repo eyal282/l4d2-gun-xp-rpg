@@ -360,6 +360,6 @@ public void RegisterSkill()
 {
     UC_SilentCvar("l4d2_points_survivor_spray_alias", "");
 
-    supermanIndex = GunXP_RPGShop_RegisterSkill("Superman", "Superman", "Infinite Ammo.\nOnce per Round: Triple click RELOAD to activate Superman, INVINCIBLE, and Immolation\nDuration is 12 sec, or for 1 min if Tank isn't alive.\nYou will be able to fly around at high speed with collisions enabled",
+    supermanIndex = GunXP_RPGShop_RegisterSkill("Superman", "Superman", "Infinite Ammo.\nOnce per Round: Triple click SPRAY to activate Superman, INVINCIBLE, and Immolation\nDuration is 12 sec, or for 1 min if Tank isn't alive.\nYou will be able to fly around at high speed with collisions enabled",
     GunXP_RPG_GetXPForLevel(85), GunXP_RPG_GetXPForLevel(85));
 }
