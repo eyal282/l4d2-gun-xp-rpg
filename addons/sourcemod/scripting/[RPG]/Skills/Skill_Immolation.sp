@@ -73,6 +73,21 @@ public void WH_OnDeployModifier(int client, int weapon, int weapontype, float &s
 	speedmodifier = 10.0;
 }
 
+
+public void RPG_Perks_OnTimedAttributeStart(int attributeEntity, char attributeName[64], float fDuration)
+{
+    if(StrEqual(attributeName, "Immolation") && IsPlayer(attributeEntity))
+    {
+        if(g_hTimer[attributeEntity] != INVALID_HANDLE)
+        {
+            CloseHandle(g_hTimer[attributeEntity]);
+            g_hTimer[attributeEntity] = INVALID_HANDLE;
+        }            
+
+        g_hTimer[attributeEntity] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(attributeEntity), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+    }
+}
+
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
     if(!StrEqual(attributeName, "Immolation"))
@@ -126,14 +141,6 @@ public void OnEntityDestroyed(int entity)
             PrintToChat(owner, "Immolation is active for %.1f seconds.", fDuration);
 
             RPG_Perks_ApplyEntityTimedAttribute(owner, "Immolation", fDuration, COLLISION_ADD, ATTRIBUTE_POSITIVE);
-
-            if(g_hTimer[owner] != INVALID_HANDLE)
-            {
-                CloseHandle(g_hTimer[owner]);
-                g_hTimer[owner] = INVALID_HANDLE;
-            }
-
-            g_hTimer[owner] = CreateTimer(1.0, Timer_CastImmolation, GetClientUserId(owner), TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
         }
     }
     else

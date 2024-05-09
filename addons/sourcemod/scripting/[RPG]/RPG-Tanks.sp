@@ -489,6 +489,8 @@ public void OnPluginEnd()
 		{
 			SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
 		}
+
+		g_iSpawnflags[door] = -1;
 	}
 }
 public void OnPluginStart()
@@ -539,7 +541,8 @@ public void OnPluginStart()
 	RegPluginLibrary("RPG_Tanks");
 
 	HookEvent("player_incapacitated", Event_PlayerIncap, EventHookMode_Pre);
-	HookEvent("tank_killed", Event_TankKilled, EventHookMode_Post);
+	HookEvent("tank_killed", Event_TankKilledOrDisconnect, EventHookMode_Post);
+	HookEvent("player_disconnect", Event_TankKilledOrDisconnect, EventHookMode_Post);
 	HookEvent("finale_start", Event_FinaleStart, EventHookMode_PostNoCopy);
 	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
@@ -1111,7 +1114,10 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 		SetEntProp(door, Prop_Data, "m_bLocked", 1);
 		ChangeEdictState(door, 0);
 
-		g_iSpawnflags[door] = GetEntProp(door, Prop_Send, "m_spawnflags");
+		if(g_iSpawnflags[door] == -1)
+		{
+			g_iSpawnflags[door] = GetEntProp(door, Prop_Send, "m_spawnflags");
+		}
 
 		SetEntProp(door, Prop_Send, "m_spawnflags", DOOR_FLAG_IGNORE_USE); // Prevent +USE
 
@@ -2104,6 +2110,8 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 			{
 				SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
 			}
+
+			g_iSpawnflags[door] = -1;
 		}
 	}
 	
@@ -2257,7 +2265,7 @@ public Action Event_PlayerIncap(Handle hEvent, char[] Name, bool dontBroadcast)
 	return Plugin_Continue;
 }
 
-public Action Event_TankKilled(Handle hEvent, char[] Name, bool dontBroadcast)
+public Action Event_TankKilledOrDisconnect(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	int tankCount = 0;
 
@@ -2292,6 +2300,8 @@ public Action Event_TankKilled(Handle hEvent, char[] Name, bool dontBroadcast)
 			{
 				SetEntProp(door, Prop_Send, "m_spawnflags", g_iSpawnflags[door]);
 			}
+
+			g_iSpawnflags[door] = -1;
 		}
 	}
 

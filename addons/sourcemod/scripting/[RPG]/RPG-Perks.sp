@@ -1271,7 +1271,7 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 	if(LibraryExists("GunXP-RPG"))
 	{
-		if(!StrEqual(sGamemode, "coop"))
+		if(!StrEqual(sGamemode, "coop") && !StrEqual(sGamemode, "survival"))
 		{
 			g_hGamemode.SetString("coop");
 			ServerCommand("changelevel c1m1_hotel");
@@ -1304,6 +1304,11 @@ public Action Timer_CheckSpeedModifiers(Handle hTimer)
 
 		CheckClientSpeedModifiers(i);
 	}
+
+	char sCode[128];
+	FormatEx(sCode, sizeof(sCode), "g_ModeScript.GetDirectorOptions().CommonLimit <- %i", GetConVarInt(FindConVar("z_common_limit")));
+
+	L4D2_ExecVScriptCode(sCode);
 
 	return Plugin_Continue;
 }
@@ -1582,6 +1587,7 @@ public void OnPluginStart()
 	if(g_aReplicateCvars == null)
 		g_aReplicateCvars = CreateArray(sizeof(enReplicateCvar));
 
+	HookEvent("survival_round_start", Event_SurvivalRoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("player_first_spawn", Event_PlayerFirstSpawn);
@@ -2660,6 +2666,26 @@ public Action Event_VictimFreeFromPin(Handle event, const char[] name, bool dont
 	return Plugin_Continue;	
 }
 
+public Action Event_SurvivalRoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(RPG_Perks_GetZombieType(i) != ZombieType_NotInfected)
+			continue;
+			
+		DataPack DP = CreateDataPack();
+
+		WritePackCell(DP, GetClientUserId(i));
+		WritePackCell(DP, true);
+
+		RequestFrame(Event_PlayerSpawnFrame, DP);
+	}
+
+	return Plugin_Continue;
+}
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
 	RPG_Perks_ApplyEntityTimedAttribute(0, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);

@@ -68,12 +68,32 @@ public void OnPluginEnd()
 }
 public void OnPluginStart()
 {
+    HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
+
     RegisterSkill();
 }
 
 public void GunXP_OnReloadRPGPlugins()
 {
     GunXP_ReloadPlugin();
+}
+
+
+public Action Event_WeaponFire(Handle hEvent, char[] Name, bool dontBroadcast)
+{
+    int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+    int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+    
+    if(weapon == -1)
+        return Plugin_Continue;
+
+    else if(!GunXP_RPGShop_IsSkillUnlocked(client, supermanIndex))
+        return Plugin_Continue;
+
+    SetEntProp(weapon, Prop_Send, "m_iClip1", 11);
+
+    return Plugin_Continue;
 }
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
@@ -97,9 +117,9 @@ public void RPG_Perks_OnTimedAttributeStart(int attributeEntity, char attributeN
     {
         if(IsPlayer(attributeEntity))
         {
-            float fDuration;
+            float fDuration = 0.0;
 
-            if(!RPG_Perks_IsEntityTimedAttribute(attributeEntity, "Superman", fDuration))
+            if(!RPG_Perks_IsEntityTimedAttribute(attributeEntity, "Superman", fDuration) && fDuration == 0.0)
                 return;
 
             RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Invincible", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);

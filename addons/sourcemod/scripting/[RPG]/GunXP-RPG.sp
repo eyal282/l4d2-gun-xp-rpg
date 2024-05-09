@@ -94,6 +94,8 @@ char g_sForbiddenMapWeapons[][] =
 bool g_bLate = false;
 bool g_bMapStarted = false;
 
+ConVar hcv_Gamemode;
+
 ConVar hcv_xpDisplayMode;
 ConVar hcv_priorityGiveGuns;
 
@@ -1259,6 +1261,9 @@ public void OnPluginStart()
 
 	RegAdminCmd("sm_mask", Command_Mask, ADMFLAG_GENERIC);
 
+	RegConsoleCmd("sm_survival", Command_Survival);
+	RegConsoleCmd("sm_coop", Command_Coop);
+
 	RegConsoleCmd("sm_br", Command_BulletRelease, "sm_br [#userid|name] - Checks aimbot level info");
 	RegConsoleCmd("sm_xp", Command_XP);
 	RegConsoleCmd("sm_guns", Command_Guns);
@@ -1273,6 +1278,7 @@ public void OnPluginStart()
 
 	HookEvent("foot_locker_opened", Event_Disable, EventHookMode_Pre);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	
 	HookEvent("weapon_fire", Event_WeaponFire, EventHookMode_Post);
 
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
@@ -1286,6 +1292,8 @@ public void OnPluginStart()
 	HookEvent("revive_success", Event_ReviveSuccess);
 	HookEvent("player_disconnect", Event_PlayerDisconnect, EventHookMode_Post);
 	
+	hcv_Gamemode = FindConVar("mp_gamemode");
+
 	SetConVarString(UC_CreateConVar("gun_xp_rpg_version", PLUGIN_VERSION), PLUGIN_VERSION);
 
 	hcv_xpDisplayMode = UC_CreateConVar("gun_xp_display_mode", "1", "0 - Normal Behavior. 1 - XP \"Resets\" every level.");
@@ -2134,6 +2142,8 @@ stock void ShowCommandsMenu(int client, int item=0)
 	AddMenuItem(hMenu, "sm_buy", "!buy <alias> [#userid|name]");
 	AddMenuItem(hMenu, "sm_br", "!br [#userid|name]");
 	AddMenuItem(hMenu, "sm_q", "!q OR !quest");
+	AddMenuItem(hMenu, "sm_coop", "!coop");
+	AddMenuItem(hMenu, "sm_survival", "!survival");
 
 	SetMenuExitBackButton(hMenu, true);
 
@@ -3307,6 +3317,43 @@ public Action Command_Mask(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_Coop(int client, int args)
+{
+	if(StartCustomVote(-2, "@survivors", 51, "Change mission to Coop?") != 0)
+		return Plugin_Handled;
+
+	return Plugin_Handled;
+}
+
+public Action Command_Survival(int client, int args)
+{
+	if(StartCustomVote(-1, "@survivors", 51, "Change mission to Survival?") != 0)
+		return Plugin_Handled;
+
+	return Plugin_Handled;
+}
+
+public void sm_vote_OnVoteFinished_Post(int client, int VotesFor, int VotesAgainst, int PercentsToPass, bool bCanVote[MAXPLAYERS], char[] VoteSubject, bool bInternal, Handle Caller)
+{
+	if(Caller != GetMyHandle())
+		return;
+	
+	float ForPercents = (float(VotesFor) / (float(VotesFor) + float(VotesAgainst))) * 100.0;
+
+	if(ForPercents < PercentsToPass)
+		return;
+
+	if(client == -1)
+	{
+		SetConVarString(hcv_Gamemode, "survival");
+		ServerCommand("sm_map c1m2_streets");
+	}
+	else if(client == -2)
+	{
+		SetConVarString(hcv_Gamemode, "coop");
+		ServerCommand("sm_map c1m1_hotel");
+	}
+}
 public Action Command_BulletRelease(int client, int args)
 {
 	// sPossessionNameTarget = You have / Rick Grimes has
