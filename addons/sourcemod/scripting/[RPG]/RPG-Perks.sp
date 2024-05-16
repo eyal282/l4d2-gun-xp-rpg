@@ -3882,6 +3882,13 @@ public void FuncElevator_ReachFloor(const char[] output, int caller, int activat
 		float fOrigin[3];
 		GetEntPropVector(caller, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
+		Address area = L4D_GetNearestNavArea(fOrigin, 8192.0, true, false, true);
+
+		if(area != Address_Null)
+		{
+			L4D_FindRandomSpot(view_as<int>(area), fOrigin);
+		}
+
 		if(pet != -1)
 		{
 			g_fLastStunOrigin[pet] = fOrigin;
