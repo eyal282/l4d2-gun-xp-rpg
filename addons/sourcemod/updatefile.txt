@@ -79,6 +79,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_OutWithABlast.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Recharge.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_RetroactiveRecovery.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_RetroGamer.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Saboteur.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_Sniper.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/Skills/Skill_StickyBile.smx"
