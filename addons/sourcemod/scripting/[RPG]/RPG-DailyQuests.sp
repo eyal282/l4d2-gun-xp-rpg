@@ -271,7 +271,7 @@ public Action Command_Missions(int client, int args)
 
 	SetMenuTitle(hMenu, "Complete daily quests for XP reward. This is unaffected by difficulty\nQuests marked as \"Team\" can be helped by your team.\nQuests reset in %s", TempFormat);
 
-	SetMenuExitBackButton(hMenu, true);
+	SetMenuPagination(hMenu, 6);
 
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
 
