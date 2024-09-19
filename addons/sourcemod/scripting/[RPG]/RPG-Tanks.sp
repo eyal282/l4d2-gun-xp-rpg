@@ -1233,18 +1233,14 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 		if(damage >= 200 && (attacker == victim || attacker == 0 || strncmp(sClassname, "trigger_hurt", 12) == 0 || strncmp(sClassname, "point_hurt", 10) == 0))
 		{
-			if(L4D2_IsGenericCooperativeMode())
-			{
-				PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
+			PrintToChatAll(" \x03%N\x01 took lethal damage from the world. It will be converted to a normal Tank now.", victim);
 
-				SetClientName(victim, "Tank");
+			SetClientName(victim, "Tank");
 
-				RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
-				//RPG_Perks_SetClientMaxHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+			RPG_Perks_SetClientHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
+			//RPG_Perks_SetClientMaxHealth(victim, GetConVarInt(FindConVar("rpg_z_tank_health")));
 
-				g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
-
-			}
+			g_iCurrentTank[victim] = TANK_TIER_UNTIERED;
 
 			return;
 		}

@@ -2006,7 +2006,7 @@ public void OnActionCreated(BehaviorAction action, int actor, const char[] name)
 	}
 	if(strcmp(name[8], "LiberateBesiegedFriend") == 0)
 	{
-		// Crashes
+		// Crashes(?)
 		action.OnUpdatePost = OnMoveToIncapacitatedFriendAction;
 	}
 
@@ -2060,6 +2060,7 @@ public void InfectedAttack__OnUpdatePost(BehaviorAction action, int actor, float
 	}
 }
 
+// Crashes(?)
 public Action OnMoveToIncapacitatedFriendAction(BehaviorAction action, int actor, float fInterval, ActionResult result)
 {
 	int target = (action.Get(0x34) & 0xFFF);
