@@ -155,7 +155,5 @@ public void RegisterSkill()
     FormatEx(sDescription, sizeof(sDescription), "Once per Round: Triple press FLASHLIGHT to become frozen and invincible for 12 sec\nUse this skill again to unfreeze & lose invincibility");
 
     skillIndex = GunXP_RPGShop_RegisterSkill("Cryo Protection", "Cryo Protection", sDescription,
-    1500000, 0);
+    650000, 0);
 }
-
-

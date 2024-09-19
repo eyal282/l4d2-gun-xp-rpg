@@ -301,6 +301,8 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 // DO NOT UNDER ANY CIRCUMSTANCE SELL OR RESET A PLAYER IN THIS FORWARD IN ANY WAY SHAPE OR FORM ABLE TO.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 
+forward void RPG_Perks_OnGetShadowRealmVision(int client, float &fVision);
+
 // return Plugin_Handled to ignore the client (please keep it for the rest of the round), Plugin_Continue otherwise.
 forward Action RPG_Perks_OnShouldIgnoreEntireTeamTouch(int client);
 

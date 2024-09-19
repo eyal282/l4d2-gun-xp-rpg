@@ -1645,9 +1645,41 @@ public Action Timer_HudMessageXP(Handle hTimer)
 		char tankFormat[64];
 		char extraFormat[128];
 
-		if(IsPlayerAlive(i) && GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) > 0.0)
+		char statusEffects[][64] =
 		{
-			FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "[Adrenaline : %i sec]", RoundToFloor(Terror_GetAdrenalineTime(i)));
+			"Shadow Realm",
+			"Stun",
+			"Frozen",
+			"Mutated",
+			"Invincible",
+			"Adrenaline",
+			"Immolation",
+			"Hyperactive"
+		};
+
+		for(int a=0;a < sizeof(statusEffects);a++)
+		{
+			if(StrEqual(statusEffects[a], "Adrenaline"))
+			{
+				if(IsPlayerAlive(i) && GetEntProp(i, Prop_Send, "m_bAdrenalineActive") && Terror_GetAdrenalineTime(i) > 0.0)
+				{
+					FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "[Adrenaline : %i sec]", RoundToFloor(Terror_GetAdrenalineTime(i)));
+
+					a = sizeof(statusEffects) + 1;
+				}
+			}
+			else
+			{
+				float fDelay;
+				RPG_Perks_IsEntityTimedAttribute(i, statusEffects[a], fDelay);
+
+				if(fDelay > 0.0)
+				{
+					FormatEx(adrenalineFormat, sizeof(adrenalineFormat), "[%s : %i sec]", statusEffects[a], RoundToFloor(fDelay));
+
+					a = sizeof(statusEffects) + 1;
+				}
+			}
 		}
 
 		if(bestTank != 0)

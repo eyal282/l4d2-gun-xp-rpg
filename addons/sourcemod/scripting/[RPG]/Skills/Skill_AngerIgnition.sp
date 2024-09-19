@@ -57,7 +57,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
         else if(!GunXP_RPGShop_IsSkillUnlocked(victim, ignitionIndex))
             return;
 
-        else if(damage == 0.0)
+        else if(damage == 0.0 || bImmune)
             return;
 
         float fChance = g_fChancePerLevels * float(RoundToFloor(float(GunXP_RPG_GetClientLevel(victim)) / float(g_iChanceLevels)));

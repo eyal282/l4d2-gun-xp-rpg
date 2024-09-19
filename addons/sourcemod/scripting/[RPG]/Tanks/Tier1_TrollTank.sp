@@ -222,7 +222,8 @@ public void RegisterTank()
 
 	tankIndex = RPG_Tanks_RegisterTank(1, entries, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes no damage besides Fire.", "Very Annoying. Only Fire Damage works. Explodes on Death killing all survivors nearby.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
 
-	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Stun Stack", "Due to a bug (=Feature), if any tank punches...\n... a stunned player multiple times, the fly away effect stacks...\n... Causing the player to fly far away when stun ends.");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Bonjour", "If a survivor enters Shadow Realm, Tank joins him for the duration");
+	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Stun Stack", "Due to a bug (=Feature), if any Tank punches...\n... a stunned player multiple times, the fly away effect stacks...\n... Causing the player to fly far away when stun ends.");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Mental Pain", "Tank deals no direct damage");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Close and Personal", "Tank attacks at high speed.\nTank cannot throw rocks.");
 
@@ -241,6 +242,28 @@ public void RegisterTank()
 		mutationIndex = RPG_Tanks_RegisterActiveAbility(tankIndex, "Mutation", "Mutates 4 closest survivors for 15 seconds in a 512 unit radius\nMutated survivors are treated as level 0 and lose all abilities.", 90, 120);
 	}
 }
+
+
+public void RPG_Perks_OnTimedAttributeStart(int attributeEntity, char attributeName[64], float fDuration)
+{
+    if(StrEqual(attributeName, "Shadow Realm") && RPG_Perks_GetZombieType(attributeEntity) == ZombieType_NotInfected)
+    {
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(RPG_Perks_GetZombieType(i) != ZombieType_Tank)
+				continue;
+
+			else if(RPG_Tanks_GetClientTank(i) != tankIndex)
+				continue;
+
+			RPG_Perks_ApplyEntityTimedAttribute(i, "Shadow Realm", fDuration, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEUTRAL);
+		}
+    }
+}
+
 
 public void RPG_Perks_OnGetTankSwingSpeed(int priority, int client, float &delay)
 {

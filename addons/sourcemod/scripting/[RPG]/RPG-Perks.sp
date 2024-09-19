@@ -7,6 +7,7 @@
 #undef REQUIRE_PLUGIN
 #include <GunXP-RPG>
 #include <ps_api>
+#include <actions>
 #define REQUIRE_PLUGIN
 #include <autoexecconfig>
 #include <sourcemod>
@@ -32,6 +33,8 @@ public Plugin myinfo =
 	url         = ""
 };
 
+#define MAXENTITIES 				2048
+
 #define SOUND_CHANNEL SNDCHAN_STATIC
 
 #define INVINCIBLE_SOUND "@#music/tank/onebadtank.wav"
@@ -53,6 +56,12 @@ public Plugin myinfo =
 #define MIN_SPEED				65.0	
 
 float ANGLE_STRAIGHT_DOWN[3] = { 90.0, 0.0, 0.0 };
+
+static float g_fClientEyePos[MAXPLAYERS+1][3];
+static float g_fClientEyeAng[MAXPLAYERS+1][3];
+static float g_fClientAbsOrigin[MAXPLAYERS+1][3];
+static float g_fClientCenteroid[MAXPLAYERS+1][3];
+static int g_iClientNavArea[MAXPLAYERS+1];
 
 // Player Absolute Speeds
 float g_fAbsRunSpeed[MAXPLAYERS+1];			// Normal player speed (default = 220.0)
@@ -81,9 +90,13 @@ float g_fLastElevatorHeight[2049];
 int g_iIsTouching[MAXPLAYERS+1][2049];
 
 int g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+int g_refShadowRealmFogControl[MAXPLAYERS+1] = { INVALID_ENT_REFERENCE, ... };
 int g_refLastFog[MAXPLAYERS+1] = { INVALID_ENT_REFERENCE, ... };
 
 bool g_bNightmare[MAXPLAYERS+1];
+bool g_bShadowRealm[2049];
+bool g_bNextBot[2049];
+int g_iLastCollision[2049];
 
 bool g_bTeleported[MAXPLAYERS+1];
 bool g_bRoundStarted = false;
@@ -153,6 +166,8 @@ ConVar g_hRPGLimpHealth;
 
 ConVar g_hStartIncapWeapon;
 
+GlobalForward g_fwOnGetShadowRealmVision;
+
 GlobalForward g_fwOnShouldIgnoreEntireTeamTouch;
 
 GlobalForward g_fwOnShouldClosetsRescue;
@@ -204,6 +219,11 @@ char g_sLastSecondaryClassname[MAXPLAYERS+1][64];
 int g_iLastSecondaryClip[MAXPLAYERS+1];
 bool g_bLastSecondaryDual[MAXPLAYERS+1];
 
+char g_sWitch[1][] =
+{
+	"npc/witch/"
+};
+
 enum struct enTimedAttribute
 {
 	// "Stun"
@@ -239,6 +259,30 @@ enum struct enReplicateCvar
 
 ArrayList g_aReplicateCvars;
 
+
+methodmap EHANDLE {
+	public EHANDLE(int entity) {
+		static int s_iOffs_m_RefEHandle = -1;
+		if (s_iOffs_m_RefEHandle == -1)
+			s_iOffs_m_RefEHandle = FindSendPropInfo("CBaseEntity", "m_angRotation") + 12;
+		
+		return view_as<EHANDLE>(GetEntData(entity, s_iOffs_m_RefEHandle, 4));
+	}
+	
+	public int Get() {
+		static int s_iRandomOffsetToAnEHandle = -1;
+		if (s_iRandomOffsetToAnEHandle == -1)
+			s_iRandomOffsetToAnEHandle = FindSendPropInfo("CWorld", "m_hOwnerEntity");
+		
+		int temp = GetEntData(0, s_iRandomOffsetToAnEHandle, 4);
+		SetEntData(0, s_iRandomOffsetToAnEHandle, this, 4);
+		int result = GetEntDataEnt2(0, s_iRandomOffsetToAnEHandle);
+		SetEntData(0, s_iRandomOffsetToAnEHandle, temp, 4);
+		
+		return result;
+	}
+}
+
 public void OnPluginEnd()
 {
 	int fog = EntRefToEntIndex(g_refNightmareFogControl);
@@ -249,6 +293,29 @@ public void OnPluginEnd()
 		g_refNightmareFogControl = INVALID_ENT_REFERENCE;
 	}
 
+	for(int i=1;i <= MaxClients;i++)
+	{
+		fog = EntRefToEntIndex(g_refShadowRealmFogControl[i]);
+
+		if(fog != INVALID_ENT_REFERENCE)
+		{
+			AcceptEntityInput(fog, "Kill");
+			g_refShadowRealmFogControl[i] = INVALID_ENT_REFERENCE;
+		}
+	}
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+		
+		fog = EntRefToEntIndex(g_refLastFog[i]);
+
+		if(fog != INVALID_ENT_REFERENCE)
+		{
+			SetEntPropEnt(i, Prop_Data, "m_hCtrl", fog);
+		} 
+	}
 	g_hKitDuration.FloatValue = g_hRPGKitDuration.FloatValue;
 	g_hReviveDuration.FloatValue = g_hRPGReviveDuration.FloatValue;
 	g_hLimpHealth.IntValue = g_hRPGLimpHealth.IntValue;
@@ -264,7 +331,11 @@ public void OnPluginEnd()
 		else if(!IsPlayerAlive(i))
 			continue;
 
-		else if(!RPG_Perks_IsEntityTimedAttribute(i, "Stun"))
+		else if(g_bShadowRealm[i])
+		{
+			//SetEntProp(i, Prop_Send, "m_CollisionGroup", g_iLastCollision[i]);
+		}
+		if(!RPG_Perks_IsEntityTimedAttribute(i, "Stun"))
 			continue;
 		
 		SetEntityMoveType(i, MOVETYPE_WALK);
@@ -1222,6 +1293,7 @@ public void OnMapStart()
 	else
 	{
 		TryCreateNightmareFogEntity();
+		TryCreateShadowRealmFogEntity();
 	}
 
 	g_hCheckAttributeExpire = INVALID_HANDLE;
@@ -1229,7 +1301,7 @@ public void OnMapStart()
 	g_aLimitedAbilities.Clear();
 	g_aTimedAttributes.Clear();
 
-	TriggerTimer(CreateTimer(1.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+	CreateTimer(1.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 
 	char mapname[64];
 	GetCurrentMap(mapname, sizeof(mapname));
@@ -1247,6 +1319,17 @@ public void OnMapEnd()
 	{
 		AcceptEntityInput(fog, "Kill");
 		g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+	}
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		fog = EntRefToEntIndex(g_refShadowRealmFogControl[i]);
+
+		if(fog != INVALID_ENT_REFERENCE)
+		{	
+			AcceptEntityInput(fog, "Kill");
+			g_refShadowRealmFogControl[i] = INVALID_ENT_REFERENCE;
+		}
 	}
 }
 
@@ -1488,6 +1571,22 @@ public Action Command_NightmareTest(int client, int args)
 	return Plugin_Handled;
 }
 
+
+public Action Command_ShadowTest(int client, int args)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		RPG_Perks_ApplyEntityTimedAttribute(i, "Shadow Realm", 300.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	}
+	return Plugin_Handled;
+}
+
 public Action Command_SupermanTest(int client, int args)
 {
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Superman", 10.0, COLLISION_SET, ATTRIBUTE_POSITIVE);
@@ -1568,6 +1667,10 @@ public void OnPluginStart()
 		}
 	}
 
+//	RegisterHook(hGamedata, m_hIsIgnored, "IVision::IsIgnored");
+
+	AddNormalSoundHook(SoundHook);
+
 	//RegAdminCmd("sm_concussiontest", Command_ConcussionTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_psychotest", Command_KinesisTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_kinesistest", Command_KinesisTest, ADMFLAG_ROOT);
@@ -1575,6 +1678,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_stuntest", Command_StunTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_nightmaretest", Command_NightmareTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_shadowtest", Command_ShadowTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_supermantest", Command_SupermanTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_sizetest", Command_SizeTest, ADMFLAG_ROOT);
 
@@ -1590,6 +1694,7 @@ public void OnPluginStart()
 	HookEvent("survival_round_start", Event_SurvivalRoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("award_earned", Event_AwardEarned, EventHookMode_Post);
 	HookEvent("player_first_spawn", Event_PlayerFirstSpawn);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_spawn", Event_PlayerSpawn);
@@ -1623,6 +1728,8 @@ public void OnPluginStart()
 	HookEntityOutput("func_tracktrain", "OnNextPoint", FuncElevator_CalculateReachFloor);
 
 	// Plugin_Handled if not.
+
+	g_fwOnGetShadowRealmVision = CreateGlobalForward("RPG_Perks_OnGetShadowRealmVision", ET_Event, Param_Cell, Param_FloatByRef);
 
 	g_fwOnShouldIgnoreEntireTeamTouch = CreateGlobalForward("RPG_Perks_OnShouldIgnoreEntireTeamTouch", ET_Event, Param_Cell);
 
@@ -1746,6 +1853,11 @@ public void OnPluginStart()
 
 	int count = GetEntityCount();
 
+	for(int i=1;i <= MaxClients;i++)
+	{
+		g_bNextBot[i] = true;
+	}
+
 	for (int i = MaxClients+1;i < count;i++)
 	{
 		if(!IsValidEdict(i))
@@ -1854,11 +1966,223 @@ public int Sound_MenuHandler(Handle hMenu, MenuAction action, int client, int it
 	return 0;
 }
 
+public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fVel[3], float fAngles[3])
+{
+	GetClientEyePosition(iClient, g_fClientEyePos[iClient]);
+	g_fClientEyeAng[iClient] = fAngles;
+	GetClientAbsOrigin(iClient, g_fClientAbsOrigin[iClient]);
+	GetEntityCenteroid(iClient, g_fClientCenteroid[iClient]);
+	g_iClientNavArea[iClient] = L4D_GetLastKnownArea(iClient);
 
+	return Plugin_Continue;
+}
+
+public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
+{   
+	int owner = GetEntPropEnt(specialInfected, Prop_Send, "m_hOwnerEntity");
+
+	// Pets should know everything, even in shadow realm
+	if(owner != -1)
+		return Plugin_Continue;
+		
+	if((g_bShadowRealm[specialInfected] && !g_bShadowRealm[curTarget]) || (!g_bShadowRealm[specialInfected] && g_bShadowRealm[curTarget]))
+	{
+		curTarget = GetClosestSurvivorWithinRealm(specialInfected);
+
+		return Plugin_Changed;
+	}
+
+	return Plugin_Continue;
+}
+public void OnActionCreated(BehaviorAction action, int actor, const char[] name)
+{
+	if(strcmp(name, "SurvivorHealFriend") == 0)
+	{
+		action.OnStartPost = OnFriendActionHeal;
+	}
+	if(strcmp(name, "SurvivorGivePillsToFriend") == 0 )
+	{
+		action.OnStartPost = OnFriendActionPills;
+	}
+	if(strcmp(name[8], "LiberateBesiegedFriend") == 0)
+	{
+		// Crashes
+		action.OnUpdatePost = OnMoveToIncapacitatedFriendAction;
+	}
+
+
+	if (strcmp(name, "InfectedAttack") == 0)
+	{
+		action.OnUpdatePost = InfectedAttack__OnUpdatePost;
+	}
+}
+
+bool g_bLimbo[2048];
+
+public void InfectedAttack__OnUpdatePost(BehaviorAction action, int actor, float fInterval, ActionResult result)
+{
+	int offs = 52;
+	EHANDLE hTarget = action.Get(offs, NumberType_Int32);
+	int target = hTarget.Get();
+
+	bool allow = true;
+
+	if((g_bShadowRealm[actor] && !g_bShadowRealm[target]) || (!g_bShadowRealm[actor] && g_bShadowRealm[target]))
+		allow = false;
+
+	if(!allow)
+	{
+		int newTarget = GetClosestSurvivorWithinRealm(actor);
+		
+		if(newTarget != 0)
+		{
+			action.Set(offs, EHANDLE(newTarget));
+			return;
+		}
+		else
+		{
+			action.Set(offs, EHANDLE(0));
+			g_bLimbo[actor] = true;
+			return;
+		}
+	}
+
+	if(g_bLimbo[actor])
+	{
+		int newTarget = GetClosestSurvivorWithinRealm(actor);
+		
+		if(newTarget != 0)
+		{
+			g_bLimbo[actor] = false;
+			action.Set(offs, EHANDLE(newTarget));
+			return;
+		}
+	}
+}
+
+public Action OnMoveToIncapacitatedFriendAction(BehaviorAction action, int actor, float fInterval, ActionResult result)
+{
+	int target = (action.Get(0x34) & 0xFFF);
+
+	if (!IsValidClient(target) || L4D_GetPlayerReviveTarget(actor) == target || GetEntityDistance(actor, target, true) <= 15625.0 && IsVisibleEntity(actor, target))
+		return Plugin_Continue;
+
+	bool allow = true;
+
+	if((g_bShadowRealm[actor] && !g_bShadowRealm[target]) || (!g_bShadowRealm[actor] && g_bShadowRealm[target]))
+		allow = false;
+
+	result.type = allow ? CONTINUE : DONE;
+	return Plugin_Changed;
+}
+
+public Action OnFriendActionPills(BehaviorAction action, int actor, BehaviorAction priorAction, ActionResult result)
+{
+	int target = action.Get(0x34) & 0xFFF;
+	bool allow = true;
+
+	if((g_bShadowRealm[actor] && !g_bShadowRealm[target]) || (!g_bShadowRealm[actor] && g_bShadowRealm[target]))
+		allow = false;
+
+	result.type = allow ? CONTINUE : DONE;
+	return Plugin_Changed;
+}
+
+
+public Action OnFriendActionHeal( BehaviorAction action, int actor, BehaviorAction priorAction, ActionResult result ) {
+	// Do not allow idle bots to heal another player, unless they are black and white.
+	// Do not let idle bots heal non-idle bots
+	int target = action.Get(0x34) & 0xFFF; 
+	int realPlayer = GetClientOfUserId(GetEntProp(actor, Prop_Send, "m_humanSpectatorUserID"));
+   	if(realPlayer > 0) { // If idle bot
+		if((g_bShadowRealm[realPlayer] && !g_bShadowRealm[target]) || (!g_bShadowRealm[realPlayer] && g_bShadowRealm[target]))
+		{
+			result.type = DONE;
+			return Plugin_Handled;
+		}
+	}
+	return Plugin_Continue;
+} 
+
+// ====================================================================================================
+//					SOUND HOOK
+// ====================================================================================================
+public Action SoundHook(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
+{
+	
+	bool bClear = false;
+	
+	// Common sounds
+	if(strncmp(sample, "npc/infected/", 13) == 0 )
+	{
+		bClear = true;
+	}
+	
+	// Infected sounds
+	if(strncmp(sample, "player/", 7) == 0 )
+	{
+		bClear = true;
+	}
+
+	// Tank sounds
+	if(strncmp(sample, "player/tank/", 12) == 0 )
+	{
+		bClear = true;
+	}
+
+	// Witch sounds
+	for( int i = 0; i < sizeof(g_sWitch); i++ )
+	{
+		if(StrEqual(sample, g_sWitch[i], false))
+		{
+			bClear = true;
+		}
+	}
+	
+	if(bClear)
+	{
+		int finalClients[64], finalNum;
+
+		for(int i=0;i < numClients;i++)
+		{
+			int client = clients[i];
+
+			if(!IsClientInGame(client))
+				continue;
+
+			else if((g_bShadowRealm[client] && !g_bShadowRealm[entity]) || (!g_bShadowRealm[client] && g_bShadowRealm[entity]))
+				continue;
+
+			finalClients[finalNum++] = client;
+		}
+
+		clients = finalClients;
+		numClients = finalNum;
+
+		if(finalNum > 0)
+			return Plugin_Changed;
+		
+		volume = 0.0;
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
+}
+
+// Also called during late load.
 public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(!IsValidEntityIndex(entity))
 		return;
+
+	if(RPG_Perks_GetZombieType(entity) == ZombieType_Invalid)
+		g_bNextBot[entity] = false;
+	
+	else
+	{
+		g_bNextBot[entity] = true;
+		g_bLimbo[entity] = false;
+	}
 
 	if(StrEqual(classname, "info_survivor_position"))
 	{
@@ -1874,7 +2198,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 		{
 			SDKHook(entity, SDKHook_SpawnPost, Event_ZombieSpawnPost);
 		}
-		SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
 	}
 	if(StrEqual(classname, "func_elevator"))
 	{
@@ -1965,6 +2288,9 @@ public Action SDKEvent_SetTransmit(int victim, int viewer)
 	else if(victim == viewer)
 		return Plugin_Continue;
 
+	else if((g_bShadowRealm[viewer] && !g_bShadowRealm[victim]) || (!g_bShadowRealm[viewer] && g_bShadowRealm[victim]))
+		return Plugin_Handled;
+
 	else if(!g_bNightmare[viewer])
 		return Plugin_Continue;
 
@@ -1981,7 +2307,13 @@ public void Event_OnSpawnpointSpawnPost(int entity)
 
 public Action L4D_TankClaw_OnPlayerHit_Pre(int tank, int claw, int player)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(player, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(tank, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(player, "Invincible"))
+		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -1989,7 +2321,13 @@ public Action L4D_TankClaw_OnPlayerHit_Pre(int tank, int claw, int player)
 
 public Action L4D2_OnPlayerFling(int client, int attacker, float vecDir[3])
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(client, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -2005,8 +2343,14 @@ public Action L4D_OnLedgeGrabbed(int client)
 
 public Action L4D2_OnStagger(int target, int source)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(target, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(target, "Invincible"))
 		return Plugin_Handled;
+		
+	else if(bVictimShadow)
+		return Plugin_Handled;
+
 
 	return Plugin_Continue;
 }
@@ -2014,8 +2358,15 @@ public Action L4D2_OnStagger(int target, int source)
 // The survivor that is about to get stumbled as a result of "attacker" capping someone in close proximity
 public Action L4D2_OnPounceOrLeapStumble(int victim, int attacker)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(victim, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
 		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
+		return Plugin_Handled;
+
 
 	return Plugin_Continue;
 }
@@ -2023,7 +2374,12 @@ public Action L4D2_OnPounceOrLeapStumble(int victim, int attacker)
 // Called when someone is about to be hit by a Tank rock or lunged by a Hunter
 public Action L4D_OnKnockedDown(int client, int reason)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(client, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(client, "Invincible"))
+		return Plugin_Handled;
+		
+	else if(bVictimShadow)
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -2032,7 +2388,13 @@ public Action L4D_OnKnockedDown(int client, int reason)
 // Called when a player is about to be flung probably by Charger impact.
 public Action L4D2_OnThrowImpactedSurvivor(int attacker, int victim)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(victim, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -2040,7 +2402,13 @@ public Action L4D2_OnThrowImpactedSurvivor(int attacker, int victim)
 
 public Action L4D_OnPouncedOnSurvivor(int victim, int attacker)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(victim, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -2048,7 +2416,13 @@ public Action L4D_OnPouncedOnSurvivor(int victim, int attacker)
 
 public Action L4D_OnGrabWithTongue(int victim, int attacker)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(victim, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -2056,7 +2430,13 @@ public Action L4D_OnGrabWithTongue(int victim, int attacker)
 
 public Action L4D2_OnJockeyRide(int victim, int attacker)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(victim, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -2064,7 +2444,10 @@ public Action L4D2_OnJockeyRide(int victim, int attacker)
 
 public Action L4D2_OnStartCarryingVictim(int victim, int attacker)
 {
-	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(victim, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible") || (bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 	{
 		L4D_StaggerPlayer(attacker, attacker, {0.0, 0.0, 0.0});
 
@@ -2081,7 +2464,13 @@ public Action L4D2_OnStartCarryingVictim(int victim, int attacker)
 
 public Action L4D_OnVomitedUpon(int victim, int& attacker, bool& boomerExplosion)
 {
+	int bVictimShadow = RPG_Perks_IsEntityTimedAttribute(victim, "Shadow Realm");
+	int bAttackerShadow = RPG_Perks_IsEntityTimedAttribute(attacker, "Shadow Realm");
+	
 	if(RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
+		return Plugin_Handled;
+		
+	else if((bVictimShadow && !bAttackerShadow) || (!bVictimShadow && bAttackerShadow))
 		return Plugin_Handled;
 
 	return Plugin_Continue;
@@ -2133,7 +2522,12 @@ public void RPG_Perks_OnShouldInstantKill(int priority, int victim, int attacker
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
-	if(priority != g_hInvincibleDamagePriority.IntValue)
+	if((g_bShadowRealm[victim] && !g_bShadowRealm[attacker]) || (!g_bShadowRealm[victim] && g_bShadowRealm[attacker]))
+	{
+		bImmune = true;
+		return;
+	}
+	else if(priority != g_hInvincibleDamagePriority.IntValue)
 		return;
 
 	else if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
@@ -2153,6 +2547,50 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 	RPG_CalculateColorByAttributes(entity, attributeName);
 	
+	if(StrEqual(attributeName, "Shadow Realm"))
+	{
+		g_bShadowRealm[entity] = true;
+
+		int fog = GetEntPropEnt(entity, Prop_Data, "m_hCtrl");
+
+		g_iLastCollision[entity] = GetEntProp(entity, Prop_Send, "m_CollisionGroup");
+
+		//SetEntProp(entity, Prop_Send, "m_CollisionGroup", 2);
+
+		if(RPG_Perks_GetZombieType(entity) != ZombieType_NotInfected)
+			return;
+
+		// That's not a mistake, I intended to use Nightmare fog control.
+		if(fog != -1 && fog != EntRefToEntIndex(g_refNightmareFogControl))
+		{
+			g_refLastFog[entity] = EntIndexToEntRef(GetEntPropEnt(entity, Prop_Data, "m_hCtrl"));
+		}
+
+		CalculateShadowRealmVision(entity);
+
+		if(RPG_Perks_GetZombieType(entity) == ZombieType_NotInfected)
+		{
+			int pinner = L4D_GetPinnedInfected(entity);
+
+			if(pinner != 0 && !g_bShadowRealm[pinner])
+			{
+				switch(RPG_Perks_GetZombieType(pinner))
+				{
+					case ZombieType_Smoker: L4D_Smoker_ReleaseVictim(entity, pinner);
+					case ZombieType_Hunter: L4D_Hunter_ReleaseVictim(entity, pinner);
+					case ZombieType_Jockey: L4D2_Jockey_EndRide(entity, pinner);
+					case ZombieType_Charger:
+					{
+						if(L4D_GetVictimCarry(pinner) == entity)
+							L4D2_Charger_EndCarry(entity, pinner);
+
+						else if(L4D_GetVictimCharger(pinner) == entity)
+							L4D2_Charger_EndPummel(entity, pinner);
+					}
+				}
+			}
+		}
+	}
 	if(StrEqual(attributeName, "Invincible"))	
 	{
 		RPG_Perks_ApplyEntityTimedAttribute(entity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
@@ -2222,7 +2660,8 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 		int fog = GetEntPropEnt(entity, Prop_Data, "m_hCtrl");
 
-		if(fog != -1)
+		// That's not a mistake, I intended to use Shadow Realm fog control.
+		if(fog != -1 && fog != EntRefToEntIndex(g_refShadowRealmFogControl[entity]))
 		{
 			g_refLastFog[entity] = EntIndexToEntRef(GetEntPropEnt(entity, Prop_Data, "m_hCtrl"));
 		}
@@ -2271,6 +2710,23 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 	RPG_CalculateColorByAttributes(entity, attributeName);
 
+	if(StrEqual(attributeName, "Shadow Realm"))
+	{
+		g_bShadowRealm[entity] = false;
+
+		//SetEntProp(entity, Prop_Send, "m_CollisionGroup", g_iLastCollision[entity]);
+
+		if(EntRefToEntIndex(g_refShadowRealmFogControl[entity]) == INVALID_ENT_REFERENCE)
+			return;
+
+		// If current fog is not Shadow Realm fog, the game changed it for the player and we need to not reset to old, because old is gone.
+		else if(GetEntPropEnt(entity, Prop_Data, "m_hCtrl") != EntRefToEntIndex(g_refShadowRealmFogControl[entity]))
+			return;
+
+		SetEntPropEnt(entity, Prop_Data, "m_hCtrl", EntRefToEntIndex(g_refLastFog[entity]));
+
+		return;
+	}
 	if(StrEqual(attributeName, "Frozen") || StrEqual(attributeName, "Stun"))
 	{
 		if(!IsPlayer(entity) && GetEntityHealth(entity) <= 0)
@@ -2330,6 +2786,16 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	if(oldClient == newClient)
 		return;
 
+	if(StrEqual(attributeName, "Shadow Realm"))
+	{
+		g_bShadowRealm[newClient] = true;
+		g_bShadowRealm[oldClient] = false;
+
+		g_iLastCollision[newClient] = g_iLastCollision[oldClient];
+		SetEntPropEnt(oldClient, Prop_Data, "m_hCTRL", -1);
+
+		CalculateShadowRealmVision(newClient);
+	}
 	if(StrEqual(attributeName, "Frozen"))
 	{
 		SetEntityFlags(oldClient, GetEntityFlags(oldClient) & ~FL_FROZEN);
@@ -2361,14 +2827,18 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 
 public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 {
-	if(!StrEqual(attributeName, "Stun") && !StrEqual(attributeName, "Frozen") && !StrEqual(attributeName, "Mutated") && strncmp(attributeName, "Invincible", 10) != 0)
+	if(!StrEqual(attributeName, "Shadow Realm") && !StrEqual(attributeName, "Stun") && !StrEqual(attributeName, "Frozen") && !StrEqual(attributeName, "Mutated") && strncmp(attributeName, "Invincible", 10) != 0)
 		return;
 
 	L4D2GlowType glowType = L4D2Glow_Constant;
 	int color[4];
 	color = {255, 255, 255, 255};
 
-	if(RPG_Perks_IsEntityTimedAttribute(entity, "Invincible"))
+	if(RPG_Perks_IsEntityTimedAttribute(entity, "Shadow Realm"))
+	{
+		color = {92, 88, 164, 255};
+	}
+	else if(RPG_Perks_IsEntityTimedAttribute(entity, "Invincible"))
 	{
 		for(int i=0;i < 3;i++)
 		{
@@ -2695,7 +3165,16 @@ public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 		AcceptEntityInput(g_refNightmareFogControl, "Kill");
 	}
 
-	g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+	for(int i=1;i <= MaxClients;i++)
+	{
+		g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+
+		if(g_refShadowRealmFogControl[i] != INVALID_ENT_REFERENCE)
+		{
+			AcceptEntityInput(g_refShadowRealmFogControl[i], "Kill");
+			g_refShadowRealmFogControl[i] = INVALID_ENT_REFERENCE;
+		}
+	}
 
 	for(int i=0;i < sizeof(g_bTeleported);i++)
 	{
@@ -2716,7 +3195,88 @@ public Action Event_RoundEnd(Handle hEvent, char[] Name, bool dontBroadcast)
 	g_aLimitedAbilities.Clear();
 	RPG_ClearTimedAttributes();
 
+	int fog = EntRefToEntIndex(g_refNightmareFogControl);
+
+	if(fog != INVALID_ENT_REFERENCE)
+	{
+		AcceptEntityInput(fog, "Kill");
+		g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+	}
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		fog = EntRefToEntIndex(g_refShadowRealmFogControl[i]);
+
+		if(fog != INVALID_ENT_REFERENCE)
+		{
+			AcceptEntityInput(fog, "Kill");
+			g_refShadowRealmFogControl[i] = INVALID_ENT_REFERENCE;
+		}
+	}
+	for(int i=1;i <= MaxClients;i++)
+	{
+		g_bNightmare[i] = false;
+		g_bShadowRealm[i] = false;
+
+		if(g_refShadowRealmFogControl[i] != INVALID_ENT_REFERENCE)
+		{
+			AcceptEntityInput(g_refShadowRealmFogControl[i], "Kill");
+			g_refShadowRealmFogControl[i] = INVALID_ENT_REFERENCE;
+		}
+	}
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+		
+		fog = EntRefToEntIndex(g_refLastFog[i]);
+
+		if(fog != INVALID_ENT_REFERENCE)
+		{
+			SetEntPropEnt(i, Prop_Data, "m_hCtrl", fog);
+		} 
+	}
 	g_bRoundStarted = false;
+
+	return Plugin_Continue;
+}
+
+public Action Event_AwardEarned(Handle hEvent, const char[] Name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+
+	if(client == 0)
+		return Plugin_Continue;
+
+	int award = GetEventInt(hEvent, "award");
+
+	if(award != 7 && award != 8 && award != 9)
+		return Plugin_Continue;
+
+	g_bNightmare[client] = false;
+	g_bShadowRealm[client] = false;
+
+	int fog = EntRefToEntIndex(g_refNightmareFogControl);
+
+	if(fog != INVALID_ENT_REFERENCE)
+	{
+		AcceptEntityInput(fog, "Kill");
+		g_refNightmareFogControl = INVALID_ENT_REFERENCE;
+	}
+
+
+	if(g_refShadowRealmFogControl[client] != INVALID_ENT_REFERENCE)
+	{
+		AcceptEntityInput(g_refShadowRealmFogControl[client], "Kill");
+		g_refShadowRealmFogControl[client] = INVALID_ENT_REFERENCE;
+	}
+		
+	fog = EntRefToEntIndex(g_refLastFog[client]);
+
+	if(fog != INVALID_ENT_REFERENCE)
+	{
+		SetEntPropEnt(client, Prop_Data, "m_hCtrl", fog);
+	}
 
 	return Plugin_Continue;
 }
@@ -2900,6 +3460,7 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 	}
 
 	TryCreateNightmareFogEntity();
+	TryCreateShadowRealmFogEntity();
 
 	g_iHealth[client] = -1;
 	g_iMaxHealth[client] = -1;
@@ -3094,6 +3655,60 @@ public void TryCreateNightmareFogEntity()
 	g_refNightmareFogControl = EntIndexToEntRef(entity);
 }
 
+
+public void TryCreateShadowRealmFogEntity()
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		int fog = EntRefToEntIndex(g_refShadowRealmFogControl[i]);
+
+		if(fog != INVALID_ENT_REFERENCE)
+			return;
+
+		int entity = CreateEntityByName("env_fog_controller");
+
+		if(IsValidEntity(entity))
+		{	
+			DispatchKeyValue(entity, "fogenable", "1"); 	
+			DispatchKeyValue(entity, "spawnflags", "1"); 
+			DispatchKeyValue(entity, "fogmaxdensity", "1"); 
+			DispatchKeyValue(entity, "fogstart", "0");
+			DispatchKeyValue(entity, "fogend", "8");
+			DispatchKeyValue(entity, "farz", "8192");
+			DispatchKeyValue(entity, "fogcolor", "92 82 155"); 
+			DispatchKeyValue(entity, "foglerptime", "0.0");
+
+			DispatchSpawn(entity);				
+			ActivateEntity(entity);
+
+			AcceptEntityInput(entity, "TurnOn");
+		}
+		else
+		{
+			entity = INVALID_ENT_REFERENCE;
+		}
+
+		g_refShadowRealmFogControl[i] = EntIndexToEntRef(entity);
+	}
+}
+
+public void CalculateShadowRealmVision(int client)
+{
+	float fVision;
+
+	Call_StartForward(g_fwOnGetShadowRealmVision);
+
+	Call_PushCell(client);
+	Call_PushFloatRef(fVision);
+
+	Call_Finish();
+
+	if(fVision <= 0.0)
+		fVision = 8.0;
+
+	SetEntPropFloat(EntRefToEntIndex(g_refShadowRealmFogControl[client]), Prop_Send, "m_fog.end", fVision);
+}
+
 public Action Event_PlayerIncapStartPre(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -3158,7 +3773,8 @@ public Action Event_BotReplacesAPlayer(Handle event, const char[] name, bool don
 	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
-	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
+	// Feels like a blatant mistake, why set the m_hCTRL to a literal player?
+	//SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
 	
 	int entity = -1;
 
@@ -3210,7 +3826,8 @@ public Action Event_PlayerReplacesABot(Handle event, const char[] name, bool don
 	g_iLastPermanentHealth[newPlayer] = 0;
 	g_bTeleported[newPlayer] = g_bTeleported[oldPlayer];
 
-	SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
+	// Feels like a blatant mistake, why set the m_hCTRL to a literal player?
+	// SetEntPropEnt(newPlayer, Prop_Data, "m_hCtrl", oldPlayer);
 
 	int entity = -1;
 
@@ -3919,16 +4536,50 @@ public void OnClientPutInServer(int client)
 
 }
 
+public Action CH_ShouldCollide(int ent1, int ent2, bool &result)
+{
+	if((g_bShadowRealm[ent1] && !g_bShadowRealm[ent2]) || (g_bShadowRealm[ent2] && !g_bShadowRealm[ent1]))
+	{
+		if(g_bNextBot[ent1] && g_bNextBot[ent2])
+		{
+			result = false;
+			return Plugin_Handled;
+		}
+	}
+
+	return Plugin_Continue;
+}
+
+
+public Action CH_PassFilter(int ent1, int ent2, bool &result)
+{
+	if((g_bShadowRealm[ent1] && !g_bShadowRealm[ent2]) || (g_bShadowRealm[ent2] && !g_bShadowRealm[ent1]))
+	{
+		if(g_bNextBot[ent1] && g_bNextBot[ent2])
+		{
+			result = false;
+			return Plugin_Handled;
+		}
+	}
+	return Plugin_Continue;
+}
 
 public void SDKEvent_Think(int client)
 {
-	if(!g_bNightmare[client])
+	if(!g_bNightmare[client] && !g_bShadowRealm[client])
 		return;
 
-	int nightmareFog = EntRefToEntIndex(g_refNightmareFogControl);
+	int targetFog = EntRefToEntIndex(g_refNightmareFogControl);
+	int targetFogRef = g_refNightmareFogControl;
+
+	if(g_bShadowRealm[client])
+	{
+		targetFog = EntRefToEntIndex(g_refShadowRealmFogControl[client]);
+		targetFogRef = g_refShadowRealmFogControl[client];
+	}
 
 	// Note the fact we break here instead of continue.
-	if(nightmareFog == INVALID_ENT_REFERENCE)
+	if(targetFog == INVALID_ENT_REFERENCE)
 		return;
 
 	int curFogRef = INVALID_ENT_REFERENCE;
@@ -3937,12 +4588,12 @@ public void SDKEvent_Think(int client)
 	if(curFog != INVALID_ENT_REFERENCE)
 		EntIndexToEntRef(curFog);
 
-	if(curFogRef != g_refLastFog[client] && curFogRef != g_refNightmareFogControl)
+	if(curFogRef != g_refLastFog[client] && curFogRef != targetFogRef)
 		g_refLastFog[client] = curFogRef;
 
-	if(curFogRef != nightmareFog)
+	if(curFogRef != targetFog)
 	{
-		SetEntPropEnt(client, Prop_Data, "m_hCtrl", nightmareFog);
+		SetEntPropEnt(client, Prop_Data, "m_hCtrl", targetFog);
 	}
 }
 public Action OnTankStartSwingPost(int client, int &sequence)
@@ -4032,6 +4683,14 @@ public Action Timer_CheckTankSwing(Handle hTimer, int userid)
 
 public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {
+	// Plugin_Stop didn't work.
+	if((g_bShadowRealm[victim] && !g_bShadowRealm[attacker]) || (g_bShadowRealm[attacker] && !g_bShadowRealm[victim]))
+	{
+		attacker = 0;
+		inflictor = 0;
+		damagetype = 0;
+		return Plugin_Handled;
+	}
 	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
 		return Plugin_Continue;
 
@@ -4054,6 +4713,15 @@ public Action Event_TakeDamage(int victim, int& attacker, int& inflictor, float&
 }
 public Action Event_TakeDamageAlive(int victim, int& attacker, int& inflictor, float& damage, int& damagetype)
 {		
+	// Plugin_Stop didn't work.
+	if((g_bShadowRealm[victim] && !g_bShadowRealm[attacker]) || (g_bShadowRealm[attacker] && !g_bShadowRealm[victim]))
+	{
+		attacker = 0;
+		inflictor = 0;
+		damagetype = 0;
+		return Plugin_Handled;
+	}
+	
 	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
 		return Plugin_Continue;
 
@@ -4079,10 +4747,18 @@ public Action Event_TakeDamageAlive(int victim, int& attacker, int& inflictor, f
 // Trace Attack does not trigger with common on survivor violence. ACCOUNT FOR IT.
 public Action Event_TraceAttack(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& ammotype, int hitbox, int hitgroup)
 {	
-	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+	// Plugin_Stop didn't work.
+	if((g_bShadowRealm[victim] && !g_bShadowRealm[attacker]) || (g_bShadowRealm[attacker] && !g_bShadowRealm[victim]))
+	{
+		attacker = 0;
+		inflictor = 0;
+		damagetype = 0;
+		return Plugin_Handled;
+	}
+	else if(damage == 0.0)
 		return Plugin_Continue;
 
-	else if(damage == 0.0)
+	else if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
 		return Plugin_Continue;
 
 	else if(SurvivorVictimNextBotAttacker(victim, attacker))
@@ -5159,4 +5835,135 @@ stock int SetClientSoundMode(int client, bool value)
 	SetClientCookie(client, g_hCookie_SoundMode, strSoundMode);
 
 	return value;
+}
+
+// After 10 billion years, this is useful
+stock bool IsValidClient(int iClient) 
+{
+	return (1 <= iClient <= MaxClients && IsClientInGame(iClient)); 
+}
+
+float GetEntityDistance(int iEntity, int iTarget, bool bSquared = false)
+{
+	float fEntityPos[3]; GetEntityAbsOrigin(iEntity, fEntityPos);
+	float fTargetPos[3]; GetEntityAbsOrigin(iTarget, fTargetPos);
+	return (GetVectorDistance(fEntityPos, fTargetPos, bSquared));
+}
+
+
+bool IsVisibleEntity(int iClient, int iTarget, int iMask = MASK_SHOT)
+{
+	if (IsFakeClient(iClient) && GetClientTeam(iClient) == 2 && IsPlayerBoomerBiled(iClient))
+		return false;
+
+	float fTargetPos[3];
+	GetEntityAbsOrigin(iTarget, fTargetPos);
+
+	Handle hResult = TR_TraceRayFilterEx(g_fClientEyePos[iClient], fTargetPos, iMask, RayType_EndPoint, Base_TraceFilter, iTarget);
+	bool bDidHit = (TR_GetFraction(hResult) == 1.0 && !TR_StartSolid(hResult) || TR_GetEntityIndex(hResult) == iTarget); delete hResult;
+	if (!bDidHit)
+	{
+		float fViewOffset[3]; 
+		GetEntPropVector(iTarget, Prop_Data, "m_vecViewOffset", fViewOffset);
+		AddVectors(fTargetPos, fViewOffset, fTargetPos);
+
+		hResult = TR_TraceRayFilterEx(g_fClientEyePos[iClient], fTargetPos, iMask, RayType_EndPoint, Base_TraceFilter, iTarget);
+		bDidHit = (TR_GetFraction(hResult) == 1.0 && !TR_StartSolid(hResult) || TR_GetEntityIndex(hResult) == iTarget); delete hResult;
+		if (!bDidHit)
+		{
+			GetEntityCenteroid(iTarget, fTargetPos);
+			
+			hResult = TR_TraceRayFilterEx(g_fClientEyePos[iClient], fTargetPos, iMask, RayType_EndPoint, Base_TraceFilter, iTarget);
+			bDidHit = (TR_GetFraction(hResult) == 1.0 && !TR_StartSolid(hResult) || TR_GetEntityIndex(hResult) == iTarget); delete hResult;
+		}
+	}
+	return (bDidHit);
+}
+
+
+stock bool GetEntityAbsOrigin(int iEntity, float fResult[3])
+{
+	if (!IsEntityExists(iEntity))
+		return false;
+
+	GetEntPropVector(iEntity, Prop_Data, "m_vecAbsOrigin", fResult);
+	return (IsValidVector(fResult));
+}
+
+stock bool GetEntityCenteroid(int iEntity, float fResult[3])
+{
+	int iOffset; static char sClass[64];
+	GetEntityAbsOrigin(iEntity, fResult);
+
+	if (!GetEntityNetClass(iEntity, sClass, sizeof(sClass)) || (iOffset = FindSendPropInfo(sClass, "m_vecMins")) == -1)
+		return false;
+
+	float fMins[3], fMaxs[3];
+	GetEntDataVector(iEntity, iOffset, fMins);
+	GetEntPropVector(iEntity, Prop_Send, "m_vecMaxs", fMaxs);
+
+	fResult[0] += (fMins[0] + fMaxs[0]) * 0.5;
+	fResult[1] += (fMins[1] + fMaxs[1]) * 0.5;
+	fResult[2] += (fMins[2] + fMaxs[2]) * 0.5;
+
+	return true;
+}
+
+bool IsValidVector(const float fVector[3])
+{
+	int iCheck;
+	for (int i = 0; i < 3; ++i)
+	{
+		if (fVector[i] != 0.0000)break;
+		++iCheck;
+	}
+	return view_as<bool>(iCheck != 3);
+}
+
+bool IsEntityExists(int iEntity)
+{
+	return (iEntity > 0 && (iEntity <= MAXENTITIES && IsValidEdict(iEntity) || iEntity > MAXENTITIES && IsValidEntity(iEntity)));
+}
+
+bool Base_TraceFilter(int iEntity, int iContentsMask, int iData)
+{
+	return (iEntity == iData || HasEntProp(iEntity, Prop_Data, "m_eDoorState") && L4D_GetDoorState(iEntity) != DOOR_STATE_OPENED);
+}
+
+stock bool IsPlayerBoomerBiled(int iClient)
+{
+    return (GetGameTime() <= GetEntPropFloat(iClient, Prop_Send, "m_itTimer", 1));
+}
+
+// entity = CI / SI
+stock int GetClosestSurvivorWithinRealm(int entity)
+{
+	float fOrigin[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
+
+	int winner = 0;
+	float winnerDist = 65535.0;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		else if((g_bShadowRealm[entity] && !g_bShadowRealm[i]) || (!g_bShadowRealm[entity] && g_bShadowRealm[i]))
+			continue;
+
+		float fSurvivorOrigin[3];
+		GetEntPropVector(i, Prop_Data, "m_vecAbsOrigin", fSurvivorOrigin);
+
+		if(winner == 0 || GetVectorDistance(fOrigin, fSurvivorOrigin) < winnerDist)
+			winner = i;
+	}
+
+	return winner;
 }
