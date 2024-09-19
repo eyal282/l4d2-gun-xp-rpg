@@ -51,6 +51,7 @@
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_SleightOfHand.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_StartingPoints.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Tenacity.smx"
+	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_UnstableDrugs.smx"
 	"Plugin"	"Path_SM/plugins/[RPG]/PerkTrees/PerkTree_Vampire.smx"
 
  
