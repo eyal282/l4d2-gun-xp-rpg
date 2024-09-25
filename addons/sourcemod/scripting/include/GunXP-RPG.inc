@@ -106,6 +106,15 @@ native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] nam
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex, bool bIgnoreMutation = false);
 
 
+// Does not guarantee SI is alive, because dead SI are treated in normal realm
+native void RPG_Perks_GetZombiesInRealms(
+int siNormal[MAXPLAYERS+1] = { 0, ... }, int &numSINormal=0, int siShadow[MAXPLAYERS+1] = { 0, ... }, int &numSIShadow=0,
+int ciNormal[MAXPLAYERS+1] = { 0, ... }, int &numCINormal=0, int ciShadow[MAXPLAYERS+1] = { 0, ... }, int &numCIShadow=0,
+int witchNormal[MAXPLAYERS+1] = { 0, ... }, int &numWitchNormal=0, int witchShadow[MAXPLAYERS+1] = { 0, ... }, int &numWitchShadow=0);
+
+// Unlike GetZombiesInRealms, doesn't guarantee in-game for performance reasons.
+native void RPG_Perks_GetClientsInRealms(int clientsNormal[MAXPLAYERS+1], int &numClientsNormal, int clientsShadow[MAXPLAYERS+1], int &numClientsShadow);
+
 native bool RPG_Perks_GetSoundMode(int client);
 
 // Returns true if player died, false if player didn't die or if you're causing an infinite loop by calling this in HookEvent("player_hurt")
@@ -174,7 +183,8 @@ native void RPG_Tanks_SetOverrideTier(int tier);
 native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
 
 // For damageImmunities, see DAMAGE_IMMUNITY_*
-native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], char chatDescription[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities);
+// GunXP_GenerateHexColor(int r, int g, int b, int a)
+native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], char chatDescription[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities, int color=1);
 
 native bool RPG_Tanks_LoopTankArray(int index, int &tier, char name[32]);
 
@@ -845,6 +855,18 @@ stock void ExecuteFullHeal(int client)
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
 }
 
+stock int GunXP_GenerateHexColor(int r, int g, int b, int a=255)
+{
+	return ((r & 0xff) << 24) | ((g & 0xff) << 16) | ((b & 0xff) << 8) | (a & 0xff);
+}
+
+stock void GunXP_GenerateRGBColor(int hex, int RGBA[4])
+{
+	RGBA[0] = ((hex >> 24) & 0xFF);
+	RGBA[1] = ((hex >> 16) & 0xFF);
+	RGBA[2] = ((hex >> 8) & 0xFF);
+	RGBA[3] = ((hex) & 0xFF);
+}
 stock void SetEntityHealthToMax(int entity)
 {
 	SetEntityHealth(entity, GetEntProp(entity, Prop_Send, "m_iMaxHealth"));

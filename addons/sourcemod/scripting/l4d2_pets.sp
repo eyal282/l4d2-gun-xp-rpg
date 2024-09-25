@@ -869,7 +869,7 @@ Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH
     return Plugin_Changed;
 }
 
-public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
+public Action L4D2_OnChooseVictim_Pre(int specialInfected, int &curTarget)
 {   
     if(g_iLastCommand[specialInfected] == -2)
         return Plugin_Stop;

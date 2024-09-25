@@ -92,6 +92,8 @@ enum struct enTank
 
 	ArrayList aActiveAbilities;
 	ArrayList aPassiveAbilities;
+
+	int color;
 }
 
 ArrayList g_aTanks;
@@ -199,6 +201,7 @@ public int Native_RegisterTank(Handle caller, int numParams)
 
 	int damageImmunities = GetNativeCell(11);
 
+	int color = GetNativeCell(12);
 	int foundIndex = TankNameToTankIndex(name);
 
 	tank.tier = tier;
@@ -214,6 +217,7 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	tank.damageImmunities = damageImmunities;
 	tank.aActiveAbilities = CreateArray(sizeof(enActiveAbility));
 	tank.aPassiveAbilities = CreateArray(sizeof(enPassiveAbility));
+	tank.color = color;
 
 
 	if(foundIndex != -1)
@@ -336,6 +340,8 @@ public any Native_SetClientTank(Handle caller, int numParams)
 
 	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 was apported:", tank.tier, tank.name);
 	PrintToChatAll(tank.chatDescription);
+
+	CalculateTankColor(client);
 
 	for(int i=1;i <= MaxClients;i++)
 	{
@@ -1071,6 +1077,8 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 has spawned:", winnerTank.tier, winnerTank.name);
 	PrintToChatAll(winnerTank.chatDescription);
 
+	CalculateTankColor(client);
+
 	for(int i=1;i <= MaxClients;i++)
 	{
 		if(!IsClientInGame(i))
@@ -1177,14 +1185,17 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64])
 {
-	if(strncmp(attributeName, "Cast Active Ability #", 21) != 0)
-		return;
-
-	else if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
+	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
 		return;
 
 	else if(g_iCurrentTank[entity] < 0)
 		return;
+
+	CalculateTankColor(entity);
+
+	if(strncmp(attributeName, "Cast Active Ability #", 21) != 0)
+		return;
+
 
 	char sAbilityIndex[64];
 	strcopy(sAbilityIndex, sizeof(sAbilityIndex), attributeName);
@@ -1210,6 +1221,40 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	Call_PushCell(abilityIndex);
 
 	Call_Finish();
+}
+
+public void CalculateTankColor(int entity)
+{
+	enTank tank;
+	g_aTanks.GetArray(g_iCurrentTank[entity], tank);
+
+	L4D2GlowType glowType = L4D2Glow_Constant;
+	int color[4];
+	int hexcolor = tank.color;
+
+	if(hexcolor == 1)
+		color = {255, 255, 255, 255};
+
+	else 
+		GunXP_GenerateRGBColor(hexcolor, color);
+
+	SetEntityRenderColor(entity, color[0], color[1], color[2], color[3]);
+
+	int skin = -1;
+
+	while((skin = FindEntityByClassname(skin, "commentary_dummy")) != -1)
+	{
+		if(GetEntPropEnt(skin, Prop_Data, "m_hMoveParent") == entity)
+		{
+			int rgb[3];
+			rgb[0] = color[0];
+			rgb[1] = color[1];
+			rgb[2] = color[2];
+
+			L4D2_SetEntityGlow_Color(skin, rgb);
+			L4D2_SetEntityGlow_Type(skin, glowType);
+		}
+	}
 }
 
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
@@ -1640,7 +1685,7 @@ public Action ShowTargetTankInfo(int client, int tankIndex)
 		FormatEx(immunityFormat, sizeof(immunityFormat), "Bullets");
 	}
 
-	FormatEx(TempFormat, sizeof(TempFormat), "%s Tank | Choose an Ability for info\nWhen you select an ability has a radius, a ring will encase you if no tank is alive\nMax HP : %i | Entries : %i\nAverage XP : %i | Immune to : %s\n%s", tank.name, tank.maxHP, tank.entries, (tank.XPRewardMin + tank.XPRewardMax) / 2, immunityFormat, tank.description);
+	FormatEx(TempFormat, sizeof(TempFormat), "%s Tank | Choose an Ability for info. If it has a radius, you'll see it if no Tank is alive\nMax HP : %i | Entries : %i\nAverage XP : %i | Immune to : %s\n%s", tank.name, tank.maxHP, tank.entries, (tank.XPRewardMin + tank.XPRewardMax) / 2, immunityFormat, tank.description);
 	SetMenuTitle(hMenu, TempFormat);
 
 	SetMenuExitBackButton(hMenu, true);

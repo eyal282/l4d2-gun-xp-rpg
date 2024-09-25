@@ -1652,8 +1652,8 @@ public Action Timer_HudMessageXP(Handle hTimer)
 			"Frozen",
 			"Mutated",
 			"Invincible",
-			"Adrenaline",
 			"Immolation",
+			"Adrenaline",
 			"Hyperactive"
 		};
 
@@ -2340,7 +2340,7 @@ public void ShowPerkTreeInfo(int client, int item)
 		char sCurrentUpgrade[128];
 		perkTree.descriptions.GetString(g_iUnlockedPerkTrees[target][item], sCurrentUpgrade, sizeof(sCurrentUpgrade));
 		
-		Format(TempFormat, sizeof(TempFormat), "%s%s (0 XP) - (Lv. MAX)\nCurrent Upgrade: %s", TempFormat, perkTree.name, sCurrentUpgrade);
+		Format(TempFormat, sizeof(TempFormat), "%s (0 XP) - (Lv. MAX)%s\nCurrent Upgrade: %s", perkTree.name, TempFormat, sCurrentUpgrade);
 		SetMenuTitle(hMenu, TempFormat);
 	}
 	else

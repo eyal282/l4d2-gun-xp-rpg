@@ -95,7 +95,7 @@ int g_refLastFog[MAXPLAYERS+1] = { INVALID_ENT_REFERENCE, ... };
 
 bool g_bNightmare[MAXPLAYERS+1];
 bool g_bShadowRealm[2049];
-bool g_bNextBot[2049];
+bool g_bNextBotOrProj[2049];
 int g_iLastCollision[2049];
 
 bool g_bTeleported[MAXPLAYERS+1];
@@ -346,6 +346,8 @@ public void OnPluginEnd()
 
 public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length)
 {	
+	CreateNative("RPG_Perks_GetClientsInRealms", Native_GetClientsInRealms);
+	CreateNative("RPG_Perks_GetZombiesInRealms", Native_GetZombiesInRealms);
 	CreateNative("RPG_Perks_GetSoundMode", Native_GetSoundMode);
 	CreateNative("RPG_Perks_InstantKill", Native_InstantKill);
 	CreateNative("RPG_Perks_TakeDamage", Native_TakeDamage);
@@ -373,6 +375,93 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 }
 
 
+public any Native_GetClientsInRealms(Handle caller, int numParams)
+{
+	int clientsNormal[MAXPLAYERS+1], clientsShadow[MAXPLAYERS+1];
+	int numClientsNormal, numClientsShadow;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(g_bShadowRealm[i])
+			clientsShadow[numClientsShadow++] = i;
+
+		else
+			clientsNormal[numClientsNormal++] = i;
+	}
+
+	SetNativeArray(1, clientsNormal, numClientsNormal);
+	SetNativeCellRef(2, numClientsNormal);
+	SetNativeArray(3, clientsShadow, numClientsShadow);
+	SetNativeCellRef(4, numClientsShadow);
+
+	return 0;
+}
+
+
+public any Native_GetZombiesInRealms(Handle caller, int numParams)
+{
+	int siNormal[MAXPLAYERS+1], siShadow[MAXPLAYERS+1];
+	int numSINormal, numSIShadow;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Infected)
+			continue;
+
+		if(g_bShadowRealm[i])
+			siShadow[numSIShadow++] = i;
+
+		else
+			siNormal[numSINormal++] = i;
+	}
+
+	int ciNormal[MAXPLAYERS+1], ciShadow[MAXPLAYERS+1];
+	int numCINormal, numCIShadow;
+
+	int iEntity = -1;
+	while ((iEntity = FindEntityByClassname(iEntity, "infected")) != -1)
+	{
+		if(g_bShadowRealm[iEntity])
+			ciShadow[numCIShadow++] = iEntity;
+
+		else
+			ciNormal[numCINormal++] = iEntity;
+	}
+
+	int witchNormal[MAXPLAYERS+1], witchShadow[MAXPLAYERS+1];
+	int numWitchNormal, numWitchShadow;
+
+	iEntity = -1;
+	while ((iEntity = FindEntityByClassname(iEntity, "witch")) != -1)
+	{
+		if(g_bShadowRealm[iEntity])
+			witchShadow[numWitchShadow++] = iEntity;
+
+		else
+			witchNormal[numWitchNormal++] = iEntity;
+	}
+
+	SetNativeArray(1, siNormal, numSINormal);
+	SetNativeCellRef(2, numSINormal);
+	SetNativeArray(3, siShadow, numSIShadow);
+	SetNativeCellRef(4, numSIShadow);
+
+	SetNativeArray(5, ciNormal, numCINormal);
+	SetNativeCellRef(6, numCINormal);
+	SetNativeArray(7, ciShadow, numCIShadow);
+	SetNativeCellRef(8, numCIShadow);
+	
+	SetNativeArray(9, witchNormal, numWitchNormal);
+	SetNativeCellRef(10, numWitchNormal);
+	SetNativeArray(11, witchShadow, numWitchShadow);
+	SetNativeCellRef(12, numWitchShadow);
+	
+
+	return 0;
+}
 public any Native_GetSoundMode(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -1855,7 +1944,7 @@ public void OnPluginStart()
 
 	for(int i=1;i <= MaxClients;i++)
 	{
-		g_bNextBot[i] = true;
+		g_bNextBotOrProj[i] = true;
 	}
 
 	for (int i = MaxClients+1;i < count;i++)
@@ -1977,6 +2066,13 @@ public Action OnPlayerRunCmd(int iClient, int &iButtons, int &iImpulse, float fV
 	return Plugin_Continue;
 }
 
+public Action L4D2_OnStartUseAction(any action, int client, int target)
+{
+	if((g_bShadowRealm[client] && !g_bShadowRealm[target]) || (!g_bShadowRealm[client] && g_bShadowRealm[target]))
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
 public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 {   
 	int owner = GetEntPropEnt(specialInfected, Prop_Send, "m_hOwnerEntity");
@@ -1994,8 +2090,11 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 
 	return Plugin_Continue;
 }
+
+
 public void OnActionCreated(BehaviorAction action, int actor, const char[] name)
 {
+	//PrintToConsoleAll("Action: %s", name);
 	if(strcmp(name, "SurvivorHealFriend") == 0)
 	{
 		action.OnStartPost = OnFriendActionHeal;
@@ -2007,12 +2106,13 @@ public void OnActionCreated(BehaviorAction action, int actor, const char[] name)
 	if(strcmp(name[8], "LiberateBesiegedFriend") == 0)
 	{
 		// Crashes(?)
-		action.OnUpdatePost = OnMoveToIncapacitatedFriendAction;
+		//action.OnUpdate = OnMoveToIncapacitatedFriendAction;
 	}
 
 
 	if (strcmp(name, "InfectedAttack") == 0)
 	{
+		action.OnStartPost = InfectedAttack__OnUpdatePost;
 		action.OnUpdatePost = InfectedAttack__OnUpdatePost;
 	}
 }
@@ -2061,11 +2161,13 @@ public void InfectedAttack__OnUpdatePost(BehaviorAction action, int actor, float
 }
 
 // Crashes(?)
+
 public Action OnMoveToIncapacitatedFriendAction(BehaviorAction action, int actor, float fInterval, ActionResult result)
 {
-	int target = (action.Get(0x34) & 0xFFF);
+	int originalTarget = action.Get(0x34);
+	int target = (originalTarget & 0xFFF);
 
-	if (!IsValidClient(target) || L4D_GetPlayerReviveTarget(actor) == target || GetEntityDistance(actor, target, true) <= 15625.0 && IsVisibleEntity(actor, target))
+	if (!IsValidClient(target) || !IsValidClient(actor) || !IsPlayerAlive(target) || !IsPlayerAlive(actor))
 		return Plugin_Continue;
 
 	bool allow = true;
@@ -2073,9 +2175,70 @@ public Action OnMoveToIncapacitatedFriendAction(BehaviorAction action, int actor
 	if((g_bShadowRealm[actor] && !g_bShadowRealm[target]) || (!g_bShadowRealm[actor] && g_bShadowRealm[target]))
 		allow = false;
 
-	result.type = allow ? CONTINUE : DONE;
-	return Plugin_Changed;
+	int newTarget = GetClosestSurvivorWithinRealm(actor, true);
+
+	if(!allow)
+	{
+		if(newTarget != 0 && newTarget != target)
+		{
+			int modifiedTarget = (originalTarget & ~0xFFF) | (newTarget & 0xFFF);
+
+			// Set the modified target
+			action.Set(0x34, modifiedTarget);
+
+			if(result.type != CONTINUE)
+			{
+				BehaviorAction postLiberation = action.Get(0x44);
+
+				if (result.action == postLiberation)
+				{
+					action.Set(0x44, INVALID_ACTION, NumberType_Int32);
+				} 
+
+				result.type = CONTINUE;
+
+				return Plugin_Changed;
+			}
+			
+			return Plugin_Changed;
+		}
+
+		
+		if(result.type != DONE)
+		{
+			BehaviorAction postLiberation = action.Get(0x44);
+
+			if (result.action == postLiberation)
+			{
+				action.Set(0x44, INVALID_ACTION, NumberType_Int32);
+			} 
+
+			result.type = DONE;
+			return Plugin_Changed;
+		}
+
+		return Plugin_Changed;
+	}
+	else
+	{
+		if(result.type != CONTINUE)
+		{
+			BehaviorAction postLiberation = action.Get(0x44);
+
+			if (result.action == postLiberation)
+			{
+				action.Set(0x44, INVALID_ACTION, NumberType_Int32);
+			} 
+
+			result.type = CONTINUE;
+
+			return Plugin_Changed;
+		}
+		
+		return Plugin_Changed;
+	}
 }
+
 
 public Action OnFriendActionPills(BehaviorAction action, int actor, BehaviorAction priorAction, ActionResult result)
 {
@@ -2177,12 +2340,20 @@ public void OnEntityCreated(int entity, const char[] classname)
 		return;
 
 	if(RPG_Perks_GetZombieType(entity) == ZombieType_Invalid)
-		g_bNextBot[entity] = false;
+		g_bNextBotOrProj[entity] = false;
 	
 	else
 	{
-		g_bNextBot[entity] = true;
+		g_bNextBotOrProj[entity] = true;
 		g_bLimbo[entity] = false;
+	}
+
+	if(StrContains(classname, "projectile") != -1 || StrEqual(classname, "tank_rock"))
+	{
+		SDKHook(entity, SDKHook_SetTransmit, SDKEvent_SetTransmit);
+
+		if(StrEqual(classname, "grenade_launcher_projectile"))
+			g_bNextBotOrProj[entity] = true;
 	}
 
 	if(StrEqual(classname, "info_survivor_position"))
@@ -2509,6 +2680,15 @@ public void RPG_Perks_OnGetReplicateCvarValue(int priority, int client, const ch
 
 public void RPG_Perks_OnShouldInstantKill(int priority, int victim, int attacker, int inflictor, int damagetype, bool &bImmune)
 {
+	// 1 before max. There is nothing deserving of 9 more than shadow realm. If you go for 10, you want to instant kill under everything.
+	if(priority == 9)
+	{
+		if((g_bShadowRealm[victim] && !g_bShadowRealm[attacker]) || (!g_bShadowRealm[victim] && g_bShadowRealm[attacker]))
+		{
+			bImmune = true;
+			return;
+		}
+	}
 	if(priority != g_hInvincibleDamagePriority.IntValue)
 		return;
 
@@ -2546,7 +2726,8 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	float fOrigin[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
-	RPG_CalculateColorByAttributes(entity, attributeName);
+	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
+		RPG_CalculateColorByAttributes(entity, attributeName);
 	
 	if(StrEqual(attributeName, "Shadow Realm"))
 	{
@@ -4541,7 +4722,7 @@ public Action CH_ShouldCollide(int ent1, int ent2, bool &result)
 {
 	if((g_bShadowRealm[ent1] && !g_bShadowRealm[ent2]) || (g_bShadowRealm[ent2] && !g_bShadowRealm[ent1]))
 	{
-		if(g_bNextBot[ent1] && g_bNextBot[ent2])
+		if(g_bNextBotOrProj[ent1] && g_bNextBotOrProj[ent2])
 		{
 			result = false;
 			return Plugin_Handled;
@@ -4556,7 +4737,7 @@ public Action CH_PassFilter(int ent1, int ent2, bool &result)
 {
 	if((g_bShadowRealm[ent1] && !g_bShadowRealm[ent2]) || (g_bShadowRealm[ent2] && !g_bShadowRealm[ent1]))
 	{
-		if(g_bNextBot[ent1] && g_bNextBot[ent2])
+		if(g_bNextBotOrProj[ent1] && g_bNextBotOrProj[ent2])
 		{
 			result = false;
 			return Plugin_Handled;
@@ -5844,7 +6025,7 @@ stock bool IsValidClient(int iClient)
 	return (1 <= iClient <= MaxClients && IsClientInGame(iClient)); 
 }
 
-float GetEntityDistance(int iEntity, int iTarget, bool bSquared = false)
+stock float GetEntityDistance(int iEntity, int iTarget, bool bSquared = false)
 {
 	float fEntityPos[3]; GetEntityAbsOrigin(iEntity, fEntityPos);
 	float fTargetPos[3]; GetEntityAbsOrigin(iTarget, fTargetPos);
@@ -5852,7 +6033,7 @@ float GetEntityDistance(int iEntity, int iTarget, bool bSquared = false)
 }
 
 
-bool IsVisibleEntity(int iClient, int iTarget, int iMask = MASK_SHOT)
+stock bool IsVisibleEntity(int iClient, int iTarget, int iMask = MASK_SHOT)
 {
 	if (IsFakeClient(iClient) && GetClientTeam(iClient) == 2 && IsPlayerBoomerBiled(iClient))
 		return false;
@@ -5880,7 +6061,6 @@ bool IsVisibleEntity(int iClient, int iTarget, int iMask = MASK_SHOT)
 	}
 	return (bDidHit);
 }
-
 
 stock bool GetEntityAbsOrigin(int iEntity, float fResult[3])
 {
@@ -5937,7 +6117,7 @@ stock bool IsPlayerBoomerBiled(int iClient)
 }
 
 // entity = CI / SI
-stock int GetClosestSurvivorWithinRealm(int entity)
+stock int GetClosestSurvivorWithinRealm(int entity, bool bIncap = false)
 {
 	float fOrigin[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
@@ -5954,6 +6134,9 @@ stock int GetClosestSurvivorWithinRealm(int entity)
 			continue;
 
 		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		else if(bIncap && !L4D_IsPlayerIncapacitated(i))
 			continue;
 
 		else if((g_bShadowRealm[entity] && !g_bShadowRealm[i]) || (!g_bShadowRealm[entity] && g_bShadowRealm[i]))

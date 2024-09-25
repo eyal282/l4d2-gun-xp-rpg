@@ -105,54 +105,76 @@ public void CastAngerIgnition(int client)
         }
     }
 
-    for (int i = 1; i <= MaxClients; i++)
+    int siRealm[MAXPLAYERS+1], numSIRealm;
+    int ciRealm[MAXPLAYERS+1], numCIRealm;
+    int witchRealm[MAXPLAYERS+1], numWitchRealm;
+
+    /*RPG_Perks_GetZombiesInRealms(
+        siNormal, numSINormal, siShadow, numSIShadow,
+        ciNormal, numCINormal, ciShadow, numCIShadow,
+        witchNormal, numWitchNormal, witchShadow, numWitchShadow);*/
+
+    if(RPG_Perks_IsEntityTimedAttribute(client, "Shadow Realm"))
     {
-        if (i == client)
+        RPG_Perks_GetZombiesInRealms(
+            _, _, siRealm, numSIRealm,
+            _, _, ciRealm, numCIRealm,
+            _, _, witchRealm, numWitchRealm);
+    }
+    else
+    {
+        RPG_Perks_GetZombiesInRealms(
+            siRealm, numSIRealm, _, _,
+            ciRealm, numCIRealm, _, _,
+            witchRealm, numWitchRealm, _, _);
+    }
+
+    for(int i=0;i < numSIRealm;i++)
+    {
+        int victim = siRealm[i];
+
+        if(!IsPlayerAlive(victim))
             continue;
 
-        else if (!IsClientInGame(i))
-            continue;
+        float fVictimOrigin[3];
+        GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
 
-        else if (!IsPlayerAlive(i))
-            continue;
-
-        float fOrigin[3];
-        GetEntPropVector(i, Prop_Data, "m_vecOrigin", fOrigin);
-
-        if (GetVectorDistance(fOrigin, fTargetOrigin, false) < 512.0)
+        if (GetVectorDistance(fVictimOrigin, fTargetOrigin, false) < 512.0)
         {
-            if(!RPG_Tanks_IsDamageImmuneTo(i, DAMAGE_IMMUNITY_BURN))
+            if(!RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
             {
-                RPG_Perks_IgniteWithOwnership(i, client);
+                RPG_Perks_IgniteWithOwnership(victim, client);
             }
         }
     }
 
+    for(int i=0;i < numCIRealm;i++)
+    {
+        int victim = ciRealm[i];
+
+        float fVictimOrigin[3];
+        GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
+
+        if (GetVectorDistance(fVictimOrigin, fTargetOrigin, false) < 512.0)
+        {
+            RPG_Perks_IgniteWithOwnership(victim, client);
+        }
+    }
+
+    for(int i=0;i < numWitchRealm;i++)
+    {
+        int victim = witchRealm[i];
+
+        float fVictimOrigin[3];
+        GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
+
+        if (GetVectorDistance(fVictimOrigin, fTargetOrigin, false) < 512.0)
+        {
+            RPG_Perks_IgniteWithOwnership(victim, client);
+        }
+    }
+
     int iEntity = -1;
-    while ((iEntity = FindEntityByClassname(iEntity, "infected")) != -1)
-    {
-        float fOrigin[3];
-        GetEntPropVector(iEntity, Prop_Data, "m_vecOrigin", fOrigin);
-
-        if (GetVectorDistance(fOrigin, fTargetOrigin, false) < 512.0)
-        {
-            RPG_Perks_IgniteWithOwnership(iEntity, client);
-        }
-    }
-
-    iEntity = -1;
-    while ((iEntity = FindEntityByClassname(iEntity, "witch")) != -1)
-    {
-        float fOrigin[3];
-        GetEntPropVector(iEntity, Prop_Data, "m_vecOrigin", fOrigin);
-
-        if (GetVectorDistance(fOrigin, fTargetOrigin, false) < 512.0)
-        {
-            RPG_Perks_IgniteWithOwnership(iEntity, client);
-        }
-    }
-
-    iEntity = -1;
     while ((iEntity = FindEntityByClassname(iEntity, "weapon_gascan")) != -1)
     {
         float fOrigin[3];

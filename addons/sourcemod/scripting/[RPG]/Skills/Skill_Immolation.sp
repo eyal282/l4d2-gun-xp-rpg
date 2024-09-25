@@ -223,61 +223,85 @@ public void InflictImmolationDamage(int client, float fOrigin[3])
 {
     int iFakeWeapon = CreateEntityByName("weapon_pistol_magnum");
 
-    for (int i = 1; i <= MaxClients; i++)
+    int siRealm[MAXPLAYERS+1], numSIRealm;
+    int ciRealm[MAXPLAYERS+1], numCIRealm;
+    int witchRealm[MAXPLAYERS+1], numWitchRealm;
+
+    /*RPG_Perks_GetZombiesInRealms(
+        siNormal, numSINormal, siShadow, numSIShadow,
+        ciNormal, numCINormal, ciShadow, numCIShadow,
+        witchNormal, numWitchNormal, witchShadow, numWitchShadow);*/
+
+
+
+
+    if(RPG_Perks_IsEntityTimedAttribute(client, "Shadow Realm"))
     {
-        if (i == client)
+        RPG_Perks_GetZombiesInRealms(
+            _, _, siRealm, numSIRealm,
+            _, _, ciRealm, numCIRealm,
+            _, _, witchRealm, numWitchRealm);
+    }
+    else
+    {
+        RPG_Perks_GetZombiesInRealms(
+            siRealm, numSIRealm, _, _,
+            ciRealm, numCIRealm, _, _,
+            witchRealm, numWitchRealm, _, _);
+    }
+
+    for(int i=0;i < numSIRealm;i++)
+    {
+        int victim = siRealm[i];
+
+        if(!IsPlayerAlive(victim))
             continue;
 
-        else if (!IsClientInGame(i))
-            continue;
+        float fVictimOrigin[3];
+        GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
 
-        else if (!IsPlayerAlive(i))
-            continue;
-
-        else if(L4D_GetClientTeam(client) == L4D_GetClientTeam(i))
-            continue;
-
-        float fEntityOrigin[3];
-        GetEntPropVector(i, Prop_Data, "m_vecAbsOrigin", fEntityOrigin);
-
-        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
+        if (GetVectorDistance(fVictimOrigin, fOrigin, false) < g_fRadius)
         {
-            RPG_Perks_TakeDamage(i, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
+            RPG_Perks_TakeDamage(victim, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
 
-            if(!RPG_Tanks_IsDamageImmuneTo(i, DAMAGE_IMMUNITY_BURN))
+            if(!RPG_Tanks_IsDamageImmuneTo(victim, DAMAGE_IMMUNITY_BURN))
             {
-                RPG_Perks_IgniteWithOwnership(i, client);
+                RPG_Perks_IgniteWithOwnership(victim, client);
             }
         }
     }
 
+    for(int i=0;i < numCIRealm;i++)
+    {
+        int victim = ciRealm[i];
+
+        float fVictimOrigin[3];
+        GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
+
+        if (GetVectorDistance(fVictimOrigin, fOrigin, false) < g_fRadius)
+        {
+            RPG_Perks_TakeDamage(victim, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
+
+            RPG_Perks_IgniteWithOwnership(victim, client);
+        }
+    }
+
+    for(int i=0;i < numWitchRealm;i++)
+    {
+        int victim = witchRealm[i];
+
+        float fVictimOrigin[3];
+        GetEntPropVector(victim, Prop_Data, "m_vecAbsOrigin", fVictimOrigin);
+
+        if (GetVectorDistance(fVictimOrigin, fOrigin, false) < g_fRadius)
+        {
+            RPG_Perks_TakeDamage(victim, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
+
+            RPG_Perks_IgniteWithOwnership(victim, client);
+        }
+    }
+
     int iEntity = -1;
-    while ((iEntity = FindEntityByClassname(iEntity, "infected")) != -1)
-    {
-        float fEntityOrigin[3];
-        GetEntPropVector(iEntity, Prop_Data, "m_vecOrigin", fEntityOrigin);
-
-        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
-        {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
-            RPG_Perks_IgniteWithOwnership(iEntity, client);
-        }
-    }
-
-    iEntity = -1;
-    while ((iEntity = FindEntityByClassname(iEntity, "witch")) != -1)
-    {
-        float fEntityOrigin[3];
-        GetEntPropVector(iEntity, Prop_Data, "m_vecOrigin", fEntityOrigin);
-
-        if (GetVectorDistance(fEntityOrigin, fOrigin, false) < g_fRadius)
-        {
-            RPG_Perks_TakeDamage(iEntity, client, iFakeWeapon, DAMAGE_IMMOLATION, DMG_BULLET|DMG_DROWNRECOVER);
-            RPG_Perks_IgniteWithOwnership(iEntity, client);
-        }
-    }
-
-    iEntity = -1;
     while ((iEntity = FindEntityByClassname(iEntity, "weapon_gascan")) != -1)
     {
         float fEntityOrigin[3];
@@ -295,7 +319,7 @@ public void InflictImmolationDamage(int client, float fOrigin[3])
 public void RegisterSkill()
 {
     char sDescription[512];
-    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you/r dead body, hurting Zombies near you.\nDuration is half your level, and stacks. Radius of damaging is %.0f units.\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and bypasses all protection\nDeploy Molotov instantly", g_fRadius, g_iMagnumShots);
+    FormatEx(sDescription, sizeof(sDescription), "Throwing a molotov on yourself ignites you/r dead body, hurting Zombies near you.\nDuration is half your level, and stacks. Radius of damaging is %.0f units and ignores damage immunities.\nEvery second while active, zombies take damage equal to %i magnum shots\nDamage is boosted by Marksman, and Molotov deploys instantly", g_fRadius, g_iMagnumShots);
     immolationIndex = GunXP_RPGShop_RegisterSkill("Immolation", "Immolation", sDescription,
     150000, 0);
 }

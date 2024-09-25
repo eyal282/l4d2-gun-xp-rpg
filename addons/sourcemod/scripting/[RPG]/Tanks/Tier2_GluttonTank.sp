@@ -523,7 +523,7 @@ stock int FindRandomSurvivorWithoutIncap(int client, float fMaxDistance)
 public void RegisterTank()
 {
     tankIndex = RPG_Tanks_RegisterTank(3, 2, "Glutton", "A tank that learned the size difference between survivors and Tanks.\nThe Tank's name shows percent of HP the closest eaten survivor to death is.", "Eats survivors, shove the tank to release them (Right Click)",
-    5500000, 180, 0.2, 32000, 36000, DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+    5500000, 180, 0.2, 32000, 36000, DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES, GunXP_GenerateHexColor(255, 255, 0));
 
     int minmax[2];
     

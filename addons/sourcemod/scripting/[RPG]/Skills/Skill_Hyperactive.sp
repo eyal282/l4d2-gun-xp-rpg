@@ -131,6 +131,7 @@ public void RPG_Perks_OnTimedAttributeStart(int attributeEntity, char attributeN
         StopHyperactiveSound(attributeEntity);
     }
 }
+
 public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
 {
     if(StrEqual(attributeName, "Invincible"))

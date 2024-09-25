@@ -27,19 +27,19 @@ float g_fNextExpireJump[MAXPLAYERS+1];
 int g_iJumpCount[MAXPLAYERS+1];
 bool g_bSpam[MAXPLAYERS+1];
 
-float g_fVisionRanges[] =
+float g_fSpeedPenalties[] =
 {
-    8.0,
-    200.0,
-    450.0,
-    768.0
+    60.0,
+    20.0,
+    0.0,
+    -20.0
 };
 
 int g_iShadowRealmCosts[] =
 {
-    32000,
-    64000,
-    128000,
+    5000,
+    10000,
+    70000,
     5000000
 };
 
@@ -77,14 +77,31 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnGetShadowRealmVision(int client, float &fVision)
+public void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &overrideSpeedState, int &iLimpHealth, float &fRunSpeed, float &fWalkSpeed, float &fCrouchSpeed, float &fLimpSpeed, float &fCriticalSpeed, float &fWaterSpeed, float &fAdrenalineSpeed, float &fScopeSpeed, float &fCustomSpeed)
 {
-    int perkTree = GunXP_RPGShop_IsPerkTreeUnlocked(client, shadowRealmIndex);
-
-    if(perkTree == -1)
+    if(priority != 0)
         return;
 
-    fVision += g_fVisionRanges[perkTree];
+    else if(!RPG_Perks_IsEntityTimedAttribute(client, "Shadow Realm"))
+        return;
+
+    int perkLevel = GunXP_RPGShop_IsPerkTreeUnlocked(client, shadowRealmIndex);
+
+    if(perkLevel == PERK_TREE_NOT_UNLOCKED)
+        perkLevel = 0;
+
+    fRunSpeed -= g_fSpeedPenalties[perkLevel];
+    fWalkSpeed -= g_fSpeedPenalties[perkLevel];
+    fLimpSpeed -= g_fSpeedPenalties[perkLevel];
+    fScopeSpeed -= g_fSpeedPenalties[perkLevel];
+    fAdrenalineSpeed -= g_fSpeedPenalties[perkLevel];
+    fWaterSpeed -= g_fSpeedPenalties[perkLevel];
+    fCustomSpeed -= g_fSpeedPenalties[perkLevel];
+}
+
+public void RPG_Perks_OnGetShadowRealmVision(int client, float &fVision)
+{
+    fVision += 450.0;
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
@@ -198,21 +215,21 @@ public void RegisterPerkTree()
     costs = new ArrayList(1);
     xpReqs = new ArrayList(1);
 
-    for(int i=0;i < sizeof(g_fVisionRanges);i++)
+    for(int i=0;i < sizeof(g_fSpeedPenalties);i++)
     {
         char TempFormat[128];
 
-        if(g_fVisionRanges[i] <= 8.0)
-            FormatEx(TempFormat, sizeof(TempFormat), "You are blind in the Shadow Realm");
+        if(g_fSpeedPenalties[i] >= 0.0)
+            FormatEx(TempFormat, sizeof(TempFormat), "%.0f speed reduction in Shadow Realm", g_fSpeedPenalties[i]);
         else
-            FormatEx(TempFormat, sizeof(TempFormat), "%.0f vision radius in Shadow Realm.", g_fVisionRanges[i]);
+            FormatEx(TempFormat, sizeof(TempFormat), "%.0f speed buff in Shadow Realm", -1.0 * g_fSpeedPenalties[i]);
 
         descriptions.PushString(TempFormat);
         costs.Push(g_iShadowRealmCosts[i]);
         xpReqs.Push(g_iShadowRealmReqs[i]);
     }
 
-    shadowRealmIndex = GunXP_RPGShop_RegisterPerkTree("Shadow Realm Pills", "Unstable Drugs", descriptions, costs, xpReqs, _, _, "Triple click RELOAD with Pills to consume them and go to the Shadow Realm.\nTriple press RELOAD with a Primary Weapon to exit the Shadow Realm.\nLasts 20 sec, or 65 sec if a Tank is dead");
+    shadowRealmIndex = GunXP_RPGShop_RegisterPerkTree("Shadow Realm Pills", "Unstable Drugs", descriptions, costs, xpReqs, _, _, "Triple click RELOAD with Pills / Primary Weapon, to enter / exit the Shadow Realm, respectively\nLasts 20 sec, or 65 sec if a Tank is dead");
 
     UC_SilentCvar("l4d_gear_transfer_method", "1");
 }
@@ -223,6 +240,9 @@ stock bool HasPillsEquipped(int client, int weapon = -1)
     {
         weapon = L4D_GetPlayerCurrentWeapon(client);
     }
+
+    if(weapon == -1)
+        return false;
 
     char sClassname[64];
     GetEdictClassname(weapon, sClassname, sizeof(sClassname));

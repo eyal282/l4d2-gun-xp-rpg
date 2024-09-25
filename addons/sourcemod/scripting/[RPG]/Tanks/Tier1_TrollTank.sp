@@ -220,7 +220,7 @@ public void RegisterTank()
 	if(averageLevel <= 18)
 		entries = 2000000000;
 
-	tankIndex = RPG_Tanks_RegisterTank(1, entries, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes no damage besides Fire.", "Very Annoying. Only Fire Damage works. Explodes on Death killing all survivors nearby.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES);
+	tankIndex = RPG_Tanks_RegisterTank(1, entries, "Troll", "A tank that wants to ruin your day\nDeals no damage, takes no damage besides Fire.", "Very Annoying. Only Fire Damage works. Explodes on Death killing all survivors nearby.", 250000, 180, 0.0, 200, 400, DAMAGE_IMMUNITY_BULLETS|DAMAGE_IMMUNITY_MELEE|DAMAGE_IMMUNITY_EXPLOSIVES, GunXP_GenerateHexColor(255, 77, 1));
 
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Bonjour", "If a survivor enters Shadow Realm, Tank joins him for the duration");
 	RPG_Tanks_RegisterPassiveAbility(tankIndex, "Stun Stack", "Due to a bug (=Feature), if any Tank punches...\n... a stunned player multiple times, the fly away effect stacks...\n... Causing the player to fly far away when stun ends.");
