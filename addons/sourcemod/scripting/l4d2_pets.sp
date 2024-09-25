@@ -59,6 +59,7 @@ ConVar g_hPetUpdateRate;
 ConVar g_hPetTargetMethod;
 ConVar g_hPetCarrySlowSurvivors;
 
+GlobalForward g_fwOnGetPetBlacklist;
 GlobalForward g_fwOnCanHavePets;
 GlobalForward g_fwOnCanPetReviveIncap;
 GlobalForward g_fwOnTryEndCarry;
@@ -171,6 +172,7 @@ public void OnPluginStart()
 
     g_hCurrGamemode = FindConVar("mp_gamemode");
 
+    g_fwOnGetPetBlacklist = CreateGlobalForward("L4D2_Pets_OnGetPetBlacklist", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
     g_fwOnCanHavePets = CreateGlobalForward("L4D2_Pets_OnCanHavePets", ET_Event, Param_Cell, Param_Cell, Param_CellByRef);
     g_fwOnCanPetReviveIncap = CreateGlobalForward("L4D2_Pets_OnCanPetReviveIncap", ET_Event, Param_Cell, Param_Cell, Param_Cell, Param_FloatByRef);
     g_fwOnTryEndCarry = CreateGlobalForward("L4D2_Pets_OnTryEndCarry", ET_Event, Param_Cell, Param_Cell, Param_Cell);
@@ -869,7 +871,7 @@ Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH
     return Plugin_Changed;
 }
 
-public Action L4D2_OnChooseVictim_Pre(int specialInfected, int &curTarget)
+public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 {   
     if(g_iLastCommand[specialInfected] == -2)
         return Plugin_Stop;
@@ -1233,6 +1235,18 @@ Action ChangeVictim_Timer(Handle timer, int pet)
         return Plugin_Stop;
     }
 
+    Call_StartForward(g_fwOnGetPetBlacklist);
+
+    Call_PushCell(owner);
+    Call_PushCell(pet);
+    
+    ArrayList blacklist = new ArrayList(1);
+    Call_PushCell(blacklist);
+
+    Call_Finish();
+
+
+
     // Another rare bug...
     if(L4D_GetPinnedSurvivor(pet) != 0)
     {
@@ -1268,8 +1282,6 @@ Action ChangeVictim_Timer(Handle timer, int pet)
         }
     }
 
-    // PrintToChatAll("%i %i %i %i", IsNotCarryable(owner), !IsFakeClient(owner), g_iPetCarrySlowSurvivors != 0, GetCarryTargetOrigin(pet));
-
     if(IsNotCarryable(owner) && L4D_GetPinnedInfected(owner) == 0 && !IsFakeClient(owner) && g_iPetCarrySlowSurvivors != 0 && GetCarryTargetOrigin(pet))
     {
         fDist = Pow(131071.0, 2.0);
@@ -1278,7 +1290,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
         {
             for( int i = 1; i <= MaxClients; i++ )
             {
-                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && g_iCarrier[i] == -1 && !IsNotCarryable(i) && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
+                if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && g_iCarrier[i] == -1 && !IsNotCarryable(i) && blacklist.FindValue(i) == -1 && (g_iPetCarrySlowSurvivors == 2 || !L4D_IsPlayerIncapacitated(i)))
                 {
                     GetClientAbsOrigin(i, vTarget);
                     GetClientAbsOrigin(owner, vPet);
@@ -1361,7 +1373,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
             {
                 for( int i = 1; i <= MaxClients; i++ )
                 {
-                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0 && blacklist.FindValue(i) == -1)
                     {
                         int ability = L4D_GetPlayerCustomAbility(i);
 
@@ -1403,7 +1415,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
             {
                 for( int i = 1; i <= MaxClients; i++ )
                 {
-                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && L4D_GetPinnedSurvivor(i) != 0 && g_iOwner[i] == 0)
+                    if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && L4D_GetPinnedSurvivor(i) != 0 && g_iOwner[i] == 0 && blacklist.FindValue(i) == -1)
                     {
                         GetClientAbsOrigin(i, vTarget);
                         float tempDist = GetVectorDistance(vOwner, vTarget, true);
@@ -1431,7 +1443,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
 
                     for( int i = 1; i <= MaxClients; i++ )
                     {
-                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && L4D_IsPlayerIncapacitated(i))
+                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && L4D_IsPlayerIncapacitated(i) && blacklist.FindValue(i) == -1)
                         {
                             GetClientAbsOrigin(i, vTarget);
                             float tempDist = GetVectorDistance(vOwner, vTarget, true);
@@ -1514,7 +1526,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
                     fDist = g_fPetDist;
                     for( int i = 1; i <= MaxClients; i++ )
                     {
-                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0)
+                        if( i != pet && IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3 && g_iOwner[i] == 0 && blacklist.FindValue(i) == -1)
                         {
                             int ability = L4D_GetPlayerCustomAbility(i);
 
@@ -1590,7 +1602,7 @@ Action ChangeVictim_Timer(Handle timer, int pet)
         float fTargetOrigin[3];
         if(GetCarryTargetOrigin(pet, fTargetOrigin))
         {
-            //PrintToChatAll("a %.1f %.1f %.1f %.5f %.5f", fTargetOrigin[0], fTargetOrigin[1], fTargetOrigin[2], fPetFlowPercent, g_fLastBracket[pet]);
+            // PrintToChatAll("a %.1f %.1f %.1f %.5f", fTargetOrigin[0], fTargetOrigin[1], fTargetOrigin[2], g_fLastBracket[pet]);
             L4D2_CommandABot(pet, 0, BOT_CMD_MOVE, fTargetOrigin);
         }
     }   

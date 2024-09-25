@@ -2004,6 +2004,23 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 	TriggerTimer(CreateTimer(0.0, Timer_CheckSpeedModifiers, _, TIMER_FLAG_NO_MAPCHANGE));
 }
 
+public void L4D2_Pets_OnGetPetBlacklist(int owner, int pet, ArrayList blacklist)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		else if((g_bShadowRealm[pet] && !g_bShadowRealm[i]) || (!g_bShadowRealm[pet] && g_bShadowRealm[i]))
+		{
+			blacklist.Push(i);
+		}
+	}
+}
+
 public int RPG_Perks_CookieMenuHandler(int client, CookieMenuAction action, int info, char[] buffer, int maxlen)
 {
 	if (action != CookieMenuAction_SelectOption)
@@ -2112,7 +2129,6 @@ public void OnActionCreated(BehaviorAction action, int actor, const char[] name)
 
 	if (strcmp(name, "InfectedAttack") == 0)
 	{
-		action.OnStartPost = InfectedAttack__OnUpdatePost;
 		action.OnUpdatePost = InfectedAttack__OnUpdatePost;
 	}
 }

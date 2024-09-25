@@ -102,4 +102,6 @@ public void RegisterSkill()
 
     tamerIndex = GunXP_RPGShop_RegisterSkill("Ride on your Pet", "Beast Tamer", sDescription,
     0, 1000000);
+
+    UC_SilentCvar("l4d2_pets_carry_slow_survivors", "2");
 }
