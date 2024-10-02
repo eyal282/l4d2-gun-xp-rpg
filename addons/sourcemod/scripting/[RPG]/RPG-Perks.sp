@@ -686,9 +686,6 @@ stock void RecalculateMaxHP(int client, bool bDontScale = false)
 	int iPermanentHealth = 0;
 	int iTemporaryHealth = 0;
 
-	//80/100 = 148/189
-
-	//newHP / newMaxHP = fOldTemporaryPercent * צשס;
 	if(fPermanentPercent != fOldPermanentPercent)
 	{
 		iPermanentHealth = RoundToFloor((fOldPermanentPercent * GetEntityMaxHealth(client) - GetEntityHealth(client)));
