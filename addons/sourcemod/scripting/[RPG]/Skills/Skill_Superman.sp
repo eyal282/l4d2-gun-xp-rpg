@@ -15,7 +15,7 @@ public Plugin myinfo =
 {
     name        = "Superman Skill --> Gun XP - RPG",
     author      = "Eyal282",
-    description = "Skill for flying for 10 seconds once per round.",
+    description = "Endgame Skill for flying for 10 seconds once per round.",
     version     = PLUGIN_VERSION,
     url         = ""
 };

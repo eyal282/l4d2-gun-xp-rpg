@@ -18,7 +18,7 @@ public Plugin myinfo =
 {
     name        = "Retro Gamer Skill --> Gun XP - RPG",
     author      = "Eyal282",
-    description = "Skill that makes you invincible for 5 hits after reaching 1 HP",
+    description = "Endgame Skill that makes you invincible for 5 hits after reaching 1 HP",
     version     = PLUGIN_VERSION,
     url         = ""
 };
