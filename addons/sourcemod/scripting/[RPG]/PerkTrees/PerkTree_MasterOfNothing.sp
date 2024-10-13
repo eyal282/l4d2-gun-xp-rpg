@@ -83,5 +83,5 @@ public void RegisterPerkTree()
     costs.Push(400);
     xpReqs.Push(GunXP_RPG_GetXPForLevel(30));
 
-    perkIndex = GunXP_RPGShop_RegisterPerkTree("Ironman By Difficulty", "Master Of Nothing", descriptions, costs, xpReqs, _, _, "Applies Ironman state, which maxes all Perk Trees and Skills.");
+    perkIndex = GunXP_RPGShop_RegisterPerkTree("Ironman By Difficulty", "Master Of Nothing", descriptions, costs, xpReqs, _, _, "Applies Ironman state, which maxes your Level, Perk Trees & Skills.");
 }
