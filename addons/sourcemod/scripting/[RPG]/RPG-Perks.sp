@@ -1814,7 +1814,7 @@ public void OnPluginStart()
 	HookEntityOutput("func_tracktrain", "OnNextPoint", FuncElevator_CalculateReachFloor);
 
 	// Plugin_Handled if not.
-
+	
 	g_fwOnGetShadowRealmVision = CreateGlobalForward("RPG_Perks_OnGetShadowRealmVision", ET_Event, Param_Cell, Param_FloatByRef);
 
 	g_fwOnShouldIgnoreEntireTeamTouch = CreateGlobalForward("RPG_Perks_OnShouldIgnoreEntireTeamTouch", ET_Event, Param_Cell);
@@ -2636,6 +2636,7 @@ public Action L4D2_OnStartCarryingVictim(int victim, int attacker)
 	{
 		L4D_StaggerPlayer(attacker, attacker, {0.0, 0.0, 0.0});
 
+		// This unstaggers.
 		char TempFormat[128];
 		FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(attacker), GetClientUserId(attacker));
 		L4D2_ExecVScriptCode(TempFormat);
@@ -2826,6 +2827,7 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 			*/
 			L4D_StaggerPlayer(entity, entity, {0.0, 0.0, 0.0});
 
+			// This unstaggers.
 			char TempFormat[128];
 			FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(entity), GetClientUserId(entity));
 			L4D2_ExecVScriptCode(TempFormat);

@@ -120,6 +120,7 @@ ConVar hcv_xpLedge;
 
 int KillStreak[MAXPLAYERS+1];
 
+bool g_bIronman[MAXPLAYERS+1];
 bool g_bMask[MAXPLAYERS+1];
 
 int g_iLevel[MAXPLAYERS+1], g_iXP[MAXPLAYERS+1], g_iXPCurrency[MAXPLAYERS+1];
@@ -207,6 +208,7 @@ int g_iCommonKills[MAXPLAYERS+1];
 int g_iCommonHeadshots[MAXPLAYERS+1];
 
 //GlobalForward g_fwOnUnlockShopBuy;
+GlobalForward g_fwOnGetPlayerIronman;
 GlobalForward g_fwOnReloadRPGPlugins;
 GlobalForward g_fwOnPlayerLoaded;
 GlobalForward g_fwOnTryReloadRPGPlugins;
@@ -814,6 +816,9 @@ public int Native_GetClientLevel(Handle caller, int numParams)
 	if(RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return 0;
 
+	else if(g_bIronman[client])
+		return MAX_LEVEL;
+
 	return GetClientLevel(client);
 }
 
@@ -945,6 +950,9 @@ public any Native_IsSkillUnlocked(Handle caller, int numParams)
 
 	else if(!bIgnoreMutation && RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return false;
+
+	else if(g_bIronman[client])
+		return true;
 
 	if(!IsFakeClient(client))
 		return g_bUnlockedSkills[client][skillIndex];
@@ -1103,6 +1111,13 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 	else if(!bIgnoreMutation && RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
 		return PERK_TREE_NOT_UNLOCKED;
 
+	enPerkTree perkTree;
+
+	g_aPerkTrees.GetArray(perkIndex, perkTree);
+
+	if(g_bIronman[client])
+		return perkTree.costs.Length - 1;
+
 	if(!IsFakeClient(client))
 		return g_iUnlockedPerkTrees[client][perkIndex];
 
@@ -1237,6 +1252,8 @@ public void OnLibraryAdded(const char[] name)
 public void OnPluginStart()
 {
 	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
+
+	g_fwOnGetPlayerIronman = CreateGlobalForward("GunXP_OnGetPlayerIronman", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnReloadRPGPlugins = CreateGlobalForward("GunXP_OnReloadRPGPlugins", ET_Ignore);
 	g_fwOnPlayerLoaded = CreateGlobalForward("GunXP_OnPlayerLoaded", ET_Ignore, Param_Cell);
 	g_fwOnTryReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnTryReloadRPGPlugins", ET_Event, Param_String);
@@ -1639,7 +1656,39 @@ public Action Timer_HudMessageXP(Handle hTimer)
 	{
 		if(!IsClientInGame(i))
 			continue;
-			
+
+		bool bIronman = false;	
+
+		for(int prio=-10;prio <= 10;prio++)
+		{
+			Call_StartForward(g_fwOnGetPlayerIronman);
+
+			Call_PushCell(prio);
+			Call_PushCell(i);
+			Call_PushCellRef(bIronman);
+
+			Call_Finish();
+		}
+
+		if(g_bIronman[i] != bIronman)
+		{
+			g_bIronman[i] = bIronman;
+
+			if(!bIronman)
+			{
+				Call_StartForward(g_fwOnResetRPG);
+
+				Call_PushCell(i);
+
+				Call_Finish();
+			}
+
+			if(IsPlayerAlive(i))
+			{
+				RPG_Perks_RecalculateMaxHP(i);
+			}
+		}
+
 		char weaponFormat[64];
 		char adrenalineFormat[64];
 		char tankFormat[64];

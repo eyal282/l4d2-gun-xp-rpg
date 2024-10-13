@@ -185,7 +185,7 @@ public Action Timer_MonitorRewind(Handle hTimer)
 
         history.fSecondsAgo += REWIND_MONITOR_INTERVAL;
 
-        if(history.fSecondsAgo >= MAX_REWIND_TIME)
+        if(history.fSecondsAgo > MAX_REWIND_TIME)
         {
             g_aHistory.Erase(i);
             i--;
@@ -203,7 +203,7 @@ public Action Timer_MonitorRewind(Handle hTimer)
 
         weapon.fSecondsAgo += REWIND_MONITOR_INTERVAL;
 
-        if(weapon.fSecondsAgo >= MAX_REWIND_TIME)
+        if(weapon.fSecondsAgo > MAX_REWIND_TIME)
         {
             g_aWeaponHistory.Erase(i);
             i--;
@@ -273,6 +273,7 @@ public Action Command_Rewind(int client, int args)
     }
     
     bool bFail = true;
+
     for(int i=0;i < g_aHistory.Length;i++)
     {
         enHistory history;
@@ -289,7 +290,25 @@ public Action Command_Rewind(int client, int args)
 
         bFail = false;
 
+        int pinner = L4D2_GetInfectedAttacker(client);
+
+        if(pinner != -1)
+        {
+            L4D_StaggerPlayer(pinner, pinner, {0.0, 0.0, 0.0});
+
+            // This unstaggers.
+		    char TempFormat[128];
+    		FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(pinner), GetClientUserId(pinner));
+		    L4D2_ExecVScriptCode(TempFormat);
+        }
+
+        // This unstaggers.
+        char TempFormat[128];
+        FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(client), GetClientUserId(client));
+        L4D2_ExecVScriptCode(TempFormat);
+
         TeleportEntity(client, history.fOrigin, history.fAngles, history.fVelocity);
+
 
         if(history.bHanging && L4D_IsPlayerHangingFromLedge(client))
         {
@@ -319,6 +338,12 @@ public Action Command_Rewind(int client, int args)
         {
             L4D_ReviveSurvivor(client);
         }
+
+        switch(history.pinClass)
+        {
+
+        }
+
 
         SetEntProp(client, Prop_Send, "m_currentReviveCount", history.reviveCount);
         SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", history.bThirdStrike);

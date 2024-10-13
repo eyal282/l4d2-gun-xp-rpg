@@ -78,6 +78,16 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
+public void GunXP_RPGShop_OnResetRPG(int client)
+{
+    if(!RPG_Perks_IsEntityTimedAttribute(client, "Superman"))
+            return;
+
+    RPG_Perks_ApplyEntityTimedAttribute(client, "Superman", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+    RPG_Perks_ApplyEntityTimedAttribute(client, "Invincible", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+    RPG_Perks_ApplyEntityTimedAttribute(client, "Immolation", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+    RPG_Perks_ApplyEntityTimedAttribute(client, "Stun", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+}
 
 public Action Event_WeaponFire(Handle hEvent, char[] Name, bool dontBroadcast)
 {
