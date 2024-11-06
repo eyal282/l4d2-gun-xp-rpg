@@ -185,7 +185,7 @@ public Action Timer_MonitorRewind(Handle hTimer)
 
         history.fSecondsAgo += REWIND_MONITOR_INTERVAL;
 
-        if(history.fSecondsAgo > MAX_REWIND_TIME)
+        if(history.fSecondsAgo - MAX_REWIND_TIME >= 0.001)
         {
             g_aHistory.Erase(i);
             i--;
@@ -203,7 +203,7 @@ public Action Timer_MonitorRewind(Handle hTimer)
 
         weapon.fSecondsAgo += REWIND_MONITOR_INTERVAL;
 
-        if(weapon.fSecondsAgo > MAX_REWIND_TIME)
+        if(weapon.fSecondsAgo - MAX_REWIND_TIME >= 0.001)
         {
             g_aWeaponHistory.Erase(i);
             i--;
@@ -268,10 +268,21 @@ public Action Command_Rewind(int client, int args)
     }
     else if(seconds > MAX_REWIND_TIME)
     {
-        ReplyToCommand(client, "Max rewind time is %i seconds!", MAX_REWIND_TIME);
+        ReplyToCommand(client, "Max rewind time is %.0f seconds!", MAX_REWIND_TIME);
         return Plugin_Handled;
     }
     
+    int timesUsed, maxUses;
+
+    RPG_Perks_GetClientLimitedAbility(client, "Rewind Yourself", timesUsed, maxUses);
+
+    if(timesUsed >= maxUses)
+    {
+        ReplyToCommand(client, "Rewind Ability is fully used up (%i/%i)!", timesUsed, maxUses);
+
+        return Plugin_Handled;
+    }
+
     bool bFail = true;
 
     for(int i=0;i < g_aHistory.Length;i++)
@@ -289,6 +300,18 @@ public Action Command_Rewind(int client, int args)
             continue;
 
         bFail = false;
+
+        bool success = RPG_Perks_UseClientLimitedAbility(client, "Rewind Yourself");
+
+        if(!success)
+        {
+            return Plugin_Handled;
+        }
+
+
+        RPG_Perks_GetClientLimitedAbility(client, "Rewind Yourself", timesUsed, maxUses);
+
+        PrintToChat(client, "Rewound %i sec into the past (%i/%i)", seconds, timesUsed, maxUses);
 
         int pinner = L4D2_GetInfectedAttacker(client);
 
@@ -337,11 +360,6 @@ public Action Command_Rewind(int client, int args)
         else if(!history.bIncap && L4D_IsPlayerIncapacitated(client))
         {
             L4D_ReviveSurvivor(client);
-        }
-
-        switch(history.pinClass)
-        {
-
         }
 
 
@@ -423,6 +441,7 @@ public Action Command_Rewind(int client, int args)
 
         FakeClientCommand(client, "use %s", sClassname);
     }
+
     return Plugin_Handled;
 }
 
