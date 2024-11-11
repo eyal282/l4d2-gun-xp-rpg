@@ -907,6 +907,18 @@ stock GunXP_ReloadPlugin(Handle plugin = INVALID_HANDLE)
 	ServerCommand("sm plugins reload %s", filename);
 }
 
+/**
+ * @brief Unloads a plugin.
+ *
+ * @param plugin	Plugin Handle (INVALID_HANDLE uses the calling plugin).
+ * @noreturn
+ */
+stock GunXP_UnloadPlugin(Handle plugin = INVALID_HANDLE)
+{
+	char filename[64];
+	GetPluginFilename(plugin, filename, sizeof(filename));
+	ServerCommand("sm plugins unload %s", filename);
+}
 
 stock void PrintToChatEyal(const char[] format, any ...)
 {

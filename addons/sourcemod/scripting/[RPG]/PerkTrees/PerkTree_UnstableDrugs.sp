@@ -69,6 +69,8 @@ public void OnConfigsExecuted()
 
 public void OnPluginStart()
 {
+    GunXP_UnloadPlugin();
+
     RegisterPerkTree();
 }
 

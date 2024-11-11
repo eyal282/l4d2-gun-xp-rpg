@@ -24,6 +24,11 @@ int rewindIndex;
 ArrayList g_aHistory;
 ArrayList g_aWeaponHistory;
 
+int g_iJumpCount[MAXPLAYERS+1];
+float g_fNextExpireJump[MAXPLAYERS+1];
+bool g_bSpam[MAXPLAYERS+1];
+int g_iLastImpulse[MAXPLAYERS+1];
+
 // -1 for do nothing, 0 for active search
 int g_iCheckEntity = -1;
 
@@ -259,6 +264,12 @@ public Action Command_Rewind(int client, int args)
     char sArg[16];
     GetCmdArg(1, sArg, sizeof(sArg));
     int seconds = StringToInt(sArg);
+
+    return RewindTime(client, seconds);
+}
+
+stock Action RewindTime(int client, int seconds)
+{
     float fSeconds = float(seconds);
 
     if(seconds <= 0)
@@ -320,9 +331,9 @@ public Action Command_Rewind(int client, int args)
             L4D_StaggerPlayer(pinner, pinner, {0.0, 0.0, 0.0});
 
             // This unstaggers.
-		    char TempFormat[128];
-    		FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(pinner), GetClientUserId(pinner));
-		    L4D2_ExecVScriptCode(TempFormat);
+            char TempFormat[128];
+            FormatEx(TempFormat, sizeof(TempFormat), "GetPlayerFromUserID(%i).SetModel(GetPlayerFromUserID(%i).GetModelName())", GetClientUserId(pinner), GetClientUserId(pinner));
+            L4D2_ExecVScriptCode(TempFormat);
         }
 
         // This unstaggers.
@@ -450,6 +461,55 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
+
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse)
+{
+    int lastImpulse = g_iLastImpulse[client];
+
+    g_iLastImpulse[client] = impulse;
+
+    if(g_bSpam[client])
+        return Plugin_Continue;
+
+    if(impulse == 201 && lastImpulse != 201 && g_fNextExpireJump[client] > GetGameTime())
+    {
+        g_fNextExpireJump[client] = GetGameTime() + 1.5;
+        g_iJumpCount[client]++;
+
+        if(g_iJumpCount[client] >= 3 && GunXP_RPGShop_IsSkillUnlocked(client, rewindIndex))
+        {
+            
+            g_iJumpCount[client] = 0;
+
+            g_bSpam[client] = true;
+            
+            CreateTimer(1.0, Timer_SpamOff, client);
+
+            RewindTime(client, 30);
+        }
+    }
+
+    if(g_fNextExpireJump[client] <= GetGameTime())
+    {
+        g_iJumpCount[client] = 0;
+        g_fNextExpireJump[client] = GetGameTime() + 1.5;
+
+        if(impulse == 201)
+        {
+            g_iJumpCount[client]++;
+        }
+    }
+
+    return Plugin_Continue;
+}
+
+public Action Timer_SpamOff(Handle Timer, int client)
+{
+    g_bSpam[client] = false;
+
+    return Plugin_Continue;
+}
+
 public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, char attributeName[64])
 {
     _RPG_Perks_OnPlayerSpawned(newClient, false);
@@ -512,7 +572,9 @@ public void RPG_Perks_OnGetMaxLimitedAbility(int priority, int client, char iden
 
 public void RegisterSkill()
 {
-    rewindIndex = GunXP_RPGShop_RegisterSkill("Rewind Yourself", "Rewind", "!rewind <sec>\nOnce per Round: Return up to 30 sec to the past, restoring mostly everything\nDoesn't restore pin, skill uses, and timed attributes",
+    UC_SilentCvar("l4d2_points_survivor_spray_alias", "");
+
+    rewindIndex = GunXP_RPGShop_RegisterSkill("Rewind Yourself", "Rewind", "!rewind <sec> OR triple press SPRAY\nOnce per Round: Return up to 30 sec to the past, restoring mostly everything\nDoesn't restore pin, skill uses, and timed attributes",
     10000000, GunXP_RPG_GetXPForLevel(85));
 }
 

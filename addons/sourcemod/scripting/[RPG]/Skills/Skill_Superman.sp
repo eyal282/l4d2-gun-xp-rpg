@@ -24,7 +24,7 @@ int g_iLastCollisionGroup[MAXPLAYERS+1] = { -1, ... };
 
 int supermanIndex;
 
-int g_iLastImpulse[MAXPLAYERS+1];
+int g_iLastButtons[MAXPLAYERS+1];
 float g_fNextExpireJump[MAXPLAYERS+1];
 int g_iJumpCount[MAXPLAYERS+1];
 bool g_bSpam[MAXPLAYERS+1];
@@ -135,6 +135,8 @@ public void RPG_Perks_OnTimedAttributeStart(int attributeEntity, char attributeN
             RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Invincible", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);
             RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Immolation", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);
             RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Stun", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+            
+            SetEntityGravity(attributeEntity, 0.0001);
 
             g_iLastCollisionGroup[attributeEntity] = GetEntProp(attributeEntity, Prop_Send, "m_CollisionGroup");
 
@@ -182,6 +184,8 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
     g_iLastCollisionGroup[newClient] = g_iLastCollisionGroup[oldClient];
     g_iLastCollisionGroup[oldClient] = -1;
 
+    SetEntityGravity(newClient, 0.0001);
+
     SetEntProp(newClient, Prop_Send, "m_CollisionGroup", g_iLastCollisionGroup[newClient]);
 }
 public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
@@ -193,6 +197,8 @@ public void RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attribut
             SetEntProp(attributeEntity, Prop_Send, "m_CollisionGroup", g_iLastCollisionGroup[attributeEntity]);
 
             RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "No fall damage", 10.0, COLLISION_SET_IF_HIGHER, ATTRIBUTE_POSITIVE);
+
+            SetEntityGravity(attributeEntity, 1.0);
         }
     }
 }
@@ -263,7 +269,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse)
     if(buttons & IN_DUCK)
         fSpeed /= 2.0;
 
-    fFinalVelocity[2] = 10.0;
+    //fFinalVelocity[2] = 10.0;
 
     if(buttons & IN_FORWARD || buttons & IN_BACK || buttons & IN_MOVERIGHT || buttons & IN_MOVELEFT)
     {
@@ -306,6 +312,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse)
         }
     }
 
+    SetEntPropFloat(client, Prop_Data, "m_flFallVelocity", 0.0);
     TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, fFinalVelocity);
 
     return Plugin_Continue;
@@ -313,27 +320,22 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse)
 
 stock void CheckSupermanActivation(int client, int buttons, int impulse)
 {
-    int lastImpulse = g_iLastImpulse[client];
+    int lastButtons = g_iLastButtons[client];
 
-    g_iLastImpulse[client] = impulse;
+    g_iLastButtons[client] = buttons;
 
     if(g_bSpam[client])
         return;
 
-    if(impulse == 201 && lastImpulse != 201 && g_fNextExpireJump[client] > GetGameTime())
+    if(buttons & IN_RELOAD && !(lastButtons & IN_RELOAD) && g_fNextExpireJump[client] > GetGameTime())
     {
+    
         g_fNextExpireJump[client] = GetGameTime() + 1.5;
         g_iJumpCount[client]++;
 
-        if(g_iJumpCount[client] >= 3 && GunXP_RPGShop_IsSkillUnlocked(client, supermanIndex))
+        if(g_iJumpCount[client] >= 3 && (GunXP_RPGShop_IsSkillUnlocked(client, supermanIndex) && HasPrimaryEquipped(client)))
         {
-            
-            g_iJumpCount[client] = 0;
-
-            g_bSpam[client] = true;
-            
-            CreateTimer(1.0, Timer_SpamOff, client);
-
+    
             bool success = RPG_Perks_UseClientLimitedAbility(client, "Superman");
 
             if(success)
@@ -365,6 +367,8 @@ stock void CheckSupermanActivation(int client, int buttons, int impulse)
                 RPG_Perks_ApplyEntityTimedAttribute(client, "Superman", fDuration, COLLISION_SET, ATTRIBUTE_NEUTRAL);
             }
         }
+
+        return;
     }
 
     if(g_fNextExpireJump[client] <= GetGameTime())
@@ -372,7 +376,7 @@ stock void CheckSupermanActivation(int client, int buttons, int impulse)
         g_iJumpCount[client] = 0;
         g_fNextExpireJump[client] = GetGameTime() + 1.5;
 
-        if(impulse == 201)
+        if(buttons & IN_SPEED)
         {
             g_iJumpCount[client]++;
         }
@@ -388,8 +392,23 @@ public Action Timer_SpamOff(Handle Timer, int client)
 
 public void RegisterSkill()
 {
-    UC_SilentCvar("l4d2_points_survivor_spray_alias", "");
 
-    supermanIndex = GunXP_RPGShop_RegisterSkill("Superman", "Superman", "Infinite Ammo.\nOnce per Round: Triple click SPRAY to activate Superman, INVINCIBLE, and Immolation\nDuration is 12 sec, or for 1 min if Tank isn't alive.\nYou will be able to fly around at high speed with collisions enabled",
+    supermanIndex = GunXP_RPGShop_RegisterSkill("Superman", "Superman", "Infinite Ammo.\nOnce per Round: Triple press RELOAD with a Primary Weapon to activate Superman, INVINCIBLE, and Immolation\nDuration is 12 sec, or for 1 min if Tank isn't alive.\nYou will be able to fly around at high speed with collisions enabled",
     GunXP_RPG_GetXPForLevel(85), GunXP_RPG_GetXPForLevel(85));
+}
+
+
+stock bool HasPrimaryEquipped(int client, int weapon = -1)
+{
+    if(weapon == -1)
+    {
+        weapon = L4D_GetPlayerCurrentWeapon(client);
+    }
+
+    if(GetPlayerWeaponSlot(client, L4D_WEAPON_SLOT_PRIMARY) == weapon)
+    {
+        return true;
+    }
+
+    return false;
 }
