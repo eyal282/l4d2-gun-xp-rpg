@@ -2105,7 +2105,7 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 	return Plugin_Continue;
 }
 
-
+/*
 public void OnActionCreated(BehaviorAction action, int actor, const char[] name)
 {
 	//PrintToConsoleAll("Action: %s", name);
@@ -2129,7 +2129,7 @@ public void OnActionCreated(BehaviorAction action, int actor, const char[] name)
 		action.OnUpdatePost = InfectedAttack__OnUpdatePost;
 	}
 }
-
+*/
 bool g_bLimbo[2048];
 
 public void InfectedAttack__OnUpdatePost(BehaviorAction action, int actor, float fInterval, ActionResult result)
@@ -5073,7 +5073,7 @@ public Action RPG_OnTraceAttack(int victim, int &attacker, int inflictor, float&
 	GetEdictClassname(victim, class, sizeof(class));
 
 	Format(filename, sizeof(filename), "RPG_OnTraceAttack: %s - %i - %s - %.1f - noinsta: %i nostagger: %i dontinter: %i", filename, victim, class, damage, damagetype, bDontInstakill, bDontStagger, bDontInterruptActions);
-	LogToFile("eyal_crash_detector.txt", filename);
+	//LogToFile("eyal_crash_detector.txt", filename);
 
 	if(damage == 0.0)
 		return Plugin_Stop;
