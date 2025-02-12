@@ -98,8 +98,9 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
         damage = float(RPG_Perks_GetClientHealth(victim) + RPG_Perks_GetClientTempHealth(victim)) - 1.0;
     }
 }
+
 public void RegisterSkill()
 {
-    retroGamerIndex = GunXP_RPGShop_RegisterSkill("Retro Gamer", "Retro Gamer", "Your HP cannot drop below 1 for 5 hits\nAbility is refreshed when you heal above 100 or 10% HP, whichever is higher\nDoesn't work while you're incapped, and does not prevent instant kills",
+    retroGamerIndex = GunXP_RPGShop_RegisterSkill("Retro Gamer", "Retro Gamer", "Your HP cannot drop below 1 for 5 hits\nAbility is refreshed when you heal above 100 or 10{PERCENT} HP, whichever is higher\nDoesn't work while you're incapped, and does not prevent instant kills",
     0, GunXP_RPG_GetXPForLevel(85));
 }

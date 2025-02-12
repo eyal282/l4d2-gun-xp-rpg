@@ -242,7 +242,7 @@ stock void VelocityByAim(int client, float fSpeed, bool bUseFwd, float fVec[3])
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse)
 {
-    CheckSupermanActivation(client, buttons, impulse);
+    CheckSupermanActivation(client, buttons);
 
     if(!RPG_Perks_IsEntityTimedAttribute(client, "Superman"))
         return Plugin_Continue;
@@ -318,13 +318,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse)
     return Plugin_Continue;
 }
 
-stock void CheckSupermanActivation(int client, int buttons, int impulse)
+stock void CheckSupermanActivation(int client, int buttons)
 {
     int lastButtons = g_iLastButtons[client];
 
     g_iLastButtons[client] = buttons;
 
     if(g_bSpam[client])
+        return;
+
+    else if(IsFakeClient(client))
         return;
 
     if(buttons & IN_RELOAD && !(lastButtons & IN_RELOAD) && g_fNextExpireJump[client] > GetGameTime())
@@ -335,7 +338,12 @@ stock void CheckSupermanActivation(int client, int buttons, int impulse)
 
         if(g_iJumpCount[client] >= 3 && (GunXP_RPGShop_IsSkillUnlocked(client, supermanIndex) && HasPrimaryEquipped(client)))
         {
-    
+            g_iJumpCount[client] = 0;
+
+            g_bSpam[client] = true;
+            
+            CreateTimer(1.0, Timer_SpamOff, client);
+            
             bool success = RPG_Perks_UseClientLimitedAbility(client, "Superman");
 
             if(success)

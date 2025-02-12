@@ -18,8 +18,6 @@ public Plugin myinfo =
     url         = ""
 };
 
-#define MIN_FLOAT -2147483647.0
-
 int adrenalineRunIndex = -1;
 
 int g_iAdrenalineTimes[] =
@@ -81,7 +79,7 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool &bApport)
 {
     if(priority != 0)
         return;

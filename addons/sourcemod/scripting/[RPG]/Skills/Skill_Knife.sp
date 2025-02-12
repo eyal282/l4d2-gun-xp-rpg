@@ -231,9 +231,9 @@ public Action Timer_SpamOff(Handle Timer, int client)
 public void RegisterSkill()
 {
     knifeIndex = GunXP_RPGShop_RegisterSkill("Knife", "Knife", "Triple click SHIFT to instantly kill a Special Infected that pins you.\nYou only get 1 knife per round.\nYou get 1 extra knife per difficulty under Expert.",
-    1000, 0);
+    300, 0);
 
     panicTossIndex = GunXP_RPGShop_RegisterSkill("Panic Toss", "Panic Toss", "After running out of Knife Skill(s), activate Knife Skill to drop your grenade.",
-    17000, 0);
+    1000, 0);
 }
 

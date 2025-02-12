@@ -18,8 +18,6 @@ public Plugin myinfo =
 	url         = ""
 };
 
-#define MIN_FLOAT -2147483647.0
-
 int tenacityIndex = -1;
 
 int g_iTemporaryHealthPercents[] =

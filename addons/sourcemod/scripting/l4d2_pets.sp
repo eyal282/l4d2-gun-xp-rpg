@@ -1074,7 +1074,7 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
     zclass = view_as<L4D2ZombieClassType>(GetEntProp(client, Prop_Send, "m_zombieClass"));
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool &bApport)
 {
     if(priority != 0)
         return;

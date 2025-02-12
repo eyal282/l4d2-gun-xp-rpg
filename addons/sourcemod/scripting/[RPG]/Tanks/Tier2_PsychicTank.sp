@@ -305,7 +305,7 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 	}
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool &bApport)
 {
 	if(priority != 0)
 		return;

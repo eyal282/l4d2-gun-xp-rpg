@@ -9,8 +9,6 @@
 
 #pragma semicolon 1
 
-#define MIN_FLOAT -2147483647.0
-
 public Plugin myinfo =
 {
 	name        = "Leader & Parry Tactics Skills --> Gun XP - RPG",

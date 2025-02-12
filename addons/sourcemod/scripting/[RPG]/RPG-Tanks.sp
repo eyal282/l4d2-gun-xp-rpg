@@ -97,6 +97,7 @@ enum struct enTank
 }
 
 ArrayList g_aTanks;
+ArrayList g_aSpawningQueue;
 
 GlobalForward g_fwOnRPGZombiePlayerSpawned;
 GlobalForward g_fwOnRPGTankKilled;
@@ -107,6 +108,7 @@ int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
 
 int g_iKillCombo;
 int g_iOverrideNextTier = TANK_TIER_UNKNOWN;
+int g_iOverrideNextTank = TANK_TIER_UNKNOWN;
 
 // [victim][attacker]
 int g_iDamageTaken[MAXPLAYERS+1][MAXPLAYERS+1];
@@ -124,12 +126,16 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("RPG_Tanks_RegisterPassiveAbility", Native_RegisterPassiveAbility);
 	CreateNative("RPG_Tanks_GetClientTank", Native_GetClientTank);
 	CreateNative("RPG_Tanks_SetClientTank", Native_SetClientTank);
+	CreateNative("RPG_Tanks_SpawnTank", Native_SpawnTank);
 	CreateNative("RPG_Tanks_GetClientTankTier", Native_GetClientTankTier);
 	CreateNative("RPG_Tanks_LoopTankArray", Native_LoopTankArray);
 	CreateNative("RPG_Tanks_GetDamagePercent", Native_GetDamagePercent);
 	CreateNative("RPG_Tanks_SetDamagePercent", Native_SetDamagePercent);
 	CreateNative("RPG_Tanks_IsTankInPlay", Native_IsTankInPlay);
+	CreateNative("RPG_Tanks_GetOverrideTier", Native_GetOverrideTier);
 	CreateNative("RPG_Tanks_SetOverrideTier", Native_SetOverrideTier);
+	CreateNative("RPG_Tanks_GetOverrideTank", Native_GetOverrideTank);
+	CreateNative("RPG_Tanks_SetOverrideTank", Native_SetOverrideTank);
 
 
 	// Do not check for this library!!!
@@ -338,7 +344,9 @@ public any Native_SetClientTank(Handle caller, int numParams)
 
 	SetClientName(client, sName);
 
-	PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 was apported:", tank.tier, tank.name);
+	if(!GetNativeCell(3))
+		PrintToChatAll(" \x01A \x03Tier %i \x05%s Tank\x01 was apported:", tank.tier, tank.name);
+
 	PrintToChatAll(tank.chatDescription);
 
 	CalculateTankColor(client);
@@ -365,11 +373,13 @@ public any Native_SetClientTank(Handle caller, int numParams)
 
 	for(int prio=-10;prio <= 10;prio++)
 	{
+		bool bApport = true;
+
 		Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
 
 		Call_PushCell(prio);
 		Call_PushCell(client);
-		Call_PushCell(true);
+		Call_PushCell(bApport);
 
 		Call_Finish();
 	}
@@ -391,6 +401,27 @@ public any Native_SetClientTank(Handle caller, int numParams)
 	}
 
 	return true;
+}
+
+public any Native_SpawnTank(Handle caller, int numParams)
+{
+	int index = GetNativeCell(1);
+
+	int target = GetAnyClient();
+
+	float fOrigin[3];
+
+	// Accepts invalid client
+	if(!L4D_GetRandomPZSpawnPosition(target, view_as<int>(L4D2ZombieClass_Tank), 10, fOrigin))
+		return 0;
+
+	g_iOverrideNextTank = index;
+
+	int client = L4D2_SpawnTank(fOrigin, view_as<float>({0.0, 0.0, 0.0}));
+
+	g_aSpawningQueue.Push(GetClientUserId(client));
+
+	return client;
 }
 
 public any Native_GetClientTankTier(Handle caller, int numParams)
@@ -469,6 +500,11 @@ public any Native_IsTankInPlay(Handle caller, int numParams)
 	return false;
 }
 
+public any Native_GetOverrideTier(Handle caller, int numParams)
+{
+	return g_iOverrideNextTier;
+}
+
 public any Native_SetOverrideTier(Handle caller, int numParams)
 {
 	int tier = GetNativeCell(1);
@@ -477,6 +513,24 @@ public any Native_SetOverrideTier(Handle caller, int numParams)
 	{
 		g_iOverrideNextTier = tier;
 	}
+
+	return 0;
+}
+
+
+public any Native_GetOverrideTank(Handle caller, int numParams)
+{
+	return g_iOverrideNextTank;
+}
+
+public any Native_SetOverrideTank(Handle caller, int numParams)
+{
+	int tank = GetNativeCell(1);
+
+	g_iOverrideNextTank = tank;
+
+	if(g_iOverrideNextTank <= TANK_TIER_UNKNOWN)
+		g_iOverrideNextTank = TANK_TIER_UNKNOWN;
 
 	return 0;
 }
@@ -506,7 +560,10 @@ public void OnPluginStart()
 	if(g_aTanks == null)
 		g_aTanks = CreateArray(sizeof(enTank));
 
-	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	if(g_aSpawningQueue == null)
+		g_aSpawningQueue = CreateArray(1);
+
+	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnRPGTankKilled = CreateGlobalForward("RPG_Tanks_OnRPGTankKilled", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnUntieredTankKilled = CreateGlobalForward("RPG_Tanks_OnUntieredTankKilled", ET_Ignore, Param_Cell, Param_Cell);
 	g_fwOnRPGTankCastActiveAbility = CreateGlobalForward("RPG_Tanks_OnRPGTankCastActiveAbility", ET_Ignore, Param_Cell, Param_Cell);
@@ -588,18 +645,26 @@ public void OnClientConnected(int client)
 	}
 }
 
+public void OnClientDisconnect(int client)
+{
+	if(g_aSpawningQueue.FindValue(GetClientUserId(client)) != -1)
+	{
+		g_aSpawningQueue.Erase(g_aSpawningQueue.FindValue(GetClientUserId(client)));
+	}
+}
+
 public void OnEntityDestroyed(int entity)
 {
-    if(!IsValidEntityIndex(entity))
-        return;
+	if(!IsValidEntityIndex(entity))
+		return;
 
-    g_iSpawnflags[entity] = -1;
+	g_iSpawnflags[entity] = -1;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(!IsValidEntityIndex(entity))
-        return;
+		return;
 
 	if(StrEqual(classname, "info_changelevel"))
 	{
@@ -753,11 +818,11 @@ public void sm_vote_OnVoteFinished_Post(int client, int VotesFor, int VotesAgain
 
 public void Plugins_OnCarAlarmPost(int userid)
 {
-    float fChance = g_hCarAlarmTankChance.FloatValue / 100.0;
+	float fChance = g_hCarAlarmTankChance.FloatValue / 100.0;
 
-    float fGamble = GetRandomFloat(0.0, 1.0);
+	float fGamble = GetRandomFloat(0.0, 1.0);
 
-    if(fGamble < fChance)
+	if(fGamble < fChance)
 	{
 		if(L4D2_IsTankInPlay())
 			return;
@@ -856,7 +921,7 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 
 public void cvChange_Difficulty(ConVar convar, const char[] oldValue, const char[] newValue)
 {
-    Func_DifficultyChanged(newValue);
+	Func_DifficultyChanged(newValue);
 }
 
 public void Func_DifficultyChanged(const char[] newValue)
@@ -931,7 +996,12 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
 		return;
 		
 	else if(zclass != L4D2ZombieClass_Tank)
-		return;
+	{
+		if(zclass != L4D2ZombieClass_Tank)
+		{
+			return;
+		}
+	}
 
 	int tankCount = 0;
 
@@ -946,7 +1016,7 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
 		tankCount++;
 	}
 
-	if(tankCount >= 2 && L4D_IsCoopMode() && g_iOverrideNextTier == TANK_TIER_UNKNOWN)
+	if(tankCount >= 2 && L4D_IsCoopMode() && g_iOverrideNextTier == TANK_TIER_UNKNOWN && g_iOverrideNextTank == TANK_TIER_UNKNOWN)
 	{
 		if(IsFakeClient(client))
 		{
@@ -954,6 +1024,28 @@ public void RPG_Perks_OnGetSpecialInfectedClass(int priority, int client, L4D2Zo
 			KickClient(client);
 		}
 	}
+}
+
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool &bApport)
+{
+	if(priority == -10)
+	{
+		if(g_aSpawningQueue.FindValue(GetClientUserId(client)) != -1)
+		{
+			g_aSpawningQueue.Erase(g_aSpawningQueue.FindValue(GetClientUserId(client)));
+			bApport = true;
+		}
+	}
+	if(priority != 10)
+		return;
+
+	else if(RPG_Perks_GetZombieType(client) != ZombieType_Tank)
+		return;
+	
+	// To let apport or any plugin check if a spawning tank is overrided (of course this only works before RPG_Perks_OnZombiePlayerSpawned on priority 10 (so choose a lower priority!))
+
+	g_iOverrideNextTank = TANK_TIER_UNKNOWN;
+	g_iOverrideNextTier = TANK_TIER_UNKNOWN;
 }
 
 public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
@@ -1008,10 +1100,12 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 	if(g_iOverrideNextTier != TANK_TIER_UNKNOWN)
 	{
 		winnerTier = g_iOverrideNextTier;
-		g_iOverrideNextTier = TANK_TIER_UNKNOWN;
+
+		// Let apport see these changes.
+		// g_iOverrideNextTier = TANK_TIER_UNKNOWN;
 	}
 
-	if(winnerTier == 0)
+	if(winnerTier == 0 && g_iOverrideNextTank == TANK_TIER_UNKNOWN)
 	{
 		g_iCurrentTank[client] = TANK_TIER_UNTIERED;
 		return;
@@ -1058,6 +1152,23 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 		initValue += tank.entries;
 	}
 
+	if(g_iOverrideNextTank != TANK_TIER_UNKNOWN)
+	{
+		if(g_iOverrideNextTank == TANK_TIER_UNTIERED)
+		{
+			winnerTank.tier = 0;
+			winnerTankIndex = TANK_TIER_UNTIERED;
+		}
+		else
+		{
+			g_aTanks.GetArray(g_iOverrideNextTank, winnerTank);
+			winnerTankIndex = g_iOverrideNextTank;
+		}
+
+		// Let apport see these changes.
+		// g_iOverrideNextTank = TANK_TIER_UNKNOWN;
+	}
+	
 	if(winnerTank.tier == 0)
 	{
 		g_iCurrentTank[client] = TANK_TIER_UNTIERED;
@@ -1394,10 +1505,10 @@ public void TryPlayImmunitySound(int attacker)
 
 stock void EmitImmunitySound(int client)
 {
-    for(int i=0;i < IMMUNITY_SOUND_MULTIPLIER;i++)
-    {
-        EmitSoundToClient(client, IMMUNITY_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 100);
-    }
+	for(int i=0;i < IMMUNITY_SOUND_MULTIPLIER;i++)
+	{
+		EmitSoundToClient(client, IMMUNITY_SOUND, _, SOUND_CHANNEL, 150, _, 1.0, 100);
+	}
 }
 
 public Action Command_TankHP(int client, int args)
@@ -1830,7 +1941,7 @@ public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
 
 			for(int i = strLen - 1, num = 0;i >= 0;i--,num++)
 			{
-  				TempStrReverse[num] = TempStr[i];
+				TempStrReverse[num] = TempStr[i];
 			}
 
 			int distance = StringToInt(TempStrReverse);
@@ -1850,38 +1961,38 @@ public Action ShowTargetAbilityInfo(int client, int tankIndex, char sName[64])
 			// Multiple distance by 2 because you need circumference, not radius.
 			// In simpler terms, the size of the ring goes both forward and backwards, not just forward.
 			TE_SetupBeamRingPoint(fOrigin, 
-    			float(distance) * 2.0,
+				float(distance) * 2.0,
 				(float(distance) * 2.0) + 1.0,
-    			spriteRing,
+				spriteRing,
 				haloIndex,
-    			0, // Starting frame
-    			0, // Frame rate 
-    			5.0, // Life 
-    			5.0, // Width
-    			1.0, // Spread
-    			RGBA, // RGBA Color
+				0, // Starting frame
+				0, // Frame rate 
+				5.0, // Life 
+				5.0, // Width
+				1.0, // Spread
+				RGBA, // RGBA Color
 				0, // Speed
 				0 // Flags
 				); 
 
-  			TE_SendToClient(client);
+			TE_SendToClient(client);
 
 			TE_SetupBeamRingPoint(fOrigin, 
-    			1.0,
+				1.0,
 				8.0,
-    			spriteRing,
+				spriteRing,
 				haloIndex,
 -    			0, // Starting frame
-    			0, // Frame rate 
-    			3.0, // Life 
-    			8.0, // Width
-    			1.0, // Spread
-    			RGBA, // RGBA Color
+				0, // Frame rate 
+				3.0, // Life 
+				8.0, // Width
+				1.0, // Spread
+				RGBA, // RGBA Color
 				0, // Speed
 				0 // Flags
 				); 
 
-  			TE_SendToClient(client);
+			TE_SendToClient(client);
 		}
 	}
 	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
@@ -2375,7 +2486,7 @@ stock int AbilityNameToAbilityIndex(char name[64], int tankIndex, bool passive)
 
 	FormatEx(abilityName, sizeof(abilityName), name[pos]);
 
-	if(strncmp(name, "[PASSIVE] ", 10) == 0)
+	if(strncmp(name, "[PASSIVE] ", 10) == 0 || passive)
 	{
 		for(int i=0;i < tank.aPassiveAbilities.Length;i++)
 		{
@@ -2415,7 +2526,7 @@ stock void CalculateIsEnoughDamage(int survivor, int tank, float &fDamageRatio, 
 
 bool IsValidEntityIndex(int entity)
 {
-    return (MaxClients+1 <= entity <= GetMaxEntities());
+	return (MaxClients+1 <= entity <= GetMaxEntities());
 }
 
 stock void RPG_CheckFinaleKillCombo()
@@ -2468,4 +2579,14 @@ public bool TraceFilterHitTarget(int entity, int contentsMask, int target)
 		return true;
 
 	return false;
+}
+
+int GetAnyClient()
+{
+	for( int i = 1; i <= MaxClients; i++ )
+	{
+		if( IsClientInGame(i) && L4D_GetClientTeam(i) == L4DTeam_Survivor && IsPlayerAlive(i) )
+			return i;
+	}
+	return 0;
 }

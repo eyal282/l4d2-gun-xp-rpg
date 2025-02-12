@@ -8,9 +8,6 @@
 #pragma newdecls required
 
 #pragma semicolon 1
-
-#define MIN_FLOAT -2147483647.0
-
 public Plugin myinfo =
 {
 	name        = "Starting Points Perk Tree --> Gun XP RPG",

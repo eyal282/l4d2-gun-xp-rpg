@@ -54,7 +54,7 @@ public void GunXP_OnReloadRPGPlugins()
     GunXP_ReloadPlugin();
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool &bApport)
 {
     if(priority != 0)
         return;
@@ -406,6 +406,7 @@ void CheckVoteTankResult()
 
 	if(g_iLastTier >= 2)
 	{
+		// Set to untiered so we don't announce the message "Difficulty was changed, converting tank to normal tank"
 		RPG_Tanks_SetClientTank(client, TANK_TIER_UNTIERED);
 
 		UC_SilentCvar("z_difficulty", "Impossible");

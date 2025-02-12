@@ -18,8 +18,6 @@ public Plugin myinfo =
     url         = ""
 };
 
-#define MIN_FLOAT -2147483647.0
-
 ConVar g_hDamagePriority;
 
 int petIndex = -1;
@@ -197,7 +195,7 @@ public void GunXP_RPGShop_OnResetRPG(int client)
 
 }
 
-public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport)
+public void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool &bApport)
 {
     if(priority != 0)
         return;

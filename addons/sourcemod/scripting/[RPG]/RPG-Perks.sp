@@ -913,6 +913,8 @@ public int Native_ApplyEntityTimedAttribute(Handle caller, int numParams)
 	return ApplyEntityTimedAttribute(entity, attributeName, duration, collision, attributeType, transferRules);
 }
 
+
+
 public void Frame_ApplyEntityTimedAttribute(DataPack DP)
 {
 	ResetPack(DP);
@@ -973,7 +975,17 @@ public bool ApplyEntityTimedAttribute(int entity, char attributeName[64], float 
 				}
 			}
 			
+			// Can't have priority dependent on time now can we?
+			if(entity == 0)
+			{
+				attribute.fExpire = duration;
+			}
 			g_aTimedAttributes.SetArray(i, attribute);
+
+			if(entity == 0)
+			{
+				return true;
+			}
 
 			if(attribute.fExpire <= GetGameTime())
 			{
@@ -1009,6 +1021,11 @@ public bool ApplyEntityTimedAttribute(int entity, char attributeName[64], float 
 	attribute.transferRules = transferRules;
 
 	g_aTimedAttributes.PushArray(attribute);
+
+	if(entity == 0)
+	{
+		return true;
+	}
 
 	Call_StartForward(g_fwOnTimedAttributeStart);
 
@@ -1218,7 +1235,7 @@ public int Native_ReuseClientLimitedAbility(Handle caller, int numParams)
 
 		g_aLimitedAbilities.GetArray(i, ability);
 
-		if(StrEqual(sAuthId, ability.authId))
+		if(StrEqual(sAuthId, ability.authId) && StrEqual(identifier, ability.identifier))
 		{
 			timesUsed = ability.timesUsed;
 			pos = i;
@@ -1238,7 +1255,9 @@ public int Native_ReuseClientLimitedAbility(Handle caller, int numParams)
 	}
 
 	if(timesUsed == 0)
+	{
 		return false;
+	}
 
 	enLimitedAbility ability;
 
@@ -1304,6 +1323,9 @@ public Action Timer_CheckAttributeExpire(Handle hTimer)
 	{
 		enTimedAttribute attribute;
 		g_aTimedAttributes.GetArray(i, attribute);
+
+		if(attribute.entity == 0)
+			continue;
 
 		if(!IsValidEdict(attribute.entity))
 		{
@@ -1673,6 +1695,21 @@ public Action Command_ShadowTest(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_CurseTest(int client, int args)
+{
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		RPG_Perks_ApplyEntityTimedAttribute(i, "Cursed", 15.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+	}
+	return Plugin_Handled;
+}
+
 public Action Command_SupermanTest(int client, int args)
 {
 	RPG_Perks_ApplyEntityTimedAttribute(client, "Superman", 10.0, COLLISION_SET, ATTRIBUTE_POSITIVE);
@@ -1765,6 +1802,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_mutationtest", Command_MutationTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_nightmaretest", Command_NightmareTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_shadowtest", Command_ShadowTest, ADMFLAG_ROOT);
+	RegAdminCmd("sm_cursetest", Command_CurseTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_supermantest", Command_SupermanTest, ADMFLAG_ROOT);
 	RegAdminCmd("sm_sizetest", Command_SizeTest, ADMFLAG_ROOT);
 
@@ -1842,7 +1880,7 @@ public void OnPluginStart()
 	g_fwOnGetRPGZombieMaxHP = CreateGlobalForward("RPG_Perks_OnGetZombieMaxHP", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 
 	g_fwOnRPGPlayerSpawned = CreateGlobalForward("RPG_Perks_OnPlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
-	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnRPGZombiePlayerSpawned = CreateGlobalForward("RPG_Perks_OnZombiePlayerSpawned", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 
 	g_fwOnGetRPGAdrenalineDuration = CreateGlobalForward("RPG_Perks_OnGetAdrenalineDuration", ET_Ignore, Param_Cell, Param_FloatByRef);
 	g_fwOnGetRPGMedsHealPercent = CreateGlobalForward("RPG_Perks_OnGetMedsHealPercent", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
@@ -2271,7 +2309,7 @@ public Action OnFriendActionHeal( BehaviorAction action, int actor, BehaviorActi
 	// Do not let idle bots heal non-idle bots
 	int target = action.Get(0x34) & 0xFFF; 
 	int realPlayer = GetClientOfUserId(GetEntProp(actor, Prop_Send, "m_humanSpectatorUserID"));
-   	if(realPlayer > 0) { // If idle bot
+	if(realPlayer > 0) { // If idle bot
 		if((g_bShadowRealm[realPlayer] && !g_bShadowRealm[target]) || (!g_bShadowRealm[realPlayer] && g_bShadowRealm[target]))
 		{
 			result.type = DONE;
@@ -2318,7 +2356,7 @@ public Action SoundHook(int clients[MAXPLAYERS], int &numClients, char sample[PL
 	
 	if(bClear)
 	{
-		int finalClients[64], finalNum;
+		int finalClients[MAXPLAYERS], finalNum;
 
 		for(int i=0;i < numClients;i++)
 		{
@@ -2452,6 +2490,9 @@ public void Event_ZombieSpawnPost(int entity)
 		Call_PushCellRef(maxHP);
 
 		Call_Finish();	
+
+		if(!IsValidEdict(entity) || GetEntProp(entity, Prop_Data, "m_lifeState") != 0)
+			return;
 	}
 
 	SetEntityMaxHealth(entity, maxHP);
@@ -2715,6 +2756,21 @@ public void RPG_Perks_OnShouldInstantKill(int priority, int victim, int attacker
 	bImmune = true;
 }
 
+public void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &overrideSpeedState, int &iLimpHealth, float &fRunSpeed, float &fWalkSpeed, float &fCrouchSpeed, float &fLimpSpeed, float &fCriticalSpeed, float &fWaterSpeed, float &fAdrenalineSpeed, float &fScopeSpeed, float &fCustomSpeed)
+{
+	if(priority != 0)
+		return;
+
+	else if(!RPG_Perks_IsEntityTimedAttribute(client, "Slow"))
+		return;
+
+	fRunSpeed *= 0.7;
+	fWalkSpeed *= 0.7;
+	fCrouchSpeed *= 0.7;
+	fWaterSpeed *= 0.7;
+	fAdrenalineSpeed *= 0.7;
+}
+
 public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, int inflictor, float &damage, int damagetype, int hitbox, int hitgroup, bool &bDontInterruptActions, bool &bDontStagger, bool &bDontInstakill, bool &bImmune)
 {   
 	if((g_bShadowRealm[victim] && !g_bShadowRealm[attacker]) || (!g_bShadowRealm[victim] && g_bShadowRealm[attacker]))
@@ -2725,7 +2781,12 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	else if(priority != g_hInvincibleDamagePriority.IntValue)
 		return;
 
-	else if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
+	if(RPG_Perks_IsEntityTimedAttribute(victim, "Cursed"))
+	{
+		damage *= 10.0;
+	}
+
+	if(RPG_Perks_GetZombieType(victim) == ZombieType_Invalid)
 		return;
 
 	else if(!RPG_Perks_IsEntityTimedAttribute(victim, "Invincible"))
@@ -2743,6 +2804,24 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 	if(RPG_Perks_GetZombieType(entity) != ZombieType_Tank)
 		RPG_CalculateColorByAttributes(entity, attributeName);
 	
+	if(IsPlayer(entity) && StrEqual(attributeName, "Cursed"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(entity, "Cursed Fade Effect", 0.1, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+
+		int color[4];
+		color = {92, 88, 164, 128};
+		int flags = 0x0008;
+		
+		Handle message = StartMessageOne("Fade", entity);
+		BfWriteShort(message, 1);
+		BfWriteShort(message, 1);
+		BfWriteShort(message, flags);
+		BfWriteByte(message, color[0]);
+		BfWriteByte(message, color[1]);
+		BfWriteByte(message, color[2]);
+		BfWriteByte(message, color[3]);
+		EndMessage();
+	}
 	if(StrEqual(attributeName, "Shadow Realm"))
 	{
 		g_bShadowRealm[entity] = true;
@@ -2819,7 +2898,7 @@ public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], 
 
 				SetEntityModel(ice, sIceModel);
 
-    			SetEntityRenderMode(ice, RENDER_TRANSALPHA);
+				SetEntityRenderMode(ice, RENDER_TRANSALPHA);
 				SetEntityRenderColor(ice, 0, 128, 255, 200);
 
 				TeleportEntity(ice, fOrigin, NULL_VECTOR, NULL_VECTOR);
@@ -2887,7 +2966,7 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 {
 	if(StrEqual(attributeName, "RPG Perks Manual Director"))
 	{
-		RPG_Perks_ApplyEntityTimedAttribute(0, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+		RPG_Perks_ApplyEntityTimedAttribute(-1, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
 		if(GetPetCount() < g_hRPGPetCountForManualDirector.IntValue)
 			return;
@@ -2907,6 +2986,20 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 	RPG_CalculateColorByAttributes(entity, attributeName);
 
+	if(StrEqual(attributeName, "Cursed"))
+	{
+		Handle message = StartMessageOne("Fade", entity);
+
+		BfWriteShort(message, 1);
+		BfWriteShort(message, 1);
+		BfWriteShort(message, 0x0010);
+		BfWriteByte(message, 255);
+		BfWriteByte(message, 255);
+		BfWriteByte(message, 255);
+		BfWriteByte(message, 255);
+		EndMessage();
+		return;
+	}
 	if(StrEqual(attributeName, "Shadow Realm"))
 	{
 		g_bShadowRealm[entity] = false;
@@ -3031,7 +3124,7 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 	int color[4];
 	color = {255, 255, 255, 255};
 
-	if(RPG_Perks_IsEntityTimedAttribute(entity, "Shadow Realm"))
+	if(RPG_Perks_IsEntityTimedAttribute(entity, "Shadow Realm") || RPG_Perks_IsEntityTimedAttribute(entity, "Cursed"))
 	{
 		color = {92, 88, 164, 255};
 	}
@@ -3080,6 +3173,10 @@ public void RPG_CalculateColorByAttributes(int entity, char attributeName[64])
 
 public void Invincible_RPG_Perks_OnTimedAttributeExpired(int attributeEntity, char attributeName[64])
 {
+	if(IsPlayer(attributeEntity) && StrEqual(attributeName, "Cursed Fade Effect") && RPG_Perks_IsEntityTimedAttribute(attributeEntity, "Cursed"))
+	{
+		RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Cursed Fade Effect", 0.1, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+	}
 	if(StrEqual(attributeName, "Invincible Rainbow Color") && RPG_Perks_IsEntityTimedAttribute(attributeEntity, "Invincible"))
 	{
 		RPG_Perks_ApplyEntityTimedAttribute(attributeEntity, "Invincible Rainbow Color", 0.1, COLLISION_SET, ATTRIBUTE_POSITIVE);
@@ -3150,7 +3247,24 @@ public void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn
 	if(priority != g_hRPGIncapPistolPriority.IntValue)
 		return;
 
-	else if(!L4D_IsPlayerIncapacitated(client))
+
+	if(bFirstSpawn)
+	{
+		// Setting worldspawn's attribute allows you to register debuffs.
+		// If you want a timed attribute without a owner, use -1 instead of 0
+		// Duration is priority which I'm sure you're familar with by now.
+
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Nightmare", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Stun", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Mutated", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Frozen", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Cursed", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Slow", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Paralyzed", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+		RPG_Perks_ApplyEntityTimedAttribute(0, "Bleeding", 1.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+	}
+
+	if(!L4D_IsPlayerIncapacitated(client))
 	{
 		RPG_Perks_RecalculateMaxHP(client);
 
@@ -3355,7 +3469,7 @@ public Action Event_SurvivalRoundStart(Handle hEvent, char[] Name, bool dontBroa
 }
 public Action Event_RoundStart(Handle hEvent, char[] Name, bool dontBroadcast)
 {
-	RPG_Perks_ApplyEntityTimedAttribute(0, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+	RPG_Perks_ApplyEntityTimedAttribute(-1, "RPG Perks Manual Director", g_hRPGManualDirectorInterval.FloatValue, COLLISION_SET, ATTRIBUTE_NEUTRAL);
 
 	if(g_refNightmareFogControl != INVALID_ENT_REFERENCE)
 	{
@@ -3684,7 +3798,11 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 			
 			Call_PushCellRef(zclass);
 
-			Call_Finish();	
+			Call_Finish();
+
+			if(!IsClientInGame(client))
+				return;
+
 		}
 
 		if(originalZClass != zclass)
@@ -3701,6 +3819,11 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 			if(IsFakeClient(client))	
 				SetClientName(client, g_sBossNames[view_as<int>(zclass)]);
+
+			if(zclass == L4D2ZombieClass_Tank)
+			{
+				GivePlayerItem(client, "weapon_tank_claw");
+			}
 		}
 
 		int maxHP = RPG_Perks_GetClientHealth(client);
@@ -3737,6 +3860,10 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 			Call_PushCellRef(maxHP);
 
 			Call_Finish();	
+
+			if(!IsClientInGame(client))
+				return;
+
 		}
 
 		if(maxHP > 65535)
@@ -3758,13 +3885,19 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 
 		for(int prio=-10;prio <= 10;prio++)
 		{
+			bool bApport = false;
+
 			Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
 
 			Call_PushCell(prio);
 			Call_PushCell(client);
-			Call_PushCell(false);
+			Call_PushCellRef(bApport);
 
 			Call_Finish();
+
+			if(!IsClientInGame(client))
+				return;
+
 		}
 
 		return;
@@ -3787,6 +3920,10 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 		Call_PushCellRef(maxHP);
 
 		Call_Finish();	
+
+		if(!IsClientInGame(client))
+			return;
+
 	}
 
 	if(maxHP <= 0)
@@ -3804,6 +3941,10 @@ public void Event_PlayerSpawnThreeFrames(DataPack DP)
 		Call_PushCell(bFirstSpawn);
 
 		Call_Finish();	
+
+		if(!IsClientInGame(client))
+			return;
+
 	}
 
 	if(bFirstSpawn)
@@ -4811,6 +4952,7 @@ public Action OnTankStartSwingPost(int client, int &sequence)
 		return Plugin_Continue;
 
 	float fDelay = GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - GetGameTime() - g_hTankSwingInterval.FloatValue;
+
 	CreateTimer(fDelay, Timer_CheckTankSwing, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 
 	return Plugin_Continue;
@@ -5311,6 +5453,9 @@ public void Frame_GhostState(int userid)
 		Call_PushCellRef(zclass);
 
 		Call_Finish();	
+
+		if(!IsClientInGame(client))
+			return;
 	}
 
 	if(originalZClass != zclass)
@@ -5361,6 +5506,10 @@ public void Frame_GhostState(int userid)
 		Call_PushCellRef(maxHP);
 
 		Call_Finish();	
+
+		if(!IsClientInGame(client))
+			return;
+
 	}
 
 	if(maxHP > 65535)
@@ -5380,9 +5529,13 @@ public void Frame_GhostState(int userid)
 		SetEntityHealth(client, maxHP);
 	}
 
+	bool bApport = false;
+
 	Call_StartForward(g_fwOnRPGZombiePlayerSpawned);
 
+	Call_PushCell(0);
 	Call_PushCell(client);
+	Call_PushCellRef(bApport);
 
 	Call_Finish();
 
@@ -5946,10 +6099,10 @@ stock void RPG_ClearTimedAttributes(int entity = 0)
 			g_aTimedAttributes.Erase(i);
 			i--;
 			
-			if(IsPlayer(entity) && !IsClientInGame(entity))
+			if(IsPlayer(attribute.entity) && !IsClientInGame(attribute.entity))
 				continue;
 			
-			else if(!IsValidEdict(entity))
+			else if(!IsValidEdict(attribute.entity))
 				continue;
 
 
@@ -6128,7 +6281,7 @@ bool Base_TraceFilter(int iEntity, int iContentsMask, int iData)
 
 stock bool IsPlayerBoomerBiled(int iClient)
 {
-    return (GetGameTime() <= GetEntPropFloat(iClient, Prop_Send, "m_itTimer", 1));
+	return (GetGameTime() <= GetEntPropFloat(iClient, Prop_Send, "m_itTimer", 1));
 }
 
 // entity = CI / SI

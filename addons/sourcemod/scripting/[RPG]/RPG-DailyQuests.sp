@@ -719,7 +719,7 @@ stock bool GetClientQuests(int client, char[] sAlias = "", int &index = -1, int 
 				if(clientQuest.userid == GetClientUserId(client) && StrEqual(quest.sAlias, clientQuest.sAlias))
 				{
 					index = a;
-					return GetQuestData(client, a, quest, clientQuest, addProgress, name, progress, objective, prize, prizeType, bCompletedNow);
+					return GetQuestData(a, quest, clientQuest, addProgress, name, progress, objective, prize, prizeType, bCompletedNow);
 				}
 			}
 		}
@@ -727,7 +727,8 @@ stock bool GetClientQuests(int client, char[] sAlias = "", int &index = -1, int 
 
 	return false;
 }
-stock bool GetQuestData(int client, int index, enQuest quest, enClientQuest clientQuest, int addProgress = 0, char name[128], int &progress, int &objective, int &prize, enPrizeType &prizeType, bool &bCompletedNow)
+
+stock bool GetQuestData(int index, enQuest quest, enClientQuest clientQuest, int addProgress = 0, char name[128], int &progress, int &objective, int &prize, enPrizeType &prizeType, bool &bCompletedNow)
 {
 	if(addProgress != 0)
 	{

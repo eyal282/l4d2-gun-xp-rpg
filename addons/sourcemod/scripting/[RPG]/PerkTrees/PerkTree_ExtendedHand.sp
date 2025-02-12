@@ -18,8 +18,6 @@ public Plugin myinfo =
     url         = ""
 };
 
-#define MIN_FLOAT -2147483647.0
-
 int g_iOverrideRevive = 0;
 
 int extendedHandIndex = -1;

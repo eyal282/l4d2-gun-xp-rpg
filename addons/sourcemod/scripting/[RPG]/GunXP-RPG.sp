@@ -34,8 +34,6 @@
 
 #define PLUGIN_VERSION "1.0"
 
-#define MIN_FLOAT -2147483647.0 // I think -2147483648 is lowest but meh, same thing.
-
 char INSERT_OR_IGNORE_INTO[64];
 
 public Plugin myinfo = {
@@ -93,6 +91,10 @@ char g_sForbiddenMapWeapons[][] =
 
 bool g_bLate = false;
 bool g_bMapStarted = false;
+bool g_bDebug = false;
+bool g_bMask[MAXPLAYERS+1];
+
+int g_iSpawnsState;
 
 ConVar hcv_Gamemode;
 
@@ -121,14 +123,13 @@ ConVar hcv_xpLedge;
 int KillStreak[MAXPLAYERS+1];
 
 bool g_bIronman[MAXPLAYERS+1];
-bool g_bMask[MAXPLAYERS+1];
 
 int g_iLevel[MAXPLAYERS+1], g_iXP[MAXPLAYERS+1], g_iXPCurrency[MAXPLAYERS+1];
 bool g_bLoadedFromDB[MAXPLAYERS+1];
 
 int g_iRPGTarget[MAXPLAYERS+1];
 
-int g_iMenuPosPerks[MAXPLAYERS+1], g_iMenuPosSkills[MAXPLAYERS+1];
+int g_iMenuPosPerks[MAXPLAYERS+1], g_iMenuPosSkills[MAXPLAYERS+1], g_iMenuPosBuffs[MAXPLAYERS+1];
 
 int g_iMidSell[MAXPLAYERS+1] = { -1, ... };
 
@@ -167,6 +168,9 @@ enum struct enSkill
 	ArrayList reqIdentifiers;
 
 	int skillIndex;
+
+	// If a buff, how many slots does it take.
+	int buffWeight;
 }
 
 enum struct enPerkTree
@@ -213,8 +217,9 @@ GlobalForward g_fwOnReloadRPGPlugins;
 GlobalForward g_fwOnPlayerLoaded;
 GlobalForward g_fwOnTryReloadRPGPlugins;
 GlobalForward g_fwOnResetRPG;
-GlobalForward g_fwOnSkillBuy;
 GlobalForward g_fwOnPerkTreeBuy;
+GlobalForward g_fwOnSkillBuy;
+GlobalForward g_fwOnBuffBuy;
 /*
 new const String:FORBIDDEN_WEAPONS[][] =
 {
@@ -569,15 +574,34 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 	{
 		if(g_bUnlockedSkills[entity][i])
 		{
-			Call_StartForward(g_fwOnSkillBuy);
+			// Make sure you don't put this above this line, because it'll throw an error because the initial loop does not check the array's size.
+			enSkill skill;
+			g_aSkills.GetArray(i, skill);
 
-			Call_PushCell(entity);
-			Call_PushCell(i);
+			if(skill.buffWeight > 0)
+			{
+				Call_StartForward(g_fwOnBuffBuy);
 
-			// Auto RPG?
-			Call_PushCell(true);
+				Call_PushCell(entity);
+				Call_PushCell(i);
 
-			Call_Finish();
+				// Auto RPG?
+				Call_PushCell(true);
+
+				Call_Finish();
+			}
+			else
+			{
+				Call_StartForward(g_fwOnSkillBuy);
+
+				Call_PushCell(entity);
+				Call_PushCell(i);
+
+				// Auto RPG?
+				Call_PushCell(true);
+
+				Call_Finish();
+			}
 		}
 		if(g_iUnlockedPerkTrees[entity][i] != PERK_TREE_NOT_UNLOCKED)
 		{
@@ -625,6 +649,61 @@ public void RPG_Perks_OnTimedAttributeTransfered(int oldClient, int newClient, c
 		RPG_Perks_RecalculateMaxHP(newClient);
 
 		RecalculateBotMaxHP();
+	}
+}
+
+public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
+{
+	if(priority != -10)
+		return;
+
+	int state = g_iSpawnsState;
+
+	switch(RPG_Perks_GetZombieType(entity))
+	{
+		case ZombieType_CommonInfected:
+		{
+			if(state == 0 || state == 3)
+				return;
+
+			AcceptEntityInput(entity, "Kill");
+		}
+		case ZombieType_Witch:
+		{
+			if(state == 0 || state == 5)
+				return;
+
+			AcceptEntityInput(entity, "Kill");
+		}
+
+		case ZombieType_Tank:
+		{
+			if(state == 0 || state == 1 || state == 4)
+				return;
+
+			if(IsFakeClient(entity))
+			{
+				L4D_SetClass(entity, view_as<int>(L4D2ZombieClass_Charger));
+				KickClient(entity);
+			}			
+		}
+		
+		// Just in case...
+		case ZombieType_Invalid:
+		{
+
+		}
+		// SI, or survivors (not possible on this forward)
+		default:
+		{
+			if(state == 0 || state == 2 || state == 4)
+				return;
+
+			if(IsFakeClient(entity))
+			{
+				KickClient(entity);
+			}
+		}
 	}
 }
 
@@ -762,13 +841,20 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 	CreateNative("GunXP_RPG_GetClientLevel", Native_GetClientLevel);
 	CreateNative("GunXP_RPG_GetClientRealLevel", Native_GetClientRealLevel);
 
+	CreateNative("GunXP_RPG_IsDebugActive", Native_IsDebugActive);
+
 	CreateNative("GunXP_RPG_AddClientXP", Native_AddClientXP);
 	CreateNative("GunXP_RPG_AddClientXPTransaction", Native_AddClientXPTransaction);
 
-	CreateNative("GunXP_RPGShop_RegisterSkill", Native_RegisterSkill);
-	CreateNative("GunXP_RPGShop_IsSkillUnlocked", Native_IsSkillUnlocked);
+
 	CreateNative("GunXP_RPGShop_RegisterPerkTree", Native_RegisterPerkTree);
 	CreateNative("GunXP_RPGShop_IsPerkTreeUnlocked", Native_IsPerkTreeUnlocked);
+
+	CreateNative("GunXP_RPGShop_RegisterSkill", Native_RegisterSkill);
+	CreateNative("GunXP_RPGShop_IsSkillUnlocked", Native_IsSkillUnlocked);
+
+	CreateNative("GunXP_RPGShop_RegisterBuff", Native_RegisterBuff);
+	CreateNative("GunXP_RPGShop_IsBuffUnlocked", Native_IsBuffUnlocked);
 
 
 	// Do not check for this library!!!
@@ -829,6 +915,12 @@ public int Native_GetClientRealLevel(Handle caller, int numParams)
 	return GetClientLevel(client);
 }
 
+public int Native_IsDebugActive(Handle caller, int numParams)
+{
+	return g_bDebug;
+}
+
+
 public int Native_AddClientXP(Handle caller, int numParams)
 {
 	int client = GetNativeCell(1);
@@ -853,141 +945,6 @@ public int Native_AddClientXPTransaction(Handle caller, int numParams)
 	AddClientXP(client, amount, bPremiumMultiplier, transaction);
 
 	return 0;
-}
-
-public int Native_RegisterSkill(Handle caller, int numParams)
-{
-	enSkill skill;
-
-	if(g_aSkills == null)
-		g_aSkills = CreateArray(sizeof(enSkill));
-
-	char identifier[32];
-	GetNativeString(1, identifier, sizeof(identifier));
-
-	char name[64];
-	GetNativeString(2, name, sizeof(name));
-
-	char description[512];
-	GetNativeString(3, description, sizeof(description));
-	
-	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
-
-	int cost = GetNativeCell(4);
-
-	int levelReq = GetClosestLevelToXP(GetNativeCell(5));
-
-	ArrayList reqIdentifiers = GetNativeCell(6);
-
-	bool doubleEdged = GetNativeCell(7);
-
-	skill.identifier = identifier;
-	skill.name = name;
-	skill.description = description;
-	skill.cost = cost;
-	skill.levelReq = levelReq;
-	skill.doubleEdged = doubleEdged;
-
-	if(reqIdentifiers == null)
-	{
-		skill.reqIdentifiers = null;
-	}
-	else
-	{
-		skill.reqIdentifiers = reqIdentifiers.Clone();
-	}
-
-	skill.skillIndex = -1;
-
-	delete reqIdentifiers;
-
-	for(int i=0;i < g_aSkills.Length;i++)
-	{
-		enSkill iSkill;
-		g_aSkills.GetArray(i, iSkill);
-		
-		if(StrEqual(identifier, iSkill.identifier))
-		{
-			skill.skillIndex = i;
-			g_aSkills.SetArray(i, skill);
-
-			return i;
-		}
-	}
-
-	int skillIndex = g_aSkills.PushArray(skill);
-
-	skill.skillIndex = skillIndex;
-
-	g_aSkills.SetArray(skillIndex, skill);
-
-	return skillIndex;
-}
-
-
-public any Native_IsSkillUnlocked(Handle caller, int numParams)
-{
-	int client = GetNativeCell(1);
-
-	int skillIndex = GetNativeCell(2);
-
-	bool bIgnoreMutation = GetNativeCell(3);
-
-	if(!g_bLoadedFromDB[client] && !IsFakeClient(client))
-		return false;
-
-	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
-		return false;
-
-	else if(g_iMidSell[client] != -1)
-	{
-		if(g_iMidSell[client] == skillIndex)
-			return g_bUnlockedSkills[client][skillIndex];
-
-		else
-			return false;
-	}
-
-	else if(!bIgnoreMutation && RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
-		return false;
-
-	else if(g_bIronman[client])
-		return true;
-
-	if(!IsFakeClient(client))
-		return g_bUnlockedSkills[client][skillIndex];
-
-	// Check if average of humans have the skill unlocked.
-	else
-	{
-		int count = 0;
-		int unlockedCount = 0;
-
-		for(int i=1;i <= MaxClients;i++)
-		{
-			if(!IsClientInGame(i))
-				continue;
-
-			else if(IsFakeClient(i))
-				continue;
-
-			count++;
-
-			if(g_bUnlockedSkills[i][skillIndex])
-			{
-				unlockedCount++;
-			}
-		}
-
-		if(float(unlockedCount) / float(count) >= 0.5)
-		{
-			g_bUnlockedSkills[client][skillIndex] = true;
-			return true;
-		}
-		
-		g_bUnlockedSkills[client][skillIndex] = false;
-		return false;
-	}
 }
 
 // GunXP_RPGShop_RegisterPerkTree(const char[] identifier, const char[] name, ArrayList descriptions, ArrayList costs, ArrayList levelReqs, ArrayList reqIdentifiers = null)
@@ -1150,6 +1107,282 @@ public any Native_IsPerkTreeUnlocked(Handle caller, int numParams)
 		return perkLevel;
 	}
 }
+
+
+public int Native_RegisterSkill(Handle caller, int numParams)
+{
+	enSkill skill;
+
+	if(g_aSkills == null)
+		g_aSkills = CreateArray(sizeof(enSkill));
+
+	char identifier[32];
+	GetNativeString(1, identifier, sizeof(identifier));
+
+	char name[64];
+	GetNativeString(2, name, sizeof(name));
+
+	char description[512];
+	GetNativeString(3, description, sizeof(description));
+	
+	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
+
+	int cost = GetNativeCell(4);
+
+	int levelReq = GetClosestLevelToXP(GetNativeCell(5));
+
+	ArrayList reqIdentifiers = GetNativeCell(6);
+
+	bool doubleEdged = GetNativeCell(7);
+
+	skill.identifier = identifier;
+	skill.name = name;
+	skill.description = description;
+	skill.cost = cost;
+	skill.levelReq = levelReq;
+	skill.doubleEdged = doubleEdged;
+	skill.buffWeight = 0;
+
+	if(reqIdentifiers == null)
+	{
+		skill.reqIdentifiers = null;
+	}
+	else
+	{
+		skill.reqIdentifiers = reqIdentifiers.Clone();
+	}
+
+	skill.skillIndex = -1;
+
+	delete reqIdentifiers;
+
+	for(int i=0;i < g_aSkills.Length;i++)
+	{
+		enSkill iSkill;
+		g_aSkills.GetArray(i, iSkill);
+		
+		if(StrEqual(identifier, iSkill.identifier))
+		{
+			skill.skillIndex = i;
+			g_aSkills.SetArray(i, skill);
+
+			return i;
+		}
+	}
+
+	int skillIndex = g_aSkills.PushArray(skill);
+
+	skill.skillIndex = skillIndex;
+
+	g_aSkills.SetArray(skillIndex, skill);
+
+	return skillIndex;
+}
+
+
+public any Native_IsSkillUnlocked(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	int skillIndex = GetNativeCell(2);
+
+	bool bIgnoreMutation = GetNativeCell(3);
+
+	if(!g_bLoadedFromDB[client] && !IsFakeClient(client))
+		return false;
+
+	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+		return false;
+
+	else if(g_iMidSell[client] != -1)
+	{
+		if(g_iMidSell[client] == skillIndex)
+			return g_bUnlockedSkills[client][skillIndex];
+
+		else
+			return false;
+	}
+
+	else if(!bIgnoreMutation && RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+		return false;
+
+	else if(g_bIronman[client])
+		return true;
+
+	if(!IsFakeClient(client))
+		return g_bUnlockedSkills[client][skillIndex];
+
+	// Check if average of humans have the skill unlocked.
+	else
+	{
+		int count = 0;
+		int unlockedCount = 0;
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(IsFakeClient(i))
+				continue;
+
+			count++;
+
+			if(g_bUnlockedSkills[i][skillIndex])
+			{
+				unlockedCount++;
+			}
+		}
+
+		if(float(unlockedCount) / float(count) >= 0.5)
+		{
+			g_bUnlockedSkills[client][skillIndex] = true;
+			return true;
+		}
+		
+		g_bUnlockedSkills[client][skillIndex] = false;
+		return false;
+	}
+}
+
+
+public int Native_RegisterBuff(Handle caller, int numParams)
+{
+	enSkill skill;
+
+	if(g_aSkills == null)
+		g_aSkills = CreateArray(sizeof(enSkill));
+
+	char identifier[32];
+	GetNativeString(1, identifier, sizeof(identifier));
+
+	char name[64];
+	GetNativeString(2, name, sizeof(name));
+
+	char description[512];
+	GetNativeString(3, description, sizeof(description));
+	
+	ReplaceString(description, sizeof(description), "{PERCENT}", "%%");
+
+	int cost = GetNativeCell(4);
+
+	int levelReq = GetClosestLevelToXP(GetNativeCell(5));
+
+	int buffWeight = GetNativeCell(6);
+
+	ArrayList reqIdentifiers = GetNativeCell(7);
+
+	bool doubleEdged = GetNativeCell(8);
+
+	skill.identifier = identifier;
+	skill.name = name;
+	skill.description = description;
+	skill.cost = cost;
+	skill.levelReq = levelReq;
+	skill.doubleEdged = doubleEdged;
+	skill.buffWeight = buffWeight;
+
+	if(reqIdentifiers == null)
+	{
+		skill.reqIdentifiers = null;
+	}
+	else
+	{
+		skill.reqIdentifiers = reqIdentifiers.Clone();
+	}
+
+	skill.skillIndex = -1;
+
+	delete reqIdentifiers;
+
+	for(int i=0;i < g_aSkills.Length;i++)
+	{
+		enSkill iSkill;
+		g_aSkills.GetArray(i, iSkill);
+		
+		if(StrEqual(identifier, iSkill.identifier))
+		{
+			skill.skillIndex = i;
+			g_aSkills.SetArray(i, skill);
+
+			return i;
+		}
+	}
+
+	int skillIndex = g_aSkills.PushArray(skill);
+
+	skill.skillIndex = skillIndex;
+
+	g_aSkills.SetArray(skillIndex, skill);
+
+	return skillIndex;
+}
+
+
+public any Native_IsBuffUnlocked(Handle caller, int numParams)
+{
+	int client = GetNativeCell(1);
+
+	int skillIndex = GetNativeCell(2);
+
+	bool bIgnoreMutation = GetNativeCell(3);
+
+	if(!g_bLoadedFromDB[client] && !IsFakeClient(client))
+		return false;
+
+	else if(L4D_GetClientTeam(client) == L4DTeam_Infected)
+		return false;
+
+	else if(g_iMidSell[client] != -1)
+	{
+		if(g_iMidSell[client] == skillIndex)
+			return g_bUnlockedSkills[client][skillIndex];
+
+		else
+			return false;
+	}
+
+	else if(!bIgnoreMutation && RPG_Perks_IsEntityTimedAttribute(client, "Mutated"))
+		return false;
+
+	else if(g_bIronman[client])
+		return true;
+
+	if(!IsFakeClient(client))
+		return g_bUnlockedSkills[client][skillIndex];
+
+	// Check if average of humans have the skill unlocked.
+	else
+	{
+		int count = 0;
+		int unlockedCount = 0;
+
+		for(int i=1;i <= MaxClients;i++)
+		{
+			if(!IsClientInGame(i))
+				continue;
+
+			else if(IsFakeClient(i))
+				continue;
+
+			count++;
+
+			if(g_bUnlockedSkills[i][skillIndex])
+			{
+				unlockedCount++;
+			}
+		}
+
+		if(float(unlockedCount) / float(count) >= 0.5)
+		{
+			g_bUnlockedSkills[client][skillIndex] = true;
+			return true;
+		}
+		
+		g_bUnlockedSkills[client][skillIndex] = false;
+		return false;
+	}
+}
 /*
 public int Native_RegisterProduct(Handle caller, int numParams)
 {
@@ -1258,8 +1491,9 @@ public void OnPluginStart()
 	g_fwOnPlayerLoaded = CreateGlobalForward("GunXP_OnPlayerLoaded", ET_Ignore, Param_Cell);
 	g_fwOnTryReloadRPGPlugins = CreateGlobalForward("GunXP_RPGShop_OnTryReloadRPGPlugins", ET_Event, Param_String);
 	g_fwOnResetRPG = CreateGlobalForward("GunXP_RPGShop_OnResetRPG", ET_Ignore, Param_Cell);
-	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	g_fwOnPerkTreeBuy = CreateGlobalForward("GunXP_RPGShop_OnPerkTreeBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnSkillBuy = CreateGlobalForward("GunXP_RPGShop_OnSkillBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
+	g_fwOnBuffBuy = CreateGlobalForward("GunXP_RPGShop_OnBuffBuy", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 
 	//g_aUnlockItems = CreateArray(sizeof(enProduct));
 	if(g_aSkills == null)
@@ -1277,6 +1511,7 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 
 	RegAdminCmd("sm_mask", Command_Mask, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_rpgdebug", Command_Debug, ADMFLAG_ROOT);
 
 	RegConsoleCmd("sm_survival", Command_Survival);
 	RegConsoleCmd("sm_coop", Command_Coop);
@@ -1288,6 +1523,8 @@ public void OnPluginStart()
 	RegAdminCmd("sm_givexp", Command_GiveXP, ADMFLAG_ROOT);
 	RegAdminCmd("sm_reloadrpg", Command_ReloadRPG, ADMFLAG_ROOT);
 	RegConsoleCmd("sm_rpg", Command_RPG, "sm_rpg [#userid|name] - Checks your / another player's RPG progress");
+	RegConsoleCmd("sm_buffs", Command_Buffs, "sm_buffs [#userid|name] - Checks your / another player's RPG Buffs");
+	RegConsoleCmd("sm_buff", Command_Buffs, "sm_buff [#userid|name] - Checks your / another player's RPG Buffs");
 	RegConsoleCmd("sm_skills", Command_Skills, "sm_skills [#userid|name] - Checks your / another player's RPG Skills");
 	RegConsoleCmd("sm_skill", Command_Skills, "sm_skill [#userid|name] - Checks your / another player's RPG Skills");
 	RegConsoleCmd("sm_perk", Command_PerkTrees, "sm_perk [#userid|name] - Checks your / another player's RPG Perk Trees");
@@ -1486,6 +1723,8 @@ public void OnMapEnd()
 
 public void OnMapStart()
 {
+	g_bDebug = false;
+	g_iSpawnsState = 0;
 	g_bMapStarted = true;
 
 	PrecacheSound(LEVEL_UP_SOUND);
@@ -1537,7 +1776,7 @@ public Action Timer_AutoRPG(Handle hTimer)
 		g_iMidSell[i] = -1;
 
 		// If XP Currency is below 0, it means that an admin stole his XP.
-		if(GetClientXPCurrency(i) < 0 || GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) != GetClientXP(i))
+		if(GetClientXPCurrency(i) < 0 || GetXPWorthOfPerkTrees(i) + GetXPWorthOfSkills(i) + GetClientXPCurrency(i) != GetClientXP(i) || GetClientBuffCount(i) > GetClientMaxBuffs(i))
 		{
 			RefundPerkTreesAndSkills(i);
 
@@ -1569,17 +1808,6 @@ public Action Timer_AutoRPG(Handle hTimer)
 
 			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree\x04 %s\x03 level\x04 %i\x03!", perkTree.name, g_iUnlockedPerkTrees[i][iPosPerkTree] + 1);
 
-			Call_StartForward(g_fwOnPerkTreeBuy);
-
-			Call_PushCell(i);
-			Call_PushCell(iPosPerkTree);
-			Call_PushCell(g_iUnlockedPerkTrees[i][iPosPerkTree]);
-
-			// Auto RPG?
-			Call_PushCell(true);
-
-			Call_Finish();
-
 			bFound = true;
 			
 			// Retry this iteration of the loop.
@@ -1593,16 +1821,6 @@ public Action Timer_AutoRPG(Handle hTimer)
 			PurchaseSkill(i, iPosSkill, skill, true, transaction);
 
 			PrintToChat(i, "\x04[Gun-XP]\x03 Successfully unlocked the Skill\x04 %s\x03!", skill.name);
-
-			Call_StartForward(g_fwOnSkillBuy);
-
-			Call_PushCell(i);
-			Call_PushCell(iPosSkill);
-
-			// Auto RPG?
-			Call_PushCell(true);
-
-			Call_Finish();
 
 			bFound = true;
 
@@ -2025,35 +2243,45 @@ public Action Command_RPG(int client, int args)
 
 	char TempFormat[512];
 
-	AddMenuItem(hMenu, "", "Reset choices [FREE]", client == target ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+	AddMenuItem(hMenu, "0", "Reset choices [FREE]", client == target ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 
 	if(IsClientAutoRPG(target))
 	{
-		AddMenuItem(hMenu, "", "Auto RPG [ON]", client == target ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		AddMenuItem(hMenu, "1", "Auto RPG [ON]", client == target ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 	else
 	{
-		AddMenuItem(hMenu, "", "Auto RPG [OFF]", client == target ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+		AddMenuItem(hMenu, "1", "Auto RPG [OFF]", client == target ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
 	}
 
-	AddMenuItem(hMenu, "", "Perk Trees");
-	AddMenuItem(hMenu, "", "Skills");
+	AddMenuItem(hMenu, "2", "Perk Trees");
+	AddMenuItem(hMenu, "3", "Skills");
 
-	AddMenuItem(hMenu, "", "Commands");
-	AddMenuItem(hMenu, "", "Quests");
+	if(FindAnyBuffs())
+		AddMenuItem(hMenu, "4", "Buffs");
+
+	AddMenuItem(hMenu, "5", "Commands");
+	AddMenuItem(hMenu, "6", "Quests");
 
 	char sXP[16], sXPCurrency[16];
 
 	StringToKMB(GetClientXP(target), sXP, sizeof(sXP));
 	StringToKMB(GetClientXPCurrency(target), sXPCurrency, sizeof(sXPCurrency));
 
+	char buffsFormat[128];
+
+	if(FindAnyBuffs())
+	{
+		FormatEx(buffsFormat, sizeof(buffsFormat), "\nBuffs are skills with a limit to how many you can buy.");
+	}
+
 	if(g_bMask[target])
 	{
-		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy permanent abilities here\nPerk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : 0 | Total XP : 0 | XP Currency : 0", sNameTarget);
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy permanent abilities here\nPerk Trees are upgradable abilities.\nSkills are singular abilities.%s\nLevel : 0 | Total XP : 0 | XP Currency : 0", sNameTarget, buffsFormat);
 	}
 	else
 	{
-		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy permanent abilities here\nPerk Trees are upgradable abilities.\nSkills are singular abilities.\nLevel : %i | Total XP : %s | XP Currency : %s", sNameTarget, GetClientLevel(target), sXP, sXPCurrency);
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy permanent abilities here\nPerk Trees are upgradable abilities.\nSkills are singular abilities.%s\nLevel : %i | Total XP : %s | XP Currency : %s", sNameTarget, buffsFormat, GetClientLevel(target), sXP, sXPCurrency);
 	}
 
 	if(GetXPWorthOfPerkTrees(target) + GetXPWorthOfSkills(target) + GetClientXPCurrency(target) < GetClientXP(target))
@@ -2110,7 +2338,13 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 	}
 	else if(action == MenuAction_Select)
 	{		
-		switch(item)
+		char sInfo[11];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		// By flexible I mean doesn't change when an item is not inserted (buffs)
+		int flexibleItem = StringToInt(sInfo);
+
+		switch(flexibleItem)
 		{
 			case 0:
 			{
@@ -2138,10 +2372,16 @@ public int RPG_MenuHandler(Handle hMenu, MenuAction action, int client, int item
 			case 4:
 			{
 				// -1 instead of 0 is important for calculating a target.
-				Command_Commands(client, -1);
+				Command_Buffs(client, -1);
 			}
 
 			case 5:
+			{
+				// -1 instead of 0 is important for calculating a target.
+				Command_Commands(client, -1);
+			}
+
+			case 6:
 			{
 				FakeClientCommand(client, "sm_q");
 			}
@@ -2225,6 +2465,12 @@ stock void ShowCommandsMenu(int client, int item=0)
 	AddMenuItem(hMenu, "sm_q", "!q OR !quest");
 	AddMenuItem(hMenu, "sm_coop", "!coop");
 	AddMenuItem(hMenu, "sm_survival", "!survival");
+
+	if(CheckCommandAccess(client, "sm_mask", ADMFLAG_GENERIC))
+		AddMenuItem(hMenu, "sm_mask", "!mask");
+
+	if(CheckCommandAccess(client, "sm_rpgdebug", ADMFLAG_ROOT))
+		AddMenuItem(hMenu, "sm_rpgdebug", "!rpgdebug");		
 
 	SetMenuExitBackButton(hMenu, true);
 
@@ -2540,17 +2786,6 @@ stock bool TryPurchasePerkTree(int client, int perkIndex, Transaction transactio
 
 	PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked Perk Tree\x04 %s\x03 level\x04 %i\x03!", perkTree.name, g_iUnlockedPerkTrees[client][perkIndex] + 1);
 
-	Call_StartForward(g_fwOnPerkTreeBuy);
-
-	Call_PushCell(client);
-	Call_PushCell(perkIndex);
-	Call_PushCell(g_iUnlockedPerkTrees[client][perkIndex]);
-
-	// Auto RPG?
-	Call_PushCell(false);
-
-	Call_Finish();
-
 	return true;
 }
 
@@ -2615,9 +2850,12 @@ stock void ShowSkillsMenu(int client, int item=0)
 	{
 		if(IsFakeClient(client))
 			GunXP_RPGShop_IsSkillUnlocked(client, a);
-
+		
 		enSkill skill;
 		aSkills.GetArray(a, skill);
+
+		if(skill.buffWeight > 0)
+			continue;
 
 		int i = skill.skillIndex;
 
@@ -2770,7 +3008,7 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 				}
 				else if(IsClientAutoRPG(client))
 				{
-					PrintToChat(client, "\x04[Gun-XP] You must have auto RPG disabled to purchase Perk Trees!");
+					PrintToChat(client, "\x04[Gun-XP] You must have auto RPG disabled to purchase Skills!");
 					return 0;
 				}
 				else
@@ -2778,16 +3016,6 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 					PurchaseSkill(client, skillIndex, skill, false);
 
 					PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked the Skill\x04 %s\x03!", skill.name);
-
-					Call_StartForward(g_fwOnSkillBuy);
-
-					Call_PushCell(client);
-					Call_PushCell(skillIndex);
-
-					// Auto RPG?
-					Call_PushCell(false);
-
-					Call_Finish();
 				}
 			}
 
@@ -2799,9 +3027,255 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 					return 0;
 				}
 
-				SellSkill(client, skillIndex, skill, false);
+				SellSkill(client, skillIndex, skill);
 
 				PrintToChat(client, "\x04[Gun-XP]\x03 Successfully sold the Skill\x04 %s\x03!", skill.name);
+			}
+		}
+
+		if(!(GetClientButtons(client) & IN_SPEED))
+		{
+			ShowSkillsMenu(client);
+		}
+	}	
+
+	return 0;
+}	
+
+
+public Action Command_Buffs(int client, int args)
+{
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget), args);
+	
+	ShowBuffsMenu(client);
+	
+	return Plugin_Handled;
+}
+
+stock void ShowBuffsMenu(int client, int item=0)
+{
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget));
+
+	Handle hMenu = CreateMenu(BuffShop_MenuHandler);
+
+	char TempFormat[200];
+
+	ArrayList aSkills = g_aSkills.Clone();
+
+	SortADTArrayCustom(aSkills, SortADT_Skills);
+
+	for(int a=0;a < aSkills.Length;a++)
+	{
+		if(IsFakeClient(client))
+			GunXP_RPGShop_IsSkillUnlocked(client, a);
+		
+		enSkill skill;
+		aSkills.GetArray(a, skill);
+
+		if(skill.buffWeight <= 0)
+			continue;
+			
+		int i = skill.skillIndex;
+
+		Format(TempFormat, sizeof(TempFormat), "%s (%i XP) - (%s)", skill.name, skill.cost, g_bUnlockedSkills[target][i] && !g_bMask[target] ? "Bought" : "Not Bought");
+
+		char sInfo[11];
+		IntToString(skill.skillIndex, sInfo, sizeof(sInfo));
+
+		AddMenuItem(hMenu, sInfo, TempFormat);
+	}
+
+	delete aSkills;
+
+
+	if(g_bMask[target])
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy Buffs here for permanent boosts [Max: %i/%i]\nSelect a Skill for more info:\nLevel : 0 | Total XP : 0 | XP Currency : 0", sNameTarget, GetClientBuffCount(target), GetClientMaxBuffs(target));
+	}
+	else
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy Buffs here for permanent boosts [Max: %i/%i]\nSelect a Skill for more info:\nLevel : %i | Total XP : %i | XP Currency : %i | ", sNameTarget, GetClientBuffCount(target), GetClientMaxBuffs(target), GetClientLevel(target), GetClientXP(target), GetClientXPCurrency(target));
+	}
+
+	SetMenuTitle(hMenu, TempFormat);
+
+	SetMenuExitBackButton(hMenu, true);
+
+	DisplayMenuAtItem(hMenu, client, item, MENU_TIME_FOREVER);
+}
+
+public int BuffShop_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		// -1 instead of 0 is important for calculating a target.
+		Command_RPG(client, -1);
+	}
+	else if(action == MenuAction_Select)
+	{	
+		char sInfo[11];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		int skillIndex = StringToInt(sInfo);
+
+		g_iMenuPosBuffs[client] = GetMenuSelectionPosition();
+
+		ShowBuffInfo(client, skillIndex);
+		
+	}	
+
+	return 0;
+}	
+
+public void ShowBuffInfo(int client, int item)
+{
+	if(IsFakeClient(client))
+		GunXP_RPGShop_IsSkillUnlocked(client, item);
+
+	// sPossessionNameTarget = You have / Rick Grimes has
+	char sNameTarget[64], sPossessionNameTarget[72];
+	int target = GetRPGTargetInfo(client, sNameTarget, sizeof(sNameTarget), sPossessionNameTarget, sizeof(sPossessionNameTarget));
+
+	Handle hMenu = CreateMenu(BuffInfo_MenuHandler);
+
+	char TempFormat[1024];
+
+	enSkill skill;
+	g_aSkills.GetArray(item, skill);
+
+	char sInfo[11];
+	IntToString(item, sInfo, sizeof(sInfo));
+
+	AddMenuItem(hMenu, sInfo, "Purchase Buff", client != target || g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+	AddMenuItem(hMenu, sInfo, "Refund Buff", client != target || !g_bUnlockedSkills[target][item] ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+
+	char weightFormat[128];
+
+	if(FindAnyWeightedBuffs())
+	{
+		FormatEx(weightFormat, sizeof(weightFormat), "\nWeighs like %i buffs", skill.buffWeight);
+	}
+
+	if(g_bMask[target])
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy this Buff to become permanently stronger%s\nLevel: 0 | XP Currency: 0\nRequired Level: 0\n%s (%i XP) - (%s)\nDescription: %s", sNameTarget, weightFormat, skill.name, skill.cost, "Not Bought", skill.description);
+	}
+	else
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "%s can buy this Buff to become permanently stronger%s\nLevel: %i | XP Currency: %i\nRequired Level: %i\n%s (%i XP) - (%s)\nDescription: %s", sNameTarget, weightFormat, GetClientLevel(target), GetClientXPCurrency(target), skill.levelReq, skill.name, skill.cost, g_bUnlockedSkills[target][item] ? "Bought" : "Not Bought", skill.description);
+	}
+	
+	SetMenuTitle(hMenu, TempFormat);
+
+	SetMenuExitBackButton(hMenu, true);
+
+	if(GetClientButtons(client) & IN_SPEED)
+	{
+		BuffInfo_MenuHandler(hMenu, MenuAction_Select, client, 0);
+
+		ShowBuffsMenu(client, GetMenuSelectionPosition());
+
+		CloseHandle(hMenu);
+
+	}
+	else
+	{
+		DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+	}
+}
+
+
+public int BuffInfo_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if (action == MenuAction_Cancel && item == MenuCancel_ExitBack)
+	{
+		ShowBuffsMenu(client, g_iMenuPosBuffs[client]);
+	}
+	else if(action == MenuAction_Select)
+	{		
+		char sInfo[11];
+		GetMenuItem(hMenu, item, sInfo, sizeof(sInfo));
+
+		int skillIndex = StringToInt(sInfo);
+
+		enSkill skill;
+
+		g_aSkills.GetArray(skillIndex, skill);
+
+		switch(item)
+		{
+			case 0:
+			{
+				if(g_bUnlockedSkills[client][skillIndex])
+				{
+					PrintToChat(client, "\x04[Gun-XP]\x03 You already own this buff!");
+					return 0;
+				}
+				else if(skill.levelReq > GetClientLevel(client))
+				{
+					PrintToChat(client, "\x04[Gun-XP] You need to reach Level %i to unlock this buff!", skill.levelReq);
+					return 0;
+				}
+				else if(skill.cost > GetClientXPCurrency(client))
+				{
+					PrintToChat(client, "\x04[Gun-XP] You need %i more XP Currency to unlock this buff!", skill.cost - GetClientXPCurrency(client));
+					return 0;
+				}
+				else if(g_bMask[client])
+				{
+					PrintToChat(client, "\x04[Gun-XP] You must have\x03 !mask\x04 disabled to purchase buffs (but Perk Trees & Skills are fine)!");
+					return 0;
+				}
+				else if(IsClientAutoRPG(client))
+				{
+					PrintToChat(client, "\x04[Gun-XP] You must have auto RPG disabled to purchase buffs!");
+					return 0;
+				}
+				else if(GetClientBuffCount(client) + skill.buffWeight > GetClientMaxBuffs(client))
+				{
+					if(skill.buffWeight == 1)
+					{
+						PrintToChat(client, "\x04[Gun-XP] You maxed the amount of buffs you can equip at once!");
+					}
+					else
+					{
+						PrintToChat(client, "\x04[Gun-XP] You maxed the amount of buffs you can equip at once!");
+						PrintToChat(client, "\x04[Gun-XP] Sell buffs that weigh\x03 %i\x04 buffs to buy this buff.", skill.buffWeight + GetClientBuffCount(client) - GetClientMaxBuffs(client));
+					}
+				}
+				else
+				{
+					PurchaseBuff(client, skillIndex, skill, false);
+
+					PrintToChat(client, "\x04[Gun-XP]\x03 Successfully unlocked the buff\x04 %s\x03!", skill.name);
+				}
+			}
+
+			case 1:
+			{
+				if(!g_bUnlockedSkills[client][skillIndex])
+				{
+					PrintToChat(client, "\x04[Gun-XP]\x03 You do not own this buff!");
+					return 0;
+				}
+
+				SellBuff(client, skillIndex, skill);
+
+				PrintToChat(client, "\x04[Gun-XP]\x03 Successfully sold the buff\x04 %s\x03!", skill.name);
 
 				g_iMidSell[client] = skillIndex;
 
@@ -2817,7 +3291,7 @@ public int SkillInfo_MenuHandler(Handle hMenu, MenuAction action, int client, in
 
 		if(!(GetClientButtons(client) & IN_SPEED))
 		{
-			ShowSkillsMenu(client);
+			ShowBuffsMenu(client);
 		}
 	}	
 
@@ -3398,6 +3872,229 @@ public Action Command_Mask(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_Debug(int client, int args)
+{
+	Handle hMenu = CreateMenu(Debug_MenuHandler);
+
+	char TempFormat[256];
+	FormatEx(TempFormat, sizeof(TempFormat), "Debug Mode: %s", g_bDebug ? "Enabled" : "Disabled");
+	AddMenuItem(hMenu, "", TempFormat);
+
+	switch(g_iSpawnsState)
+	{
+		case 0: FormatEx(TempFormat, sizeof(TempFormat), "Spawns: Normal");	
+		case 1: FormatEx(TempFormat, sizeof(TempFormat), "Spawns: Tanks Only");	
+		case 2: FormatEx(TempFormat, sizeof(TempFormat), "Spawns: SI Only");	
+		case 3: FormatEx(TempFormat, sizeof(TempFormat), "Spawns: CI Only");	
+		case 4: FormatEx(TempFormat, sizeof(TempFormat), "Spawns: SI & Tanks Only");
+		case 5: FormatEx(TempFormat, sizeof(TempFormat), "Spawns: Witch Only");
+		case 6: FormatEx(TempFormat, sizeof(TempFormat), "Spawns: Nothing");
+	}
+
+	AddMenuItem(hMenu, "", TempFormat, g_bDebug ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
+	AddMenuItem(hMenu, "", "Spawn Tanks", g_bDebug ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+	AddMenuItem(hMenu, "", "Heal Survivors", g_bDebug ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+	AddMenuItem(hMenu, "", "Remove Debuffs From Survivors", g_bDebug ? ITEMDRAW_DEFAULT : ITEMDRAW_DISABLED);
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+
+	return Plugin_Handled;
+}
+
+public int Debug_MenuHandler(Handle hMenu, MenuAction action, int client, int item)
+{
+	if(action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = INVALID_HANDLE;
+	}
+	else if(action == MenuAction_Select)
+	{		
+		switch(item)
+		{
+			case 0:
+			{
+				g_bDebug = !g_bDebug;
+				g_iSpawnsState = 0;
+			}
+			case 1:
+			{
+				g_iSpawnsState = (g_iSpawnsState + 1) % 7;
+
+				for(int i=1;i <= MaxClients;i++)
+				{
+					if(!IsClientInGame(i))
+						continue;
+
+					else if(L4D_GetClientTeam(i) != L4DTeam_Infected)
+						continue;
+
+					else if(!IsFakeClient(i))
+						continue;
+
+					if(RPG_Perks_GetZombieType(i) == ZombieType_Tank)
+					{
+						L4D_SetClass(i, view_as<int>(L4D2ZombieClass_Charger));
+					}
+
+					KickClient(i);
+				}
+
+				int iEntity = -1;
+				while ((iEntity = FindEntityByClassname(iEntity, "infected")) != -1)
+				{
+					AcceptEntityInput(iEntity, "Kill");
+				}
+
+				iEntity = -1;
+				while ((iEntity = FindEntityByClassname(iEntity, "witch")) != -1)
+				{
+					AcceptEntityInput(iEntity, "Kill");
+				}
+			}
+			case 2: SpawnTierTankMenu(client);
+			case 3:
+			{
+				for(int i=1;i <= MaxClients;i++)
+				{
+					if(!IsClientInGame(i))
+						continue;
+
+					else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+						continue;
+
+					else if(!IsPlayerAlive(i))
+						continue;
+
+					RPG_Perks_SetClientHealth(i, RPG_Perks_GetClientMaxHealth(i));
+					RPG_Perks_SetClientTempHealth(i, 0);
+				}
+			}
+			case 4:
+			{
+				for(int i=1;i <= MaxClients;i++)
+				{
+					if(!IsClientInGame(i))
+						continue;
+
+					else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+						continue;
+
+					else if(!IsPlayerAlive(i))
+						continue;
+
+					ArrayList aAttributes = RPG_Perks_GetEntityTimedAttributes(i, ATTRIBUTE_NEGATIVE);
+
+					for(int a=0;a < aAttributes.Length;a++)
+					{
+						char attributeName[64];
+						aAttributes.GetString(a, attributeName, sizeof(attributeName));
+
+						RPG_Perks_ApplyEntityTimedAttribute(i, attributeName, 0.0, COLLISION_SET, ATTRIBUTE_NEGATIVE);
+					}
+
+					delete aAttributes;
+				}
+			}
+		}
+
+		if(item != 2)
+		{
+			Command_Debug(client, 0);
+		}
+	}	
+
+	return 0;
+}	
+
+
+void SpawnTierTankMenu(int client)
+{
+
+	Handle hMenu = CreateMenu(SpawnTierTank_MenuHandler);
+
+	SetMenuTitle(hMenu, "Choose a Tier to Spawn:");
+
+	char TempFormat[32];
+
+	for(int tier=1;tier <= 3;tier++)
+	{
+		FormatEx(TempFormat, sizeof(TempFormat), "Tier %i", tier);
+		AddMenuItem(hMenu, "", TempFormat);
+	}
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+}
+
+public int SpawnTierTank_MenuHandler(Handle hMenu, MenuAction action, int param1, int param2)
+{
+	if (action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = null;
+	}
+	else if (action == MenuAction_Select)
+	{
+		SpawnTankMenu(param1, param2 + 1);
+	}
+
+	return 0;
+
+}
+void SpawnTankMenu(int client, int target_tier)
+{
+	Handle hMenu = CreateMenu(SpawnTank_MenuHandler);
+
+	SetMenuTitle(hMenu, "Choose a Tier %i to Spawn:", target_tier);
+	
+	int index = 0;
+
+	int tier;
+
+	char name[32];
+
+	while(RPG_Tanks_LoopTankArray(index, tier, name))
+	{
+		if(tier == target_tier)
+		{
+			char sInfo[11], TempFormat[128];
+			IntToString(index, sInfo, sizeof(sInfo));
+
+			FormatEx(TempFormat, sizeof(TempFormat), "%s", name);
+			PrintToChat(client, "%i", index);
+			AddMenuItem(hMenu, sInfo, TempFormat);
+		}
+
+		index++;
+	}
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+}
+
+public int SpawnTank_MenuHandler(Handle hMenu, MenuAction action, int param1, int param2)
+{
+	if (action == MenuAction_End)
+	{
+		CloseHandle(hMenu);
+		hMenu = null;
+	}
+	else if (action == MenuAction_Select)
+	{
+		char sInfo[11], name[32];
+		GetMenuItem(hMenu, param2, sInfo, sizeof(sInfo));
+
+		int tankIndex = StringToInt(sInfo);
+
+		int tier;
+		RPG_Tanks_LoopTankArray(tankIndex, tier, name);
+
+		RPG_Tanks_SpawnTank(tankIndex);		
+	}
+
+	return 0;
+}
+
 public Action Command_Coop(int client, int args)
 {
 	if(StartCustomVote(-2, "@survivors", 51, "Change mission to Coop?") != 0)
@@ -3448,7 +4145,7 @@ public Action Command_BulletRelease(int client, int args)
 	AddMenuItem(hMenu, "", "Aimbot Level 3");
 
 	char TempFormat[256];
-	FormatEx(TempFormat, sizeof(TempFormat), "Choose an Aimbot Level for details");
+	FormatEx(TempFormat, sizeof(TempFormat), "Choose an Aimbot Level for details\nAimbot Levels are used to decide whether a certain skill may aimbot onto a target\nUse !br <name> to check if a given skill can aimbot onto that target");
 
 	if(target != client && IsPlayerAlive(client) && IsPlayerAlive(target))
 	{
@@ -3957,7 +4654,11 @@ stock void RefundPerkTreesAndSkills(int client)
 			
 			if(StrEqual(sIdentifier, skill.identifier))
 			{
-				PurchaseSkill(client, skillIndex, skill, true, transaction);
+				if(skill.buffWeight > 0)
+					PurchaseBuff(client, skillIndex, skill, true, transaction);
+	
+				else
+					PurchaseSkill(client, skillIndex, skill, true, transaction);
 
 				// I don't like breaking in two for loops...
 				skillIndex = g_aSkills.Length;
@@ -4027,6 +4728,17 @@ stock void PurchasePerkTreeLevel(int client, int perkIndex, enPerkTree perkTree,
 	{
 		RPG_Perks_RecalculateMaxHP(client);
 	}
+
+	Call_StartForward(g_fwOnPerkTreeBuy);
+
+	Call_PushCell(client);
+	Call_PushCell(perkIndex);
+	Call_PushCell(g_iUnlockedPerkTrees[client][perkIndex]);
+
+	// Auto RPG?
+	Call_PushCell(false);
+
+	Call_Finish();
 }
 
 stock void SellPerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, bool bAuto, Transaction transaction = null)
@@ -4075,14 +4787,13 @@ stock void SellPerkTreeLevel(int client, int perkIndex, enPerkTree perkTree, boo
 
 stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
 {
-	g_bUnlockedSkills[client][skillIndex] = true;
-
-
 	if(g_iXPCurrency[client] < skill.cost || skill.levelReq > GetClientLevel(client))
 	{
 		g_bUnlockedSkills[client][skillIndex] = false;
 		return;
 	}
+
+	g_bUnlockedSkills[client][skillIndex] = true;
 
 	g_iXPCurrency[client] -= skill.cost;
 
@@ -4119,10 +4830,21 @@ stock void PurchaseSkill(int client, int skillIndex, enSkill skill, bool bAuto, 
 	{
 		RPG_Perks_RecalculateMaxHP(client);
 	}
+
+
+	Call_StartForward(g_fwOnSkillBuy);
+
+	Call_PushCell(client);
+	Call_PushCell(skillIndex);
+
+	// Auto RPG?
+	Call_PushCell(bAuto);
+
+	Call_Finish();
 }
 
 
-stock void SellSkill(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
+stock void SellSkill(int client, int skillIndex, enSkill skill, Transaction transaction = null)
 {
 	g_bUnlockedSkills[client][skillIndex] = false;
 
@@ -4161,8 +4883,187 @@ stock void SellSkill(int client, int skillIndex, enSkill skill, bool bAuto, Tran
 	{
 		RPG_Perks_RecalculateMaxHP(client);
 	}
+
+	g_iMidSell[client] = skillIndex;
+
+	Call_StartForward(g_fwOnResetRPG);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
+	g_iMidSell[client] = -1;
 }
 
+
+stock void PurchaseBuff(int client, int skillIndex, enSkill skill, bool bAuto, Transaction transaction = null)
+{
+	if(g_iXPCurrency[client] < skill.cost || skill.levelReq > GetClientLevel(client) || GetClientBuffCount(client) + skill.buffWeight > GetClientMaxBuffs(client))
+	{
+		g_bUnlockedSkills[client][skillIndex] = false;
+		return;
+	}
+
+	g_bUnlockedSkills[client][skillIndex] = true;
+
+	g_iXPCurrency[client] -= skill.cost;
+
+	bool bExecute = false;
+
+	if(transaction == null)
+	{
+		transaction = SQL_CreateTransaction();
+
+		bExecute = true;
+	}
+
+	char AuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
+
+	char sQuery[256];
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency - %i WHERE AuthId = '%s'", skill.cost, AuthId);
+	SQL_AddQuery(transaction, sQuery);
+
+	// INSERT INTO will guarantee an error if we give someone the same skill twice.
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "INSERT %s GunXP_Skills (AuthId, SkillIdentifier) VALUES ('%s', '%s')", INSERT_OR_IGNORE_INTO, AuthId, skill.identifier);
+	SQL_AddQuery(transaction, sQuery);
+
+	if(bExecute)
+	{
+		g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	}
+
+	// To make buying skills faster, the function jumps back to list of skills instead.
+	//if(!bAuto)
+	//	ShowSkillInfo(client, skillIndex);
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
+
+	Call_StartForward(g_fwOnBuffBuy);
+
+	Call_PushCell(client);
+	Call_PushCell(skillIndex);
+
+	// Auto RPG?
+	Call_PushCell(bAuto);
+
+	Call_Finish();
+}
+
+
+stock void SellBuff(int client, int skillIndex, enSkill skill, Transaction transaction = null)
+{
+	g_bUnlockedSkills[client][skillIndex] = false;
+
+	g_iXPCurrency[client] += skill.cost;
+
+	bool bExecute = false;
+
+	if(transaction == null)
+	{
+		transaction = SQL_CreateTransaction();
+
+		bExecute = true;
+	}
+
+	char AuthId[35];
+	GetClientAuthId(client, AuthId_Steam2, AuthId, sizeof(AuthId));
+
+	char sQuery[256];
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "UPDATE GunXP_Players SET XPCurrency = XPCurrency + %i WHERE AuthId = '%s'", skill.cost, AuthId);
+	SQL_AddQuery(transaction, sQuery);
+
+	// INSERT INTO will guarantee an error if we give someone the same skill twice.
+	g_dbGunXP.Format(sQuery, sizeof(sQuery), "DELETE FROM GunXP_Skills WHERE AuthId = '%s' AND SkillIdentifier = '%s'", AuthId, skill.identifier);
+	SQL_AddQuery(transaction, sQuery);
+
+	if(bExecute)
+	{
+		g_dbGunXP.Execute(transaction, INVALID_FUNCTION, SQLTrans_SetFailState);
+	}
+
+	if(IsPlayerAlive(client))
+	{
+		RPG_Perks_RecalculateMaxHP(client);
+	}
+
+	g_iMidSell[client] = skillIndex;
+
+	Call_StartForward(g_fwOnResetRPG);
+
+	Call_PushCell(client);
+
+	Call_Finish();
+
+	g_iMidSell[client] = -1;
+}
+
+stock bool FindAnyBuffs()
+{
+	for(int a=0;a < g_aSkills.Length;a++)
+	{
+		enSkill skill;
+		g_aSkills.GetArray(a, skill);
+
+		if(skill.buffWeight <= 0)
+			continue;
+
+		return true;
+	}
+
+	return false;
+}
+
+stock bool FindAnyWeightedBuffs()
+{
+	for(int a=0;a < g_aSkills.Length;a++)
+	{
+		enSkill skill;
+		g_aSkills.GetArray(a, skill);
+
+		if(skill.buffWeight <= 1)
+			continue;
+
+		return true;
+	}
+
+	return false;
+}
+
+stock int GetClientBuffCount(int client)
+{
+	if(IsFakeClient(client))
+		return 0;
+
+	int buffCount = 0;
+
+	for(int a=0;a < g_aSkills.Length;a++)
+	{
+		enSkill skill;
+		g_aSkills.GetArray(a, skill);
+
+		int i = skill.skillIndex;
+
+		if(skill.buffWeight <= 0)
+			continue;
+			
+		if(g_bUnlockedSkills[client][i] && !g_bMask[client])
+			buffCount += skill.buffWeight;
+	}
+
+	return buffCount;
+}
+
+stock int GetClientMaxBuffs(int client)
+{
+	if(IsFakeClient(client))
+		return 0;
+
+	return RoundToFloor(float(GetClientLevel(client)) / 10.0);
+}
 
 public void SQLTrans_PlayerLoaded(Database db, any DP, int numQueries, DBResultSet[] results, any[] queryData)
 {
@@ -4717,6 +5618,9 @@ stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost, bool 
 
 	position = -1;
 
+	int buffCount = GetClientBuffCount(client);
+	int maxBuffs = GetClientMaxBuffs(client);
+
 	for(int i=0;i < g_aSkills.Length;i++)
 	{
 		enSkill iSkill;
@@ -4733,6 +5637,9 @@ stock bool AutoRPG_FindCheapestSkill(int client, int &position, int &cost, bool 
 			continue;
 
 		else if(GetClientXPCurrency(client) < iSkill.cost && !ignoreAffordability)
+			continue;
+
+		else if(iSkill.buffWeight > 0 && buffCount + iSkill.buffWeight > maxBuffs)
 			continue;
 
 		if(position == -1 || iSkill.cost < cost)

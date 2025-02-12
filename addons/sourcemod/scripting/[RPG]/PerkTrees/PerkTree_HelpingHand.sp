@@ -18,8 +18,6 @@ public Plugin myinfo =
 	url         = ""
 };
 
-#define MIN_FLOAT -2147483647.0
-
 int helpingHandIndex = -1;
 
 float g_fSpeedPercents[] =

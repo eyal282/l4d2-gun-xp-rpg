@@ -2,6 +2,81 @@
  #endinput
 #endif
 
+/* Instructions for AI:
+1. Do not use any Sourcemod native or forward if one with the same goal already appears in this include file.
+2. You must always check for priority in any forward that has it, following the rules it may have, and to avoid running code 21 times (from -10 to 10 including 0).
+3. Tanks are almost always considered Special Infected.
+4. The Shadow Realm is a state where you're outside the rest of the players & zombies, are invisible to them, and can't interact with them. The map is the same, and you can interact with doors and buttons, despite indirectly intracting with players outside the shadow realm using them.
+5. In Sourcemod, Survivors, Special Infected and Tanks are considered client entities (not necessarily human entities) and are always between 1 and MaxClients (think of them like serial numbers, meaning IsClientInGame checks if a given serial number is used by a client).
+But Common Infected and Witches are just NextBot entities, so all functions that interact with clients will throw errors on them, instead only entity functions can be used on them.
+6. The word talent will be used to refer to either Perk Trees, Skills and/or Buffs.
+7. When using GunXP_RPGShop_OnResetRPG (which fires when a player sells all talents) make sure to check if that talent is unlocked before stripping any advantage it may hold. Besides the fact selling all talents shouldn't strip a bonus if you never had its talent...
+... when exactly 1 talent is sold checking if a talent is owned will always return false except when checking the talent being sold, meaning only the plugin holding the sold talent will strip advantages, and only for that talent.
+8. When looping every player and/or zombie in relation to a player, ensure you account for the shadow realm:
+
+// For client entities (includes Survivors and Special Infected (and therefore Tanks))
+
+int clientsRealm[MAXPLAYERS+1], numClientsRealm;
+
+if(RPG_Perks_IsEntityTimedAttribute(entity, "Shadow Realm"))
+{
+	RPG_Perks_GetClientsInRealms(_, _, clientsRealm, numClientsRealm);
+}
+else    
+{
+	RPG_Perks_GetClientsInRealms(clientsRealm, numClientsRealm, _, _);
+}
+
+for(int i=0;i < numClientsRealm;i++)
+{
+	int target = clientsRealm[i];
+
+	if(!IsClientInGame(target))
+		continue;
+
+	// Your code here, target is one of the clients within the same realm as "entity".
+}
+
+	// For zombie entities (includes Special Infected (and therefore Tanks), Common Infected (which are not client entities), and Witches (which are also not client entities))
+    if(RPG_Perks_IsEntityTimedAttribute(entity, "Shadow Realm"))
+    {
+        RPG_Perks_GetZombiesInRealms(
+            _, _, siRealm, numSIRealm,
+            _, _, ciRealm, numCIRealm,
+            _, _, witchRealm, numWitchRealm);
+    }
+    else
+    {
+        RPG_Perks_GetZombiesInRealms(
+            siRealm, numSIRealm, _, _,
+            ciRealm, numCIRealm, _, _,
+            witchRealm, numWitchRealm, _, _);
+    }
+
+    for(int i=0;i < numSIRealm;i++)
+    {
+        int target = siRealm[i];
+
+        if(!IsPlayerAlive(target))
+            continue;
+
+       // Your code here, target is one of the Special Infected (tank included) within the same realm as entity.
+    }
+
+    for(int i=0;i < numCIRealm;i++)
+    {
+        int target = ciRealm[i];
+
+		// Your code here, target is one of the zombies within the same realm as entity.
+    }
+
+    for(int i=0;i < numWitchRealm;i++)
+    {
+        int target = witchRealm[i];
+
+        // Your code here, target is one of the witches within the same realm as entity.
+    }
+*/
 #include <autoexecconfig>
 #include <left4dhooks>
 
@@ -106,6 +181,16 @@ native int GunXP_RPGShop_RegisterSkill(const char[] identifier, const char[] nam
 native bool GunXP_RPGShop_IsSkillUnlocked(int client, int skillIndex, bool bIgnoreMutation = false);
 
 
+// Make identifier as descriptive as possible.
+// Use {PERCENT} to denote percentages in descriptions.
+// reqIdentifiers is unimplemented at the moment, and is the list of required perk trees or skills for each perk tree level.
+// reqIdentifier on a perk tree requires a minimum of level 1.
+// buffWeight is how many buff slots this buff costs.
+// Buffs are internally skills. GunXP_RPGShop_IsSkillUnlocked will work for buffs if you accidentally use it.
+// Attention: If you use buffWeight = 0, it will literally become a skill.
+native int GunXP_RPGShop_RegisterBuff(const char[] identifier, const char[] name, const char[] description, int cost, int levelReq, int buffWeight = 1, ArrayList reqIdentifiers = null, bool bDoubleEdged = false);
+native bool GunXP_RPGShop_IsBuffUnlocked(int client, int buffIndex, bool bIgnoreMutation = false);
+
 // Does not guarantee SI is alive, because dead SI are treated in normal realm
 native void RPG_Perks_GetZombiesInRealms(
 int siNormal[MAXPLAYERS+1] = { 0, ... }, int &numSINormal=0, int siShadow[MAXPLAYERS+1] = { 0, ... }, int &numSIShadow=0,
@@ -113,7 +198,7 @@ int ciNormal[MAXPLAYERS+1] = { 0, ... }, int &numCINormal=0, int ciShadow[MAXPLA
 int witchNormal[MAXPLAYERS+1] = { 0, ... }, int &numWitchNormal=0, int witchShadow[MAXPLAYERS+1] = { 0, ... }, int &numWitchShadow=0);
 
 // Unlike GetZombiesInRealms, doesn't guarantee in-game for performance reasons.
-native void RPG_Perks_GetClientsInRealms(int clientsNormal[MAXPLAYERS+1], int &numClientsNormal, int clientsShadow[MAXPLAYERS+1], int &numClientsShadow);
+native void RPG_Perks_GetClientsInRealms(int clientsNormal[MAXPLAYERS+1] = { 0, ... }, int &numClientsNormal=0, int clientsShadow[MAXPLAYERS+1] = { 0, ... }, int &numClientsShadow=0);
 
 native bool RPG_Perks_GetSoundMode(int client);
 
@@ -150,6 +235,8 @@ native ArrayList RPG_Perks_GetEntityTimedAttributes(int entity, int attributeTyp
 // See COLLISION_* for list of actions taken on collision.
 // See ATTRIBUTE_* for list of attribute types.
 // If COLLISION_RETURN, COLLISION_SET_IF_HIGHER, or COLLISION_SET_IF_LOWER are used, returns false if attribute was not set.
+
+// I don't know which AI needs to know the obvious: Do not use Timed Attributes to set variables in the entity like shield, because Timed Attributes are meant to apply Attributes which expire by time, so the variable is decreased by 1 every second.
 native bool RPG_Perks_ApplyEntityTimedAttribute(int entity, char attributeName[64], float fDuration, int collision, int attributeType, int transferRules = TRANSFER_NORMAL);
 
 // Registers a cvar that fires "RPG_Perks_OnGetReplicateCvarValue"
@@ -176,8 +263,28 @@ native int RPG_Perks_SetClientTempHealth(int client, int hp);
 // Please only pass survivors to this function.
 native int RPG_Perks_GetClientTempHealth(int client);
 
+// RPG_Tanks_LoopTankArray is the only way to utilize this.
+// Returns entity index (client index) of the tank.
+// The client index will be messed with by RPG-Perks, so if you need to teleport it or etc... use RPG_Perks_OnZombiePlayerSpawned with priority THAT IS NOT 10 (Ten)
+native int RPG_Tanks_SpawnTank(int index);
+
+// Gets next tier of tanks that spawns, or TANK_TIER_UNKNOWN if regular behavior. Gets canceled by SetOverrideTank, can be checked if EITHER:
+// 1. RPG_Perks_OnGetZombieMaxHP is checked with priority THAT IS NOT -10 (Minus Ten)
+// 2. RPG_Perks_OnZombiePlayerSpawned is checked with priority THAT IS NOT 10 (Ten)
+// 3. Outside any forward that involves a zombie spawning.
+native int RPG_Tanks_GetOverrideTier();
+
 // Sets next tier of tank that spawns. Lets 2 tanks live at once
 native void RPG_Tanks_SetOverrideTier(int tier);
+
+// Gets next tier of tanks that spawns, or TANK_TIER_UNKNOWN if regular behavior. Cancels SetOverrideTier, and has a valid value if EITHER:
+// 1. RPG_Perks_OnGetZombieMaxHP is checked with priority THAT IS NOT -10 (Minus Ten)
+// 2. RPG_Perks_OnZombiePlayerSpawned is checked with priority THAT IS NOT 10 (Ten)
+// 3. Outside any forward that involves a zombie spawning.
+native int RPG_Tanks_GetOverrideTank(int tier);
+
+// Sets next tankIndex of tank that spawns. Lets 2 tanks live at once. RPG_Tanks_LoopTankArray is the only way to utilize this.
+native void RPG_Tanks_SetOverrideTank(int tankIndex);
 
 // For immunityType, see DAMAGE_IMMUNITY_*
 native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
@@ -186,6 +293,38 @@ native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
 // GunXP_GenerateHexColor(int r, int g, int b, int a)
 native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], char chatDescription[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities, int color=1);
 
+// tier and name are copyback values, example of this native used to allow a user to spawn a tank from a given tier:
+/*
+void SpawnTankMenu(int client, int target_tier)
+{
+	Handle hMenu = CreateMenu(SpawnTank_MenuHandler);
+
+	SetMenuTitle(hMenu, "Choose a Tier %i to Spawn:", target_tier);
+	
+	int index = 0;
+
+	int tier;
+
+	char name[32];
+
+	while(RPG_Tanks_LoopTankArray(index, tier, name))
+	{
+		if(tier == target_tier)
+		{
+			char sInfo[11], TempFormat[128];
+			IntToString(index, sInfo, sizeof(sInfo));
+
+			FormatEx(TempFormat, sizeof(TempFormat), "%s", name);
+			PrintToChat(client, "%i", index);
+			AddMenuItem(hMenu, sInfo, TempFormat);
+		}
+
+		index++;
+	}
+
+	DisplayMenu(hMenu, client, MENU_TIME_FOREVER);
+}
+*/
 native bool RPG_Tanks_LoopTankArray(int index, int &tier, char name[32]);
 
 
@@ -199,11 +338,12 @@ native int RPG_Tanks_RegisterPassiveAbility(int tank, char name[32], char descri
 // Returns tank index, TANK_TIER_UNTIERED for untiered and TANK_TIER_UNKNOWN on priority -10 of GetZombieMaxHP.
 native int RPG_Tanks_GetClientTank(int client);
 
-native void RPG_Tanks_SetClientTank(int client, int index);
+native void RPG_Tanks_SetClientTank(int client, int index, bool bDontAnnounceApport = false);
 
 // Returns tier of a client, or TANK_TIER_UNTIERED if not a Tank or not tiered.
 native int RPG_Tanks_GetClientTankTier(int client);
 
+// Respectively gets and sets the damage percent a client dealt to a tank (used to award XP when tank is killed)
 native float RPG_Tanks_GetDamagePercent(int client, int tank);
 native void RPG_Tanks_SetDamagePercent(int client, int tank, float damagePercent);
 
@@ -286,8 +426,8 @@ forward void RPG_DailyQuests_OnGetMaxDailyQuests(int client, int &maxQuests);
 // Fires for regular jumps too.
 forward void GunXP_Skills_OnMultiJump(int client, bool bMultiJump);
 
-// RPG_Tanks_GetClientTank(victim) will work properly in this forward. After this forward is called it will return TANK_TIER_UNKNOWN.
-// XPReward is set to -1 if not enough damage is dealt.
+// RPG_Tanks_GetClientTank(victim) will work properly in this forward. After this forward is called, RPG_Tanks_GetClientTank(victim) will return TANK_TIER_UNKNOWN.
+// XPReward is the amount of XP awarded. It will be -1 if not enough damage was dealt.
 forward void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward);
 
 forward void RPG_Tanks_OnUntieredTankKilled(int victim, int attacker);
@@ -302,6 +442,8 @@ forward Action GunXP_RPGShop_OnTryReloadRPGPlugins(char sError[256]);
 // At this point, every perk tree and skill were removed.
 forward void GunXP_OnReloadRPGPlugins();
 forward void GunXP_OnPlayerLoaded(int client);
+
+// Auto RPG is true if the talent was bought automatically by the Auto RPG system, which automatically buys a talent if the player has enough XP Currency.
 forward void GunXP_RPGShop_OnPerkTreeBuy(int client, int perkIndex, int perkLevel, bool bAutoRPG);
 forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG);
 
@@ -311,9 +453,11 @@ forward void GunXP_RPGShop_OnSkillBuy(int client, int skillIndex, bool bAutoRPG)
 // DO NOT UNDER ANY CIRCUMSTANCE SELL OR RESET A PLAYER IN THIS FORWARD IN ANY WAY SHAPE OR FORM ABLE TO.
 forward void GunXP_RPGShop_OnResetRPG(int client);
 
+// Decides how far into the shadow realm a player can see.
 forward void RPG_Perks_OnGetShadowRealmVision(int client, float &fVision);
 
 // return Plugin_Handled to ignore the client (please keep it for the rest of the round), Plugin_Continue otherwise.
+// This basically decides if the client used a special movement ability that allows it to bypass an elevator, meaning an elevator that stops working until all survivors are inside will not check for that client, because he may have used his movement ability to literally reach the end of the map, the safe room.
 forward Action RPG_Perks_OnShouldIgnoreEntireTeamTouch(int client);
 
 // return Plugin_Handled to prevent closets rescue, Plugin_Continue to allow.
@@ -406,7 +550,8 @@ forward void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpaw
 // If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
 // If you're altering on a positive priority, the closer it is to 10 it will run LAST.
 // I can't think of a reason to use a priority closer to -10.
-forward void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool bApport);
+// bApport should almost never be changed. Change to true if you want every plugin to think what is basically "this tank is borderline being spawned as a debug tank"
+forward void RPG_Perks_OnZombiePlayerSpawned(int priority, int client, bool &bApport);
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER ATTACK, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
@@ -449,12 +594,14 @@ forward void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker,
 // fCustomSpeed will only work if overrideSpeedState is set to custom.
 forward void RPG_Perks_OnGetRPGSpeedModifiers(int priority, int client, int &overrideSpeedState, int &iLimpHealth, float &fRunSpeed, float &fWalkSpeed, float &fCrouchSpeed, float &fLimpSpeed, float &fCriticalSpeed, float &fWaterSpeed, float &fAdrenalineSpeed, float &fScopeSpeed, float &fCustomSpeed);
 
+// These are self explanatory.
 forward void RPG_Perks_OnGetAdrenalineDuration(int client, float &fDuration);
 forward void RPG_Perks_OnGetMedsHealPercent(int client, bool bAdrenaline, float &percentToHeal);
 forward void RPG_Perks_OnGetKitHealPercent(int reviver, int victim, int &percent);
 forward void RPG_Perks_OnGetReviveHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);
 forward void RPG_Perks_OnGetDefibHealthPercent(int reviver, int victim, int &temporaryHealthPercent, int &permanentHealthPercent);
 
+// Time it takes to heal (with medkit) or revive a survivor, respectively.
 forward void RPG_Perks_OnGetKitDuration(int reviver, int victim, float &fDuration);
 forward void RPG_Perks_OnGetReviveDuration(int reviver, int victim, bool bLedge, float &fDuration);
 
@@ -463,8 +610,17 @@ forward void RPG_Perks_OnGetIncapHealth(int client, bool bLedge, int &health);
 // index means the following:
 // 0 - No weapon. 1 - Pistol. 2 - Double Pistol. 3 - Magnum
 forward void RPG_Perks_OnGetIncapWeapon(int reviver, int &index)
-//forward void RPG_Perks_OnGetLimpSpeed(int)
 
+// Caller is the plugin's handle, bInternal is only used when the vote plugin calls the vote, so it's irrelevant.
+
+// This code is an auto include in this forward:
+
+/*
+	float ForPercents = (float(VotesFor) / (float(VotesFor) + float(VotesAgainst))) * 100.0;
+
+	if(ForPercents < PercentsToPass)
+		return;
+*/
 forward void sm_vote_OnVoteFinished_Post(int client, int VotesFor, int VotesAgainst, int PercentsToPass, bool bCanVote[MAXPLAYERS], char[] VoteSubject, bool bInternal, Handle Caller);
 
 enum ZombieType
