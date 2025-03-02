@@ -2,17 +2,38 @@
  #endinput
 #endif
 
-/* Instructions for AI:
-1. Do not use any Sourcemod native or forward if one with the same goal already appears in this include file.
+
+/* Instructions for AI involving Sourcemod in general
+1. In Sourcemod, Survivors, Special Infected and Tanks are considered client entities (not necessarily human entities) and are always between 1 and MaxClients (think of them like serial numbers, meaning IsClientInGame checks if a given serial number is used by a client).
+Because they are serial numbers, the same serial number can be used by multiple clients if one client leaves and another client joins. This makes it almost always a requirement to reset most client-dependent variables when a client connects to the server, sometimes on client spawn is enough.
+On top of always clearing client-dependent variables during OnMapStart, you must clear them on EITHER, depending on the goal:
+a. OnClientPutInServer (client connects to the server)
+b. RPG_Perks_OnPlayerSpawned (Survivor client spawns)
+c. RPG_Perks_OnZombiePlayerSpawned (Special Infected or Tank client spawns)
+d. Both RPG_Perks_OnPlayerSpawned and RPG_Perks_OnZombiePlayerSpawned (if that variable can belong to any client index, whether Survivor, Special Infected or Tank, but that's rare)
+e. Always use left4dhooks.inc natives, stocks and/or forwards over Sourcemod natives, stocks and/or forwards if one of the same goal already appears on that include file.
+
+*/
+/* Instructions for AI involving the RPG plugin:
+1. Do not use any Sourcemod native or forward if one with the same goal already appears in this include file. Examples:
+a. Use RPG_Tanks_SpawnTank instead of L4D2_SpawnTank (also I saw you try to autocomplete CreateFakeClient, holy heck do not do that almost ever)
+b. While sometimes you'd want to ForcePlayerSuicide to kill a player, RPG_Perks_InstantKill actually performs RPG checks to see if the player can use any invincibility-like state to survive the instant kill.
+c. RPG_Perks_TakeDamage, as SDKHooks_TakeDamage will literally skip every talent's damage modifier and/or invincibility and is so bad it was unused on any talent's plugin and/or tank's plugin.
+e. RPG_Tanks_IsTankInPlay checks if a Tank is alive, while L4D2_IsTankInPlay checks if a Tank is alive and is actively chasing survivors (known as aggro, as Tanks will not chase survivors when they spawn until they meet a survivor.)
+L4D2_IsTankInPlay can be used, and was used by some plugins, but I'd avoid using it unless you are requested in a prompt to check if there's a Tank in aggro.
+f. GunXP_Skills_OnMultiJump is not mandatory to replace HookEvent("player_jump", ...) but as the name suggests it fires for both jump from ground and multi-jumping (jumping in mid-air) so it depends on if you want to account for it.
+g. Always use GunXP-RPG.inc natives, stocks and/or forwards over left4dhooks.inc natives, stocks and/or forwards if ones of the same goal exist in this include file (GunXP-RPG.inc is this file.)
+
 2. You must always check for priority in any forward that has it, following the rules it may have, and to avoid running code 21 times (from -10 to 10 including 0).
 3. Tanks are almost always considered Special Infected.
 4. The Shadow Realm is a state where you're outside the rest of the players & zombies, are invisible to them, and can't interact with them. The map is the same, and you can interact with doors and buttons, despite indirectly intracting with players outside the shadow realm using them.
-5. In Sourcemod, Survivors, Special Infected and Tanks are considered client entities (not necessarily human entities) and are always between 1 and MaxClients (think of them like serial numbers, meaning IsClientInGame checks if a given serial number is used by a client).
 But Common Infected and Witches are just NextBot entities, so all functions that interact with clients will throw errors on them, instead only entity functions can be used on them.
-6. The word talent will be used to refer to either Perk Trees, Skills and/or Buffs.
-7. When using GunXP_RPGShop_OnResetRPG (which fires when a player sells all talents) make sure to check if that talent is unlocked before stripping any advantage it may hold. Besides the fact selling all talents shouldn't strip a bonus if you never had its talent...
+5. The word talent will be used to refer to either Perk Trees, Skills and/or Buffs.
+6. When using GunXP_RPGShop_OnResetRPG (which fires when a player sells all talents) make sure to check if that talent is unlocked before stripping any advantage it may hold. Besides the fact selling all talents shouldn't strip a bonus if you never had its talent...
 ... when exactly 1 talent is sold checking if a talent is owned will always return false except when checking the talent being sold, meaning only the plugin holding the sold talent will strip advantages, and only for that talent.
-8. When looping every player and/or zombie in relation to a player, ensure you account for the shadow realm:
+7. Do not exit timers that involve Tank abilities if a Tank does not posses that ability, due to the apport system being able to turn one Tank to another Tank.
+8. When making Tanks that cannot spawn naturally except by a plugin, register those tanks with 0 entries.
+9. When looping every player and/or zombie in relation to a player, ensure you account for the shadow realm:
 
 // For client entities (includes Survivors and Special Infected (and therefore Tanks))
 
@@ -266,6 +287,7 @@ native int RPG_Perks_GetClientTempHealth(int client);
 // RPG_Tanks_LoopTankArray is the only way to utilize this.
 // Returns entity index (client index) of the tank.
 // The client index will be messed with by RPG-Perks, so if you need to teleport it or etc... use RPG_Perks_OnZombiePlayerSpawned with priority THAT IS NOT 10 (Ten)
+// Use RPG_Tanks_SpawnTank(TANK_TIER_UNTIRED) to spawn a non-RPG Tank (regular Tank)
 native int RPG_Tanks_SpawnTank(int index);
 
 // Gets next tier of tanks that spawns, or TANK_TIER_UNKNOWN if regular behavior. Gets canceled by SetOverrideTank, can be checked if EITHER:
@@ -291,6 +313,8 @@ native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
 
 // For damageImmunities, see DAMAGE_IMMUNITY_*
 // GunXP_GenerateHexColor(int r, int g, int b, int a)
+// Entries are jackpot based system to decide which tank gets to spawn, higher entries are more likely to spawn, usually between 2 and 5
+// Set entries to 0 when making a utility Tank that can only spawn on command.
 native int RPG_Tanks_RegisterTank(int tier, int entries, char name[32], char description[512], char chatDescription[512], int maxHP, int speed, float damageMultiplier, int XPRewardMin, int XPRewardMax, int damageImmunities, int color=1);
 
 // tier and name are copyback values, example of this native used to allow a user to spawn a tank from a given tier:
@@ -535,18 +559,19 @@ forward void RPG_Perks_OnGetMaxHP(int priority, int client, int &maxHP);
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER SPAWN, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
-// If you don't care whatsoever how health is interacted and just want to add a value to the max hp, use "if(priority != 0) return;"
+// If you don't care whatsoever about order of execution, use "if(priority != 0) return;"
+// This forward only fires for Survivors.
 // If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
 // If you're altering on a positive priority, the closer it is to 10 it will run LAST.
 // I can't think of a reason to use a priority closer to -10.
-// Check for priority closer to 10 if you want to multiply max health to make all added max HP make you gain more HP.
 // Gun XP - RPG gives guns on priority -2 by default, with a cvar named "gun_xp_priority_for_guns" to alter it.
-// RPG-Perks gives hidden incap pistol on priority 0 by default, with a cvar named "rpg_incap_pistol_priority" to alter it.
+// Unrelated to this native, RPG-Perks gives hidden incap pistol on priority 0 by default, with a cvar named "rpg_incap_pistol_priority" to alter it.
 forward void RPG_Perks_OnPlayerSpawned(int priority, int client, bool bFirstSpawn);
 
 // WARNING! THIS FORWARD FIRES 20 TIMES PER SPAWN, MAKE SURE YOU ACCOUNT FOR PRIORITY OR FACE CONSEQUENCES
 // When you start with this forward, the most important factor is priority. use something like "if(priority != 0) return;"
-// If you don't care whatsoever how health is interacted and just want to add a value to the max hp, use "if(priority != 0) return;"
+// If you don't care whatsoever about order of execution, use "if(priority != 0) return;"
+// This forward only fires for Special Infected (and therefore Tanks too)
 // If you're altering on a negative priority, the closer it is to -10 it will run FIRST.
 // If you're altering on a positive priority, the closer it is to 10 it will run LAST.
 // I can't think of a reason to use a priority closer to -10.

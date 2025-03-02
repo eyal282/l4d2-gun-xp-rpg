@@ -2798,6 +2798,10 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 
 public void RPG_Perks_OnTimedAttributeStart(int entity, char attributeName[64], float fDuration)
 {	
+	// It's not guaranteed to be a valid entity.
+	if(entity <= 0)
+		return;
+
 	float fOrigin[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", fOrigin);
 
@@ -2978,6 +2982,9 @@ public void RPG_Perks_OnTimedAttributeExpired(int entity, char attributeName[64]
 
 		return;
 	}
+
+	if(entity <= 0)
+		return;
 
 	Invincible_RPG_Perks_OnTimedAttributeExpired(entity, attributeName);
 

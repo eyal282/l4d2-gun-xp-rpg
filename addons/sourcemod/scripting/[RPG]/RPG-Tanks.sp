@@ -1472,7 +1472,7 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 	{
 		damage = damage * g_hRPGDamageMultiplier.FloatValue;
 	}
-	else if(inflictor == attacker)
+	else if(inflictor == attacker && IsPlayer(attacker))
 	{
 		int activeWeapon = L4D_GetPlayerCurrentWeapon(attacker);
 		GetEdictClassname(activeWeapon, sClassname, sizeof(sClassname));

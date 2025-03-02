@@ -45,7 +45,7 @@ public void OnPluginStart()
 
 public void OnMapStart()
 {
-    TriggerTimer(CreateTimer(10.0, Timer_MonitorFullAuto, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
+    TriggerTimer(CreateTimer(2.0, Timer_MonitorFullAuto, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
 public Action Timer_MonitorFullAuto(Handle hTimer)
