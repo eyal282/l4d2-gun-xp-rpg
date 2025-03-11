@@ -112,6 +112,8 @@ GlobalForward g_fwOnUntieredTankKilled;
 GlobalForward g_fwOnRPGTankCastActiveAbility;
 
 int g_iMaxTier;
+int g_iValidMaxTier;
+
 int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
 int g_iAggroTarget[MAXPLAYERS+1] = { 0, ... };
 bool g_bGaveTankAggro[MAXPLAYERS+1];
@@ -188,7 +190,10 @@ public int Native_IsDamageImmuneTo(Handle caller, int numParams)
 
 public int Native_GetMaxTier(Handle caller, int numParams)
 {
-	return g_iMaxTier;
+	if(GetNativeCell(1))
+		return g_iMaxTier;
+	
+	return g_iValidMaxTier;
 }
 
 public int Native_RegisterTank(Handle caller, int numParams)
@@ -243,6 +248,9 @@ public int Native_RegisterTank(Handle caller, int numParams)
 
 	if(tier > g_iMaxTier)
 		g_iMaxTier = tier;
+
+	if(entries > 0 && tier > g_iValidMaxTier)
+		g_iValidMaxTier = tier;
 
 	if(foundIndex != -1)
 	{
@@ -648,6 +656,7 @@ public void OnPluginStart()
 public void OnMapStart()
 {
 	g_iMaxTier = TANK_TIER_UNTIERED;
+	g_iValidMaxTier = TANK_TIER_UNTIERED;
 
 	for(int i=0;i < g_aTanks.Length;i++)
 	{
@@ -656,6 +665,9 @@ public void OnMapStart()
 
 		if(tank.tier > g_iMaxTier)
 			g_iMaxTier = tank.tier;
+
+		if(tank.entries > 0 && tank.tier > g_iValidMaxTier)
+			g_iValidMaxTier = tank.tier;
 	}
 	
 	for(int i=0;i < sizeof(g_iCurrentTank);i++)
@@ -1236,7 +1248,7 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 	int winnerTier = 0;
 
-	for(int i=0;i <= g_iMaxTier;i++)
+	for(int i=0;i <= g_iValidMaxTier;i++)
 	{
 		if(RNG > initValue && RNG <= (initValue + entries[i]))
 		{

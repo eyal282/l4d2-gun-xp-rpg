@@ -320,7 +320,8 @@ native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
 
 // Out of all tanks that were registered, the highest tier possible is this.
 // If no tanks are registered, returns TANK_TIER_UNTIERED.
-native int RPG_Tanks_GetMaxTier();
+// bValid finds highest possible tier of a tank with at least 1 entry. Check validation for stuff like skills that spawn tanks (Apport) and uncheck validation for stuff like the debug menu.
+native int RPG_Tanks_GetMaxTier(bool bValid = true);
 
 // For damageImmunities, see DAMAGE_IMMUNITY_*
 // GunXP_GenerateHexColor(int r, int g, int b, int a)

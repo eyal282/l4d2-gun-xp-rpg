@@ -164,7 +164,7 @@ void BuildUpVoteTierMenu()
 
 	VoteList = CalculateVotes();
 	
-	for(int tier=1;tier <= RPG_Tanks_GetMaxTier();tier++)
+	for(int tier=1;tier <= RPG_Tanks_GetMaxTier(true);tier++)
 	{
 		char sInfo[11], TempFormat[128];
 		IntToString(tier, sInfo, sizeof(sInfo));

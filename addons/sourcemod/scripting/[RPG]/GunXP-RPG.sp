@@ -4018,7 +4018,7 @@ void SpawnTierTankMenu(int client)
 
 	char TempFormat[32];
 
-	for(int tier=1;tier <= RPG_Tanks_GetMaxTier();tier++)
+	for(int tier=1;tier <= RPG_Tanks_GetMaxTier(false);tier++)
 	{
 		FormatEx(TempFormat, sizeof(TempFormat), "Tier %i", tier);
 		AddMenuItem(hMenu, "", TempFormat);
