@@ -33,7 +33,13 @@ But Common Infected and Witches are just NextBot entities, so all functions that
 ... when exactly 1 talent is sold checking if a talent is owned will always return false except when checking the talent being sold, meaning only the plugin holding the sold talent will strip advantages, and only for that talent.
 7. Do not exit timers that involve Tank abilities if a Tank does not posses that ability, due to the apport system being able to turn one Tank to another Tank.
 8. When making Tanks that cannot spawn naturally except by a plugin, register those tanks with 0 entries.
-9. When looping every player and/or zombie in relation to a player, ensure you account for the shadow realm:
+9. Aggro:
+a. There is a system called Aggro, where the Survivor with the highest Aggro will be chased by all Tanks (usually there is only one Tank alive, but certain skills can spawn 2+)
+b. A survivors Aggro is a timed attribute, which Survivors will always lose 1 Aggro per second they aren't attacking the Tank.
+c. The default cvars dictate: The lowest possible Aggro to 0. The highest possible Aggro to 100.
+d. After all calculations, by default cvars, an incapped survivor's total aggro is halved, and they gain 0.3 Aggro per level (GunXP_RPG_GetClientLevel) which means getting mutated or getting up from incap will restore the aggro immediately as those values are not saved in the timed attribute.
+e. The survivor with the highest Aggro will lose 2 Aggro per second instead of 1, to allow faster switching between Survivors.
+10. When looping every player and/or zombie in relation to a player, ensure you account for the shadow realm:
 
 // For client entities (includes Survivors and Special Infected (and therefore Tanks))
 
@@ -310,6 +316,11 @@ native void RPG_Tanks_SetOverrideTank(int tankIndex);
 
 // For immunityType, see DAMAGE_IMMUNITY_*
 native int RPG_Tanks_IsDamageImmuneTo(int client, int immunityType);
+
+
+// Out of all tanks that were registered, the highest tier possible is this.
+// If no tanks are registered, returns TANK_TIER_UNTIERED.
+native int RPG_Tanks_GetMaxTier();
 
 // For damageImmunities, see DAMAGE_IMMUNITY_*
 // GunXP_GenerateHexColor(int r, int g, int b, int a)

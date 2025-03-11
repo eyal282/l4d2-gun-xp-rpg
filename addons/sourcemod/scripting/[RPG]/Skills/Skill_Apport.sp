@@ -164,7 +164,7 @@ void BuildUpVoteTierMenu()
 
 	VoteList = CalculateVotes();
 	
-	for(int tier=1;tier <= 3;tier++)
+	for(int tier=1;tier <= RPG_Tanks_GetMaxTier();tier++)
 	{
 		char sInfo[11], TempFormat[128];
 		IntToString(tier, sInfo, sizeof(sInfo));
@@ -219,7 +219,7 @@ void CheckVoteTierResult()
 
 	int winnerTier = TANK_TIER_UNTIERED;
 	
-	for(int tier=1;tier <= 3;tier++)
+	for(int tier=1;tier <= RPG_Tanks_GetMaxTier();tier++)
 	{
 		if(winnerTier == TANK_TIER_UNTIERED)
 			winnerTier = tier;

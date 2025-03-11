@@ -52,6 +52,13 @@ ConVar g_hEntriesUntiered;
 ConVar g_hEntriesTierOne;
 ConVar g_hEntriesTierTwo;
 ConVar g_hEntriesTierThree;
+ConVar g_hEntriesTierFour;
+ConVar g_hEntriesTierFive;
+
+ConVar g_hAggroPerLevel;
+ConVar g_hAggroCap;
+ConVar g_hAggroPerSecond;
+ConVar g_hAggroIncap;
 
 enum struct enActiveAbility
 {
@@ -104,7 +111,10 @@ GlobalForward g_fwOnRPGTankKilled;
 GlobalForward g_fwOnUntieredTankKilled;
 GlobalForward g_fwOnRPGTankCastActiveAbility;
 
+int g_iMaxTier;
 int g_iCurrentTank[MAXPLAYERS+1] = { TANK_TIER_UNTIERED, ... };
+int g_iAggroTarget[MAXPLAYERS+1] = { 0, ... };
+bool g_bGaveTankAggro[MAXPLAYERS+1];
 
 int g_iKillCombo;
 int g_iOverrideNextTier = TANK_TIER_UNKNOWN;
@@ -121,6 +131,7 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 {
 
 	CreateNative("RPG_Tanks_IsDamageImmuneTo", Native_IsDamageImmuneTo);
+	CreateNative("RPG_Tanks_GetMaxTier", Native_GetMaxTier);
 	CreateNative("RPG_Tanks_RegisterTank", Native_RegisterTank);
 	CreateNative("RPG_Tanks_RegisterActiveAbility", Native_RegisterActiveAbility);
 	CreateNative("RPG_Tanks_RegisterPassiveAbility", Native_RegisterPassiveAbility);
@@ -175,6 +186,11 @@ public int Native_IsDamageImmuneTo(Handle caller, int numParams)
 	return tank.damageImmunities & damageType;
 }
 
+public int Native_GetMaxTier(Handle caller, int numParams)
+{
+	return g_iMaxTier;
+}
+
 public int Native_RegisterTank(Handle caller, int numParams)
 {
 	enTank tank;
@@ -225,6 +241,8 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	tank.aPassiveAbilities = CreateArray(sizeof(enPassiveAbility));
 	tank.color = color;
 
+	if(tier > g_iMaxTier)
+		g_iMaxTier = tier;
 
 	if(foundIndex != -1)
 	{
@@ -379,7 +397,7 @@ public any Native_SetClientTank(Handle caller, int numParams)
 
 		Call_PushCell(prio);
 		Call_PushCell(client);
-		Call_PushCell(bApport);
+		Call_PushCellRef(bApport);
 
 		Call_Finish();
 	}
@@ -509,7 +527,7 @@ public any Native_SetOverrideTier(Handle caller, int numParams)
 {
 	int tier = GetNativeCell(1);
 
-	if(tier <= 3)
+	if(tier <= g_iMaxTier)
 	{
 		g_iOverrideNextTier = tier;
 	}
@@ -577,6 +595,11 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 	RegConsoleCmd("sm_tankhp", Command_TankHP);
 
+	g_hAggroCap = UC_CreateConVar("rpg_tanks_aggro_cap", "100.0", "Maximum amount of aggro that can be earned. Plugins that modify aggro will ignore this.");
+	g_hAggroPerSecond = UC_CreateConVar("rpg_tanks_aggro_per_second", "3.5", "Aggro gained per second you are damaging the tank. 1 Aggro is lost per second you are not damaging the tank.");
+	g_hAggroPerLevel = UC_CreateConVar("rpg_tanks_aggro_per_level", "0.2", "Aggro gained per Gun-XP Level. This aggro cannot be lost and is a bonus on top of whatever aggro you have.");
+	g_hAggroIncap = UC_CreateConVar("rpg_tanks_aggro_incap", "0.5", "Multiplies a survivor's aggro by this much when they are incapacitated");
+	
 	g_hInstantFinale = UC_CreateConVar("rpg_tanks_instant_finale", "1", "Finale is instant? WARNING! This can cheese the tanks due to low common infected");
 	g_hComboNeeded = UC_CreateConVar("rpg_tanks_finale_combo_needed", "3", "Amount of Tank kills needed to trigger a powerful tank event");
 
@@ -592,6 +615,8 @@ public void OnPluginStart()
 	g_hEntriesTierOne = UC_CreateConVar("rpg_tanks_entries_tier_one", "0", "Entries to spawn a tier one tank.");
 	g_hEntriesTierTwo = UC_CreateConVar("rpg_tanks_entries_tier_two", "0", "Entries to spawn a tier two tank.");
 	g_hEntriesTierThree = UC_CreateConVar("rpg_tanks_entries_tier_three", "0", "Entries to spawn a tier three tank.");
+	g_hEntriesTierFour = UC_CreateConVar("rpg_tanks_entries_tier_four", "0", "Entries to spawn a tier four tank.");
+	g_hEntriesTierFive = UC_CreateConVar("rpg_tanks_entries_tier_five", "0", "Entries to spawn a tier five tank (unlikely to be ever enabled).");
 	
 	#if defined _autoexecconfig_included
 	
@@ -622,6 +647,17 @@ public void OnPluginStart()
 
 public void OnMapStart()
 {
+	g_iMaxTier = TANK_TIER_UNTIERED;
+
+	for(int i=0;i < g_aTanks.Length;i++)
+	{
+		enTank tank;
+		g_aTanks.GetArray(i, tank);
+
+		if(tank.tier > g_iMaxTier)
+			g_iMaxTier = tank.tier;
+	}
+	
 	for(int i=0;i < sizeof(g_iCurrentTank);i++)
 	{
 		g_iCurrentTank[i] = TANK_TIER_UNTIERED;
@@ -633,6 +669,7 @@ public void OnMapStart()
 
 	PrecacheSound(IMMUNITY_SOUND);
 
+	// Also used for aggro system and finale convert system
 	TriggerTimer(CreateTimer(0.5, Timer_TanksOpenDoors, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT));
 }
 
@@ -857,6 +894,8 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 		else if(g_iCurrentTank[i] < 0)
 			continue;
 
+		CalculateTankAggro(i);
+
 		enTank tank;
 		g_aTanks.GetArray(g_iCurrentTank[i], tank);
 
@@ -919,6 +958,101 @@ public Action Timer_TanksOpenDoors(Handle hTimer)
 	return Plugin_Continue;
 }
 
+// Runs every 0.5 sec, so remember to account for actions that involve 1 second (to prevent duplication involving the fact it runs twice a second), especially given that aggro is a timed attribute in seconds.
+stock void CalculateTankAggro(int tank)
+{
+	int winner = 0;
+
+	float fWinnerAggro;
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		if(g_bGaveTankAggro[i])
+		{
+			// Divide by 2 because this is called twice a second.
+			float fAggroToGive = g_hAggroPerSecond.FloatValue / 2.0;
+
+			// Negate loss of 1 aggro per second if we gained aggro by damaging the Tank.
+			fAggroToGive += 0.5;
+			RPG_Perks_ApplyEntityTimedAttribute(i, "Tank Aggro", fAggroToGive, COLLISION_ADD, ATTRIBUTE_NEUTRAL);
+			RPG_Perks_ApplyEntityTimedAttribute(i, "Tank Aggro", g_hAggroCap.FloatValue, COLLISION_SET_IF_HIGHER, ATTRIBUTE_NEUTRAL);
+
+			g_bGaveTankAggro[i] = false;
+
+
+		}
+
+		if(RPG_Perks_IsEntityTimedAttribute(i, "Invincible"))
+		{
+			// If a Survivor is invincible, the Tank will not target them..
+			RPG_Perks_ApplyEntityTimedAttribute(i, "Tank Aggro", 0.0, COLLISION_SET, ATTRIBUTE_NEUTRAL);
+		}
+	}
+
+	for(int i=1;i <= MaxClients;i++)
+	{
+		if(!IsClientInGame(i))
+			continue;
+
+		else if(L4D_GetClientTeam(i) != L4DTeam_Survivor)
+			continue;
+
+		else if(!IsPlayerAlive(i))
+			continue;
+
+		if(winner == 0)
+		{
+			float fAggro;
+			RPG_Perks_IsEntityTimedAttribute(i, "Tank Aggro", fAggro);
+
+			fAggro += (g_hAggroPerLevel.FloatValue * GunXP_RPG_GetClientLevel(i));
+
+			if(L4D_IsPlayerIncapacitated(i))
+			{
+				fAggro *= g_hAggroIncap.FloatValue;
+			}
+
+			winner = i;
+			fWinnerAggro = fAggro;
+		}		
+		else
+		{
+			float fAggro;
+			RPG_Perks_IsEntityTimedAttribute(i, "Tank Aggro", fAggro);
+
+			fAggro += (g_hAggroPerLevel.FloatValue * GunXP_RPG_GetClientLevel(i));
+
+			if(L4D_IsPlayerIncapacitated(i))
+			{
+				fAggro *= g_hAggroIncap.FloatValue;
+			}
+
+			if(fAggro > fWinnerAggro)
+			{
+				winner = i;
+				fWinnerAggro = fAggro;
+			}
+
+		}
+	}
+
+	float fAggro;
+	RPG_Perks_IsEntityTimedAttribute(1, "Tank Aggro", fAggro);
+
+	g_iAggroTarget[tank] = winner;
+
+	// Lose aggro twice as fast if you are the tank's target.
+	RPG_Perks_ApplyEntityTimedAttribute(winner, "Tank Aggro", -0.5, COLLISION_ADD, ATTRIBUTE_NEUTRAL);
+}
 public void cvChange_Difficulty(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	Func_DifficultyChanged(newValue);
@@ -980,6 +1114,18 @@ public void GunXP_OnReloadRPGPlugins()
 
 }
 
+public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
+{
+	if(L4D2_GetPlayerZombieClass(specialInfected) != L4D2ZombieClass_Tank)
+		return Plugin_Continue;
+
+	else if(g_iAggroTarget[specialInfected] == 0)
+		return Plugin_Continue;
+
+	// PrintToChatAll("%N is targeting %N.", specialInfected, g_iAggroTarget[specialInfected]);
+	curTarget = g_iAggroTarget[specialInfected];
+	return Plugin_Changed;
+}
 public Action RPG_Perks_OnShouldClosetsRescue()
 {
 	if(L4D_IsMissionFinalMap(true) && L4D2_GetCurrentFinaleStage() == 18)
@@ -1069,12 +1215,15 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 	int initValue;
 	
-	int entries[4];
+	int entries[6];
 	
 	entries[0] = g_hEntriesUntiered.IntValue;
 	entries[1] = g_hEntriesTierOne.IntValue;
 	entries[2] = g_hEntriesTierTwo.IntValue;
 	entries[3] = g_hEntriesTierThree.IntValue;
+	entries[4] = g_hEntriesTierFour.IntValue;
+	entries[5] = g_hEntriesTierFive.IntValue;
+	
 
 	int totalEntries = 0;
 
@@ -1087,7 +1236,7 @@ public void RPG_Perks_OnGetZombieMaxHP(int priority, int entity, int &maxHP)
 
 	int winnerTier = 0;
 
-	for(int i=0;i <= 3;i++)
+	for(int i=0;i <= g_iMaxTier;i++)
 	{
 		if(RNG > initValue && RNG <= (initValue + entries[i]))
 		{
@@ -1372,6 +1521,12 @@ public void RPG_Perks_OnCalculateDamage(int priority, int victim, int attacker, 
 {   
 	if(priority == 10 && RPG_Perks_GetZombieType(victim) == ZombieType_Tank && g_iCurrentTank[victim] >= 0)
 	{
+		// Prevent gaining infinite aggro from using a molotov on the tank. DMG_DROWNRECOVER means the damage is done by a skill, which also shouldn't give aggro.
+		if(!(damagetype & DMG_BURN) && !(damagetype & DMG_DROWNRECOVER))
+		{
+			g_bGaveTankAggro[attacker] = true;
+		}
+
 		if(RPG_Perks_GetClientHealth(victim) > RPG_Perks_GetClientMaxHealth(victim) && L4D2_IsGenericCooperativeMode())
 		{
 			PrintToChatAll(" \x03%N\x01 had more HP than max HP. It will be converted to a normal Tank now.", victim);
@@ -1602,7 +1757,7 @@ public Action Command_TankInfo(int client, int args)
 		tiersThatExist[tank.tier] = true;
 	}	
 
-	for(int i=1;i <= 3;i++)
+	for(int i=1;i <= g_iMaxTier;i++)
 	{
 		if(tiersThatExist[i])
 		{
