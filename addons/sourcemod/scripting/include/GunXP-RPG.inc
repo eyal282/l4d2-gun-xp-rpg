@@ -124,6 +124,10 @@ for(int i=0;i < numClientsRealm;i++)
 #define DAMAGE_IMMUNITY_BULLETS (1 << 2)
 #define DAMAGE_IMMUNITY_EXPLOSIVES (1 << 3)
 
+#define NAVREF_ERROR_NONE 0
+#define NAVREF_ERROR_NOTFOUND 1
+#define NAVREF_ERROR_DISAMBIGUOUS 2
+
 enum
 {
 	ATTRIBUTE_NEUTRAL,
@@ -176,6 +180,14 @@ char ColorEquivalents[][] =
 {
 	"\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x10", "\x0C", "\x0E"
 };
+
+native int GunXP_RPG_RegisterNavigationRef(char classification[16], char name[64], char description[512], int serial = -1);
+
+// naverror is NAVREF_ERROR_*
+// Everything is copyback except for lookup_value.
+native bool GunXP_RPG_IsValidNavigationRef(const char lookup_value[64], int &naverror=0, int &navSerial=0, int &serial=0, char classification[16]="", char name[64]="", char description[512]="");
+
+native bool GunXP_RPG_TriggerNavigationRef(client, char lookup_value[64]);
 
 native void GunXP_RPG_EmitQuestCompletedSound(int client);
 
@@ -471,6 +483,9 @@ forward void RPG_Tanks_OnUntieredTankKilled(int victim, int attacker);
 // abilityIndex is the index registered with RPG_Tanks_RegisterActiveAbility
 // Note: Verify the tank is the same index as yours, because two activated abilities by different tanks can have the same index.
 forward void RPG_Tanks_OnRPGTankCastActiveAbility(int client, int abilityIndex);
+
+// The navigation system is meant to display information about mechanics based on name or description, so if you trigger a navigation ref of a perk tree, it'll open its menu showing the description (and obviously you can immediately buy it)
+forward void GunXP_OnTriggerNavigationRef(int client, int navSerial, int serial, char[] classification, char[] name, char[] description);
 
 // return Plugin_Handled and edit sError to prevent reloading.
 forward Action GunXP_RPGShop_OnTryReloadRPGPlugins(char sError[256]);

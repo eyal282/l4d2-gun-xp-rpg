@@ -198,9 +198,22 @@ enum struct enPerkTree
 	int perkIndex;
 }
 
+enum struct enNavigationRef
+{
+	// What kind of "thing" this is? Example: (type of) Tank, (type of) Mutant SI, Perk Tree, Skill, Buff, Setting, etc...
+	char classification[16];
+	// Name is compared before description. Two navRefs should not have the same name. If two navRefs trigger a match, one for name and one for description, disambiguation will not occur, and the name supercedes the description.
+	char name[64];
+	char description[512];
+
+	// If you want to use a serial that is not the navigation itself, use this.
+	int serial;
+}
+
 //ArrayList g_aUnlockItems;
 ArrayList g_aSkills;
 ArrayList g_aPerkTrees;
+ArrayList g_aNavigationRefs;
 
 #define MAX_ITEMS 128
 
@@ -212,6 +225,7 @@ int g_iCommonKills[MAXPLAYERS+1];
 int g_iCommonHeadshots[MAXPLAYERS+1];
 
 //GlobalForward g_fwOnUnlockShopBuy;
+GlobalForward g_fwOnTriggerNavigationRef;
 GlobalForward g_fwOnGetPlayerIronman;
 GlobalForward g_fwOnReloadRPGPlugins;
 GlobalForward g_fwOnPlayerLoaded;
@@ -511,7 +525,21 @@ public void L4D_OnFirstSurvivorLeftSafeArea_Post(int client)
 	}
 }
 
-
+public void GunXP_OnTriggerNavigationRef(int client, int navSerial, int serial, char[] classification, char[] name, char[] description)
+{
+	if(StrEqual(classification, "Perk Tree"))
+	{
+		ShowPerkTreeInfo(client, serial);
+	}
+	else if(StrEqual(classification, "Skill"))
+	{
+		ShowSkillInfo(client, serial);
+	}
+	else if(StrEqual(classification, "Buff"))
+	{
+		ShowBuffInfo(client, serial);
+	}
+}
 public void RPG_Tanks_OnRPGTankKilled(int victim, int attacker, int XPReward)
 {
 	if(XPReward < 0)
@@ -836,6 +864,11 @@ public APLRes AskPluginLoad2(Handle myself, bool bLate, char[] error, int length
 {	
 	CreateNative("GunXP_RPG_EmitQuestCompletedSound", Native_EmitQuestCompletedSound);
 
+	CreateNative("GunXP_RPG_RegisterNavigationRef", Native_RegisterNavigationRef);
+	CreateNative("GunXP_RPG_IsValidNavigationRef", Native_IsValidNavigationRef);
+//	CreateNative("GunXP_RPG_PopulateMenuNavigationRef", Native_PopulateMenuNavigationRef);
+	CreateNative("GunXP_RPG_TriggerNavigationRef", Native_TriggerNavigationRef);
+
 	CreateNative("GunXP_RPG_IsClientLoaded", Native_IsClientLoaded);
 	CreateNative("GunXP_RPG_GetXPForLevel", Native_GetXPForLevel);
 	CreateNative("GunXP_RPG_GetClientLevel", Native_GetClientLevel);
@@ -877,6 +910,245 @@ public int Native_EmitQuestCompletedSound(Handle caller, int numParams)
 	EmitQuestCompletedSound(client);
 
 	return 0;
+}
+
+
+// True is valid, false if not found or disambiguous
+public int Native_RegisterNavigationRef(Handle caller, int numParams)
+{
+	if(g_aNavigationRefs == null)
+	{
+		g_aNavigationRefs = new ArrayList(sizeof(enNavigationRef));
+	}
+
+	enNavigationRef navRef;
+
+	GetNativeString(1, navRef.classification, sizeof(enNavigationRef::classification));
+	GetNativeString(2, navRef.name, sizeof(enNavigationRef::name));
+	GetNativeString(3, navRef.description, sizeof(enNavigationRef::description));
+
+	navRef.serial = GetNativeCell(4);
+
+	for(int i=0;i < g_aNavigationRefs.Length;i++)
+	{
+		enNavigationRef iNavRef;
+		g_aNavigationRefs.GetArray(i, iNavRef);
+		
+		if(StrEqual(navRef.name, iNavRef.name))
+		{
+			g_aNavigationRefs.SetArray(i, navRef);
+
+			return i;
+		}
+	}
+
+	int slot = g_aNavigationRefs.PushArray(navRef);
+
+	g_aNavigationRefs.SetArray(slot, navRef);
+	
+	return slot;
+}
+
+// True is valid, false if not found or disambiguous
+public int Native_IsValidNavigationRef(Handle caller, int numParams)
+{
+	if(g_aNavigationRefs == null)
+	{
+		g_aNavigationRefs = new ArrayList(sizeof(enNavigationRef));
+		SetNativeCellRef(2, NAVREF_ERROR_NOTFOUND);
+		return false;
+	}
+
+	char lookup_value[64];
+	GetNativeString(1, lookup_value, sizeof(lookup_value));
+
+	int error, navSerial, serial;
+	char classification[16], name[64], description[512];
+	if(!CalculateNavigationRef(lookup_value, error, navSerial, serial, classification, name, description))
+	{
+		SetNativeCellRef(2, error);
+		return false;
+	}
+
+	SetNativeCellRef(2, error);
+	SetNativeCellRef(3, navSerial);
+	SetNativeCellRef(4, serial);
+	SetNativeString(5, classification, sizeof(enNavigationRef::classification));
+	SetNativeString(6, name, sizeof(enNavigationRef::name));
+	SetNativeString(7, description, sizeof(enNavigationRef::description));
+
+	return true;
+
+
+}
+
+// True is triggered, false if not found or disambiguous (use IsValidNavigationRef to check if not found or disambiguous using NAVREF_ERROR_*).
+public int Native_TriggerNavigationRef(Handle caller, int numParams)
+{
+	if(g_aNavigationRefs == null)
+	{
+		g_aNavigationRefs = new ArrayList(sizeof(enNavigationRef));
+		return false;
+	}
+
+	int client = GetNativeCell(1);
+
+	char lookup_value[64];
+	GetNativeString(2, lookup_value, sizeof(lookup_value));
+
+	int error, navSerial, serial;
+	char classification[16], name[64], description[512];
+	if(!CalculateNavigationRef(lookup_value, error, navSerial, serial, classification, name, description))
+	{
+		return false;
+	}
+
+	Call_StartForward(g_fwOnTriggerNavigationRef);
+
+	Call_PushCell(client);
+	Call_PushCell(navSerial);
+	Call_PushCell(serial);
+	Call_PushString(classification);
+	Call_PushString(name);
+	Call_PushString(description);
+
+	Call_Finish();
+
+	return true;
+}
+
+stock bool CalculateNavigationRef(const char[] lookup_value, int &error, int &navSerial, int &serial, char[] classification, char[] name, char[] description)
+{
+	int found = -1;
+
+	for(int i=0;i < g_aNavigationRefs.Length;i++)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(i, navRef);
+
+		if(StrEqual(navRef.name, lookup_value, false))
+		{
+			if(found != -1)
+			{
+				error = NAVREF_ERROR_DISAMBIGUOUS;
+				return false;
+			}
+			found = i;
+		}
+	}
+
+	if(found != -1)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(found, navRef);
+		
+		error = NAVREF_ERROR_NONE;
+		navSerial = found;
+		serial = navRef.serial;
+		strcopy(classification, sizeof(enNavigationRef::classification), navRef.classification);
+		strcopy(name, sizeof(enNavigationRef::name), navRef.name);
+		strcopy(description, sizeof(enNavigationRef::description), navRef.description);
+
+		return true;
+	}
+
+
+	for(int i=0;i < g_aNavigationRefs.Length;i++)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(i, navRef);
+
+		if(StrEqual(navRef.description, lookup_value, false))
+		{
+			if(found != -1)
+			{
+				error = NAVREF_ERROR_DISAMBIGUOUS;
+				return false;
+			}
+			found = i;
+		}
+	}
+
+	if(found != -1)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(found, navRef);
+		
+		error = NAVREF_ERROR_NONE;
+		navSerial = found;
+		serial = navRef.serial;
+		strcopy(classification, sizeof(enNavigationRef::classification), navRef.classification);
+		strcopy(name, sizeof(enNavigationRef::name), navRef.name);
+		strcopy(description, sizeof(enNavigationRef::description), navRef.description);
+
+		return true;
+	}
+
+	for(int i=0;i < g_aNavigationRefs.Length;i++)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(i, navRef);
+
+		if(StrContains(navRef.name, lookup_value, false) != -1)
+		{
+			if(found != -1)
+			{
+				error = NAVREF_ERROR_DISAMBIGUOUS;
+				return false;
+			}
+			found = i;
+		}
+	}
+
+	if(found != -1)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(found, navRef);
+		
+		error = NAVREF_ERROR_NONE;
+		navSerial = found;
+		serial = navRef.serial;
+		strcopy(classification, sizeof(enNavigationRef::classification), navRef.classification);
+		strcopy(name, sizeof(enNavigationRef::name), navRef.name);
+		strcopy(description, sizeof(enNavigationRef::description), navRef.description);
+
+		return true;
+	}
+
+
+	for(int i=0;i < g_aNavigationRefs.Length;i++)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(i, navRef);
+
+		if(StrContains(navRef.description, lookup_value, false) != -1)
+		{
+			if(found != -1)
+			{
+				error = NAVREF_ERROR_DISAMBIGUOUS;
+				return false;
+			}
+			found = i;
+		}
+	}
+
+	if(found != -1)
+	{
+		enNavigationRef navRef;
+		g_aNavigationRefs.GetArray(found, navRef);
+		
+		error = NAVREF_ERROR_NONE;
+		navSerial = found;
+		serial = navRef.serial;
+		strcopy(classification, sizeof(enNavigationRef::classification), navRef.classification);
+		strcopy(name, sizeof(enNavigationRef::name), navRef.name);
+		strcopy(description, sizeof(enNavigationRef::description), navRef.description);
+
+		return true;
+	}
+
+	error = NAVREF_ERROR_NOTFOUND;
+	return false;
 }
 
 public int Native_IsClientLoaded(Handle caller, int numParams)
@@ -1028,6 +1300,8 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 
 			g_aPerkTrees.SetArray(i, perkTree);
 
+			GunXP_RPG_RegisterNavigationRef("Perk Tree", name, globalDescription, i);
+
 			return i;
 		}
 	}
@@ -1037,6 +1311,8 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 	perkTree.perkIndex = perkIndex;
 
 	g_aPerkTrees.SetArray(perkIndex, perkTree);
+
+	GunXP_RPG_RegisterNavigationRef("Perk Tree", name, globalDescription, perkIndex);
 	
 	return perkIndex;
 }
@@ -1166,6 +1442,8 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 			skill.skillIndex = i;
 			g_aSkills.SetArray(i, skill);
 
+			GunXP_RPG_RegisterNavigationRef("Skill", name, description, i);
+
 			return i;
 		}
 	}
@@ -1175,6 +1453,8 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 	skill.skillIndex = skillIndex;
 
 	g_aSkills.SetArray(skillIndex, skill);
+
+	GunXP_RPG_RegisterNavigationRef("Skill", name, description, skillIndex);
 
 	return skillIndex;
 }
@@ -1305,6 +1585,8 @@ public int Native_RegisterBuff(Handle caller, int numParams)
 			skill.skillIndex = i;
 			g_aSkills.SetArray(i, skill);
 
+			GunXP_RPG_RegisterNavigationRef("Buff", name, description, i);
+
 			return i;
 		}
 	}
@@ -1314,6 +1596,8 @@ public int Native_RegisterBuff(Handle caller, int numParams)
 	skill.skillIndex = skillIndex;
 
 	g_aSkills.SetArray(skillIndex, skill);
+
+	GunXP_RPG_RegisterNavigationRef("Buff", name, description, skillIndex);
 
 	return skillIndex;
 }
@@ -1486,6 +1770,7 @@ public void OnPluginStart()
 {
 	//g_fwOnUnlockShopBuy = CreateGlobalForward("GunXP_UnlockShop_OnProductBuy", ET_Ignore, Param_Cell, Param_Cell);
 
+	g_fwOnTriggerNavigationRef = CreateGlobalForward("GunXP_OnTriggerNavigationRef", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_String, Param_String, Param_String);
 	g_fwOnGetPlayerIronman = CreateGlobalForward("GunXP_OnGetPlayerIronman", ET_Ignore, Param_Cell, Param_Cell, Param_CellByRef);
 	g_fwOnReloadRPGPlugins = CreateGlobalForward("GunXP_OnReloadRPGPlugins", ET_Ignore);
 	g_fwOnPlayerLoaded = CreateGlobalForward("GunXP_OnPlayerLoaded", ET_Ignore, Param_Cell);
@@ -1501,6 +1786,9 @@ public void OnPluginStart()
 
 	if(g_aPerkTrees == null)
 		g_aPerkTrees = CreateArray(sizeof(enPerkTree));
+	
+	if(g_aNavigationRefs == null)
+		g_aNavigationRefs = CreateArray(sizeof(enNavigationRef));
 
 	#if defined _autoexecconfig_included
 	
@@ -1516,6 +1804,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_survival", Command_Survival);
 	RegConsoleCmd("sm_coop", Command_Coop);
 
+	RegConsoleCmd("sm_findtalent", Command_FindTalent, "sm_findtalent <name> - Finds a Perk Tree or Skill by name");
 	RegConsoleCmd("sm_br", Command_BulletRelease, "sm_br [#userid|name] - Checks aimbot level info");
 	RegConsoleCmd("sm_xp", Command_XP);
 	RegConsoleCmd("sm_guns", Command_Guns);
@@ -4062,7 +4351,6 @@ void SpawnTankMenu(int client, int target_tier)
 			IntToString(index, sInfo, sizeof(sInfo));
 
 			FormatEx(TempFormat, sizeof(TempFormat), "%s", name);
-			PrintToChat(client, "%i", index);
 			AddMenuItem(hMenu, sInfo, TempFormat);
 		}
 
@@ -4131,6 +4419,44 @@ public void sm_vote_OnVoteFinished_Post(int client, int VotesFor, int VotesAgain
 		SetConVarString(hcv_Gamemode, "coop");
 		ServerCommand("sm_map c1m1_hotel");
 	}
+}
+
+public Action Command_FindTalent(int client, int args)
+{
+	if(args == 0)
+	{
+		ReplyToCommand(client, "Usage: sm_findtalent <talent>");
+		return Plugin_Handled;
+	}
+
+	char lookup_value[64];
+
+	GetCmdArgString(lookup_value, sizeof(lookup_value));
+
+	int error, serial;
+	char classification[16];
+	if(!GunXP_RPG_IsValidNavigationRef(lookup_value, error, _, serial, classification))
+	{
+		if(error == NAVREF_ERROR_DISAMBIGUOUS)
+		{
+			ReplyToCommand(client, "Ambiguous talent name. Please be more specific.");
+			return Plugin_Handled;
+		}
+		else if(error == NAVREF_ERROR_NOTFOUND)
+		{
+			ReplyToCommand(client, "Talent not found.");
+			return Plugin_Handled;
+		}
+		else if(!StrEqual(classification, "Perk Tree") && !StrEqual(classification, "Skill") && !StrEqual(classification, "Buff"))
+		{
+			ReplyToCommand(client, "Found a %s instead of a Talent, please be more specific", classification);
+			return Plugin_Handled;
+		}
+	}
+
+	GunXP_RPG_TriggerNavigationRef(client, lookup_value);
+
+	return Plugin_Handled;
 }
 public Action Command_BulletRelease(int client, int args)
 {
