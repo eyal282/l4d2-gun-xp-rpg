@@ -256,10 +256,16 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	{
 		g_aTanks.SetArray(foundIndex, tank);
 
+		GunXP_RPG_RegisterNavigationRef("Tank", name, description, foundIndex);
+
 		return foundIndex;
 	}
 
-	return g_aTanks.PushArray(tank);
+	foundIndex = g_aTanks.PushArray(tank);
+
+	GunXP_RPG_RegisterNavigationRef("Tank", name, description, foundIndex);
+
+	return foundIndex;
 }
 
 public int Native_RegisterActiveAbility(Handle caller, int numParams)
@@ -296,12 +302,16 @@ public int Native_RegisterActiveAbility(Handle caller, int numParams)
 	activeAbility.minCooldown = minCooldown;
 	activeAbility.maxCooldown = maxCooldown;
 
+	// We register tankIndex, not abilityIndex.
+	GunXP_RPG_RegisterNavigationRef("Active Ability", name, description, pos);
+
 	if(foundIndex != -1)
 	{
 		tank.aActiveAbilities.SetArray(foundIndex, activeAbility);
 
 		return foundIndex;
 	}
+
 	return tank.aActiveAbilities.PushArray(activeAbility);
 }
 
@@ -322,9 +332,6 @@ public int Native_RegisterPassiveAbility(Handle caller, int numParams)
 	Format(sInfo, sizeof(sInfo), "[PASSIVE] %s", name);
 	int foundIndex = AbilityNameToAbilityIndex(sInfo, pos, true);
 
-	if(foundIndex != -1)
-		return foundIndex;
-
 	char description[512];
 	GetNativeString(3, description, sizeof(description));
 
@@ -334,6 +341,17 @@ public int Native_RegisterPassiveAbility(Handle caller, int numParams)
 
 	passiveAbility.name = name;
 	passiveAbility.description = description;
+
+
+	// We register tankIndex, not abilityIndex.
+	GunXP_RPG_RegisterNavigationRef("Passive Ability", name, description, pos);
+
+	if(foundIndex != -1)
+	{
+		tank.aPassiveAbilities.SetArray(foundIndex, passiveAbility);
+
+		return foundIndex;
+	}
 
 	return tank.aPassiveAbilities.PushArray(passiveAbility);
 }
@@ -600,6 +618,7 @@ public void OnPluginStart()
 	
 	#endif
 
+	RegConsoleCmd("sm_findtank", Command_FindTank, "sm_findtank <value> - Finds a Tank, Active Ability, or Passive Ability by name.");
 	RegConsoleCmd("sm_tankinfo", Command_TankInfo);
 	RegConsoleCmd("sm_tankhp", Command_TankHP);
 
@@ -1124,6 +1143,26 @@ public void GunXP_OnReloadRPGPlugins()
 	GunXP_ReloadPlugin();
 	#endif
 
+}
+
+public void GunXP_OnTriggerNavigationRef(int client, int navSerial, int serial, char[] classification, char[] name, char[] description)
+{
+	if(StrEqual(classification, "Tank"))
+	{
+		ShowTargetTankInfo(client, serial);
+	}
+	char sInfo[64];
+
+	if(StrEqual(classification, "Activated Ability"))
+	{
+		FormatEx(sInfo, sizeof(sInfo), "[ACTIVATED] %s", name);
+		ShowTargetAbilityInfo(client, serial, sInfo);
+	}
+	if(StrEqual(classification, "Passive Ability"))
+	{
+		FormatEx(sInfo, sizeof(sInfo), "[PASSIVE] %s", name);
+		ShowTargetAbilityInfo(client, serial, sInfo);
+	}
 }
 
 public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
@@ -1753,6 +1792,48 @@ public Action Command_TankHP(int client, int args)
 	}
 	return Plugin_Handled;
 }
+
+public Action Command_FindTank(int client, int args)
+{
+	if(args == 0)
+	{
+		ReplyToCommand(client, "Usage: sm_findtank <value>");
+		return Plugin_Handled;
+	}
+
+	char lookup_value[64];
+
+	GetCmdArgString(lookup_value, sizeof(lookup_value));
+
+	int error, serial;
+	char classification[16];
+	ArrayList include;
+	include = new ArrayList(64);
+
+	include.PushString("Tank");
+	include.PushString("Activated Ability");
+	include.PushString("Passive Ability");
+
+	if(!GunXP_RPG_IsValidNavigationRef(lookup_value, error, _, serial, classification, _, _, _, include))
+	{
+		if(error == NAVREF_ERROR_DISAMBIGUOUS)
+		{
+			ReplyToCommand(client, "Ambiguous lookup value. Please be more specific.");
+			return Plugin_Handled;
+		}
+		else if(error == NAVREF_ERROR_NOTFOUND)
+		{
+			ReplyToCommand(client, "Lookup value cannot be found.");
+			return Plugin_Handled;
+		}
+	}
+
+	GunXP_RPG_TriggerNavigationRef(client, lookup_value, _, include);
+
+	delete include;
+
+	return Plugin_Handled;
+}
 public Action Command_TankInfo(int client, int args)
 {
 	Handle hMenu = CreateMenu(TankInfo_MenuHandler);
@@ -1965,6 +2046,8 @@ public Action ShowTargetTankInfo(int client, int tankIndex)
 
 	FormatEx(TempFormat, sizeof(TempFormat), "%s Tank | Choose an Ability for info. If it has a radius, you'll see it if no Tank is alive\nMax HP : %i | Entries : %i\nAverage XP : %i | Immune to : %s\n%s", tank.name, tank.maxHP, tank.entries, (tank.XPRewardMin + tank.XPRewardMax) / 2, immunityFormat, tank.description);
 	SetMenuTitle(hMenu, TempFormat);
+
+	SetMenuPagination(hMenu, 6);
 
 	SetMenuExitBackButton(hMenu, true);
 

@@ -184,10 +184,12 @@ char ColorEquivalents[][] =
 native int GunXP_RPG_RegisterNavigationRef(char classification[16], char name[64], char description[512], int serial = -1);
 
 // naverror is NAVREF_ERROR_*
-// Everything is copyback except for lookup_value.
-native bool GunXP_RPG_IsValidNavigationRef(const char lookup_value[64], int &naverror=0, int &navSerial=0, int &serial=0, char classification[16]="", char name[64]="", char description[512]="");
+// Everything is copyback except for lookup_value, exclude, and include
 
-native bool GunXP_RPG_TriggerNavigationRef(client, char lookup_value[64]);
+// If both "include" and "exclude" are used, the lookup value must exist in include and must also not exist in exclude.
+native bool GunXP_RPG_IsValidNavigationRef(const char lookup_value[64], int &naverror=0, int &navSerial=0, int &serial=0, char classification[16]="", char name[64]="", char description[512]="", ArrayList exclude = null, ArrayList include = null);
+
+native bool GunXP_RPG_TriggerNavigationRef(client, char lookup_value[64], ArrayList exclude = null, ArrayList include = null);
 
 native void GunXP_RPG_EmitQuestCompletedSound(int client);
 

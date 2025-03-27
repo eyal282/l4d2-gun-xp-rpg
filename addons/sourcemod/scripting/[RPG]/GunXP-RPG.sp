@@ -934,7 +934,7 @@ public int Native_RegisterNavigationRef(Handle caller, int numParams)
 		enNavigationRef iNavRef;
 		g_aNavigationRefs.GetArray(i, iNavRef);
 		
-		if(StrEqual(navRef.name, iNavRef.name))
+		if(StrEqual(navRef.classification, iNavRef.classification) && StrEqual(navRef.name, iNavRef.name) && StrEqual(navRef.description, iNavRef.description))
 		{
 			g_aNavigationRefs.SetArray(i, navRef);
 
@@ -962,9 +962,13 @@ public int Native_IsValidNavigationRef(Handle caller, int numParams)
 	char lookup_value[64];
 	GetNativeString(1, lookup_value, sizeof(lookup_value));
 
+	ArrayList exclude, include;
+	exclude = GetNativeCell(8);
+	include = GetNativeCell(9);
+
 	int error, navSerial, serial;
 	char classification[16], name[64], description[512];
-	if(!CalculateNavigationRef(lookup_value, error, navSerial, serial, classification, name, description))
+	if(!CalculateNavigationRef(lookup_value, error, navSerial, serial, classification, name, description, exclude, include))
 	{
 		SetNativeCellRef(2, error);
 		return false;
@@ -996,9 +1000,13 @@ public int Native_TriggerNavigationRef(Handle caller, int numParams)
 	char lookup_value[64];
 	GetNativeString(2, lookup_value, sizeof(lookup_value));
 
+	ArrayList exclude, include;
+	exclude = GetNativeCell(3);
+	include = GetNativeCell(4);
+
 	int error, navSerial, serial;
 	char classification[16], name[64], description[512];
-	if(!CalculateNavigationRef(lookup_value, error, navSerial, serial, classification, name, description))
+	if(!CalculateNavigationRef(lookup_value, error, navSerial, serial, classification, name, description, exclude, include))
 	{
 		return false;
 	}
@@ -1017,7 +1025,7 @@ public int Native_TriggerNavigationRef(Handle caller, int numParams)
 	return true;
 }
 
-stock bool CalculateNavigationRef(const char[] lookup_value, int &error, int &navSerial, int &serial, char[] classification, char[] name, char[] description)
+stock bool CalculateNavigationRef(const char[] lookup_value, int &error, int &navSerial, int &serial, char[] classification, char[] name, char[] description, ArrayList exclude, ArrayList include)
 {
 	int found = -1;
 
@@ -1025,6 +1033,12 @@ stock bool CalculateNavigationRef(const char[] lookup_value, int &error, int &na
 	{
 		enNavigationRef navRef;
 		g_aNavigationRefs.GetArray(i, navRef);
+
+		if(exclude != null && (exclude.FindString(navRef.classification) != -1 || exclude.FindString(navRef.name) != -1 || exclude.FindString(navRef.description) != -1))
+			continue;
+
+		else if(include != null && include.FindString(navRef.classification) == -1 && include.FindString(navRef.name) == -1 && include.FindString(navRef.description) == -1)
+			continue;
 
 		if(StrEqual(navRef.name, lookup_value, false))
 		{
@@ -1058,6 +1072,12 @@ stock bool CalculateNavigationRef(const char[] lookup_value, int &error, int &na
 		enNavigationRef navRef;
 		g_aNavigationRefs.GetArray(i, navRef);
 
+		if(exclude != null && (exclude.FindString(navRef.classification) != -1 || exclude.FindString(navRef.name) != -1 || exclude.FindString(navRef.description) != -1))
+			continue;
+
+		else if(include != null && include.FindString(navRef.classification) == -1 && include.FindString(navRef.name) == -1 && include.FindString(navRef.description) == -1)
+			continue;
+
 		if(StrEqual(navRef.description, lookup_value, false))
 		{
 			if(found != -1)
@@ -1089,6 +1109,12 @@ stock bool CalculateNavigationRef(const char[] lookup_value, int &error, int &na
 		enNavigationRef navRef;
 		g_aNavigationRefs.GetArray(i, navRef);
 
+		if(exclude != null && (exclude.FindString(navRef.classification) != -1 || exclude.FindString(navRef.name) != -1 || exclude.FindString(navRef.description) != -1))
+			continue;
+
+		else if(include != null && include.FindString(navRef.classification) == -1 && include.FindString(navRef.name) == -1 && include.FindString(navRef.description) == -1)
+			continue;
+			
 		if(StrContains(navRef.name, lookup_value, false) != -1)
 		{
 			if(found != -1)
@@ -1121,6 +1147,12 @@ stock bool CalculateNavigationRef(const char[] lookup_value, int &error, int &na
 		enNavigationRef navRef;
 		g_aNavigationRefs.GetArray(i, navRef);
 
+		if(exclude != null && (exclude.FindString(navRef.classification) != -1 || exclude.FindString(navRef.name) != -1 || exclude.FindString(navRef.description) != -1))
+			continue;
+
+		else if(include != null && include.FindString(navRef.classification) == -1 && include.FindString(navRef.name) == -1 && include.FindString(navRef.description) == -1)
+			continue;
+			
 		if(StrContains(navRef.description, lookup_value, false) != -1)
 		{
 			if(found != -1)
@@ -1803,6 +1835,12 @@ public void OnPluginStart()
 
 	RegConsoleCmd("sm_survival", Command_Survival);
 	RegConsoleCmd("sm_coop", Command_Coop);
+
+	if(!CommandExists("sm_find"))
+		RegConsoleCmd("sm_find", Command_FindRPG, "sm_find <name> - Find anything within the RPG's UI");
+
+	else
+		RegConsoleCmd("sm_findrpg", Command_FindRPG, "sm_findrpg <name> - Find anything within the RPG's UI");
 
 	RegConsoleCmd("sm_findtalent", Command_FindTalent, "sm_findtalent <name> - Finds a Perk Tree or Skill by name");
 	RegConsoleCmd("sm_br", Command_BulletRelease, "sm_br [#userid|name] - Checks aimbot level info");
@@ -2747,6 +2785,14 @@ stock void ShowCommandsMenu(int client, int item=0)
 	AddMenuItem(hMenu, "sm_rpg", "!rpg [#userid|name]");
 	AddMenuItem(hMenu, "sm_skill", "!skill [#userid|name]");
 	AddMenuItem(hMenu, "sm_perk", "!perk [#userid|name]");
+
+	if(CommandExists("sm_findrpg"))
+		AddMenuItem(hMenu, "sm_findrpg", "!findrpg <name>");
+	
+	else
+		AddMenuItem(hMenu, "sm_find", "!find <name>");
+
+	AddMenuItem(hMenu, "sm_findtalent", "!findtalent <talent>");		
 	AddMenuItem(hMenu, "sm_tankhp", "!tankhp");
 	AddMenuItem(hMenu, "sm_tankinfo", "!tankinfo");
 	AddMenuItem(hMenu, "sm_buy", "!buy <alias> [#userid|name]");
@@ -4435,7 +4481,14 @@ public Action Command_FindTalent(int client, int args)
 
 	int error, serial;
 	char classification[16];
-	if(!GunXP_RPG_IsValidNavigationRef(lookup_value, error, _, serial, classification))
+	ArrayList include;
+	include = new ArrayList(64);
+
+	include.PushString("Perk Tree");
+	include.PushString("Skill");
+	include.PushString("Buff");
+
+	if(!GunXP_RPG_IsValidNavigationRef(lookup_value, error, _, serial, classification, _, _, _, include))
 	{
 		if(error == NAVREF_ERROR_DISAMBIGUOUS)
 		{
@@ -4447,9 +4500,42 @@ public Action Command_FindTalent(int client, int args)
 			ReplyToCommand(client, "Talent not found.");
 			return Plugin_Handled;
 		}
-		else if(!StrEqual(classification, "Perk Tree") && !StrEqual(classification, "Skill") && !StrEqual(classification, "Buff"))
+	}
+
+	GunXP_RPG_TriggerNavigationRef(client, lookup_value, _, include);
+
+	delete include;
+
+	return Plugin_Handled;
+}
+
+public Action Command_FindRPG(int client, int args)
+{
+	if(args == 0)
+	{
+		char command[16];
+		GetCmdArg(0, command, sizeof(command));
+		ReplyToCommand(client, "Usage: %s <name>", command);
+		return Plugin_Handled;
+	}
+
+	char lookup_value[64];
+
+	GetCmdArgString(lookup_value, sizeof(lookup_value));
+
+	int error, serial;
+	char classification[16];
+
+	if(!GunXP_RPG_IsValidNavigationRef(lookup_value, error, _, serial, classification))
+	{
+		if(error == NAVREF_ERROR_DISAMBIGUOUS)
 		{
-			ReplyToCommand(client, "Found a %s instead of a Talent, please be more specific", classification);
+			ReplyToCommand(client, "Ambiguous lookup value. Please be more specific.");
+			return Plugin_Handled;
+		}
+		else if(error == NAVREF_ERROR_NOTFOUND)
+		{
+			ReplyToCommand(client, "Value not found.");
 			return Plugin_Handled;
 		}
 	}
