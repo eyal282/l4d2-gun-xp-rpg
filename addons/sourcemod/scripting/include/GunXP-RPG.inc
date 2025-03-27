@@ -698,7 +698,7 @@ stock ZombieType RPG_Perks_GetZombieType(int entity, bool bAllowDead = false)
 {
 	if(IsPlayer(entity))
 	{
-		if(!IsPlayerAlive(entity) && !bAllowDead)
+		if(!IsClientInGame(entity) && IsPlayerAlive(entity) && !bAllowDead)
 			return ZombieType_Invalid;
 
 		switch(L4D_GetClientTeam(entity))
