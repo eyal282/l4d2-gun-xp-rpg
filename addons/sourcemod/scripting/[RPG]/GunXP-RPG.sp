@@ -916,11 +916,6 @@ public int Native_EmitQuestCompletedSound(Handle caller, int numParams)
 // True is valid, false if not found or disambiguous
 public int Native_RegisterNavigationRef(Handle caller, int numParams)
 {
-	if(g_aNavigationRefs == null)
-	{
-		g_aNavigationRefs = new ArrayList(sizeof(enNavigationRef));
-	}
-
 	enNavigationRef navRef;
 
 	GetNativeString(1, navRef.classification, sizeof(enNavigationRef::classification));
@@ -929,6 +924,16 @@ public int Native_RegisterNavigationRef(Handle caller, int numParams)
 
 	navRef.serial = GetNativeCell(4);
 
+	return RegisterNavigationRef(navRef);
+}
+
+public int RegisterNavigationRef(enNavigationRef navRef)
+{
+	if(g_aNavigationRefs == null)
+	{
+		g_aNavigationRefs = new ArrayList(sizeof(enNavigationRef));
+	}
+	
 	for(int i=0;i < g_aNavigationRefs.Length;i++)
 	{
 		enNavigationRef iNavRef;
@@ -1332,7 +1337,14 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 
 			g_aPerkTrees.SetArray(i, perkTree);
 
-			GunXP_RPG_RegisterNavigationRef("Perk Tree", name, globalDescription, i);
+			enNavigationRef navRef;
+
+			navRef.classification = "Perk Tree";
+			navRef.name = name;
+			navRef.description = globalDescription;
+			navRef.serial = i;
+
+			RegisterNavigationRef(navRef);
 
 			return i;
 		}
@@ -1344,7 +1356,14 @@ public int Native_RegisterPerkTree(Handle caller, int numParams)
 
 	g_aPerkTrees.SetArray(perkIndex, perkTree);
 
-	GunXP_RPG_RegisterNavigationRef("Perk Tree", name, globalDescription, perkIndex);
+	enNavigationRef navRef;
+
+	navRef.classification = "Perk Tree";
+	navRef.name = name;
+	navRef.description = globalDescription;
+	navRef.serial = perkIndex;
+
+	RegisterNavigationRef(navRef);
 	
 	return perkIndex;
 }
@@ -1474,7 +1493,15 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 			skill.skillIndex = i;
 			g_aSkills.SetArray(i, skill);
 
-			GunXP_RPG_RegisterNavigationRef("Skill", name, description, i);
+
+			enNavigationRef navRef;
+
+			navRef.classification = "Skill";
+			navRef.name = name;
+			navRef.description = description;
+			navRef.serial = i;
+
+			RegisterNavigationRef(navRef);
 
 			return i;
 		}
@@ -1486,7 +1513,14 @@ public int Native_RegisterSkill(Handle caller, int numParams)
 
 	g_aSkills.SetArray(skillIndex, skill);
 
-	GunXP_RPG_RegisterNavigationRef("Skill", name, description, skillIndex);
+	enNavigationRef navRef;
+
+	navRef.classification = "Perk Tree";
+	navRef.name = name;
+	navRef.description = description;
+	navRef.serial = skillIndex;
+
+	RegisterNavigationRef(navRef);
 
 	return skillIndex;
 }
@@ -1617,7 +1651,14 @@ public int Native_RegisterBuff(Handle caller, int numParams)
 			skill.skillIndex = i;
 			g_aSkills.SetArray(i, skill);
 
-			GunXP_RPG_RegisterNavigationRef("Buff", name, description, i);
+			enNavigationRef navRef;
+
+			navRef.classification = "Buff";
+			navRef.name = name;
+			navRef.description = description;
+			navRef.serial = i;
+
+			RegisterNavigationRef(navRef);
 
 			return i;
 		}
@@ -1629,7 +1670,14 @@ public int Native_RegisterBuff(Handle caller, int numParams)
 
 	g_aSkills.SetArray(skillIndex, skill);
 
-	GunXP_RPG_RegisterNavigationRef("Buff", name, description, skillIndex);
+	enNavigationRef navRef;
+
+	navRef.classification = "Buff";
+	navRef.name = name;
+	navRef.description = description;
+	navRef.serial = skillIndex;
+
+	RegisterNavigationRef(navRef);
 
 	return skillIndex;
 }

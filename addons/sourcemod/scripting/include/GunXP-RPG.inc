@@ -422,13 +422,15 @@ public SharedPlugin __pl_gun_xp_rpg =
 #if !defined REQUIRE_PLUGIN
 public void __pl_gun_xp_rpg_SetNTVOptional()
 {
+	MarkNativeAsOptional("GunXP_RPG_RegisterNavigationRef");
+	MarkNativeAsOptional("GunXP_RPG_IsValidNavigationRef");
+	MarkNativeAsOptional("GunXP_RPG_TriggerNavigationRef");
 	MarkNativeAsOptional("GunXP_RPG_AddClientXP");
 	MarkNativeAsOptional("GunXP_RPG_GetClientLevel");
 	MarkNativeAsOptional("GunXP_RPGShop_RegisterPerkTree");
 	MarkNativeAsOptional("GunXP_RPGShop_IsPerkTreeUnlocked");
 	MarkNativeAsOptional("GunXP_RPGShop_RegisterSkill");
 	MarkNativeAsOptional("GunXP_RPGShop_IsSkillUnlocked");
-	MarkNativeAsOptional("GunXP_RPG_AddClientXP");
 	MarkNativeAsOptional("GunXP_RPG_GetXPForLevel");
 	MarkNativeAsOptional("GunXP_RPG_GetClientLevel");
 	MarkNativeAsOptional("GunXP_RPG_GetClientRealLevel");

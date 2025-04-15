@@ -6,7 +6,7 @@
 #include <smlib>
 #include <ps_api>
 
-#undef REQUIRE_PLUGIN
+//#undef REQUIRE_PLUGIN
 #undef REQUIRE_EXTENSIONS
 #tryinclude <autoexecconfig>
 #include <GunXP-RPG>
@@ -256,14 +256,16 @@ public int Native_RegisterTank(Handle caller, int numParams)
 	{
 		g_aTanks.SetArray(foundIndex, tank);
 
-		GunXP_RPG_RegisterNavigationRef("Tank", name, description, foundIndex);
+		if(LibraryExists("GunXP_RPG"))
+			GunXP_RPG_RegisterNavigationRef("Tank", name, description, foundIndex);
 
 		return foundIndex;
 	}
 
 	foundIndex = g_aTanks.PushArray(tank);
 
-	GunXP_RPG_RegisterNavigationRef("Tank", name, description, foundIndex);
+	if(LibraryExists("GunXP_RPG"))
+		GunXP_RPG_RegisterNavigationRef("Tank", name, description, foundIndex);
 
 	return foundIndex;
 }
@@ -303,7 +305,9 @@ public int Native_RegisterActiveAbility(Handle caller, int numParams)
 	activeAbility.maxCooldown = maxCooldown;
 
 	// We register tankIndex, not abilityIndex.
-	GunXP_RPG_RegisterNavigationRef("Active Ability", name, description, pos);
+
+	if(LibraryExists("GunXP_RPG"))
+		GunXP_RPG_RegisterNavigationRef("Active Ability", name, description, pos);
 
 	if(foundIndex != -1)
 	{
@@ -344,7 +348,8 @@ public int Native_RegisterPassiveAbility(Handle caller, int numParams)
 
 
 	// We register tankIndex, not abilityIndex.
-	GunXP_RPG_RegisterNavigationRef("Passive Ability", name, description, pos);
+	if(LibraryExists("GunXP_RPG"))
+		GunXP_RPG_RegisterNavigationRef("Passive Ability", name, description, pos);
 
 	if(foundIndex != -1)
 	{
